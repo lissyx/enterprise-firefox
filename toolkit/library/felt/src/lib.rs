@@ -429,7 +429,7 @@ impl FeltXPCOM {
                     "FeltXPCOM:tx.send(FeltMessage::VersionValidated({})) err={}",
                     versions_match, err
                 );
-                
+
                 return NS_ERROR_FAILURE;
             }
         };
