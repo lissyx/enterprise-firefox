@@ -1986,6 +1986,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8c02a5121d4ea3eb16a80748c74f5549a5665e4c21333c6098f283870fbdea6"
 
 [[package]]
+name = "felt"
+version = "0.1.0"
+dependencies = [
+ "cookie",
+ "cstr",
+ "ipc-channel",
+ "log",
+ "minreq",
+ "moz_task",
+ "nserror",
+ "nsstring",
+ "serde",
+ "serde_json",
+ "thin-vec",
+ "time",
+ "xpcom",
+]
+
+[[package]]
+name = "felt_ffi"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "felt",
+ "log",
+ "nserror",
+ "xpcom",
+]
+
+[[package]]
 name = "ffi-support"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2582,6 +2612,7 @@ dependencies = [
  "dom_fragmentdirectives",
  "encoding_glue",
  "etagere",
+ "felt_ffi",
  "fluent",
  "fluent-fallback",
  "fluent-ffi",
@@ -3432,6 +3463,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipc-channel"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fb8251fb7bcd9ccd3725ed8deae9fe7db8e586495c9eb5b0c52e6233e5e75ea"
+dependencies = [
+ "bincode",
+ "crossbeam-channel",
+ "fnv",
+ "lazy_static",
+ "libc",
+ "mio",
+ "rand",
+ "serde",
+ "tempfile",
+ "uuid",
+ "windows",
+]
+
+[[package]]
 name = "ipcclientcerts"
 version = "0.1.0"
 dependencies = [
@@ -4155,6 +4205,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7810e0be55b428ada41041c41f32c9f1a42817901b4ccf45fa3d4b6561e74c7"
 dependencies = [
  "adler",
+]
+
+[[package]]
+name = "minreq"
+version = "2.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84885312a86831bff4a3cb04a1e54a3f698407e3274c83249313f194d3e0b678"
+dependencies = [
+ "log",
 ]
 
 [[package]]
