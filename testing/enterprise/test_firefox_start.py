@@ -3,23 +3,40 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import sys
+import configparser
 import os
-import random
-import tempfile
-import time
+import sys
 
-from test_base import EnterpriseTestsBase
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
+from base_test import EnterpriseTestsBase
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.select import Select
+
 
 class EnterpriseTests(EnterpriseTestsBase):
-    def __init__(self, exp, firefox, geckodriver, profile_root):
-        super(__class__, self).__init__(exp, firefox, geckodriver, profile_root)
+    def __init__(self, firefox, geckodriver, profile_root):
+        super(__class__, self).__init__(
+            "firefox_start.json", firefox, geckodriver, profile_root
+        )
+
+    def setup(self):
+        pass
+
+    def teardown(self):
+        pass
+
+    def test_felt_pref_missing_or_disabled(self, exp):
+        self._driver.set_context("chrome")
+        pref_value = self._driver.execute_script(
+            "try { return Services.prefs.getBoolPref('browser.felt.enabled'); } catch { return false; }"
+        )
+        self._logger.info(f"Pref value: {pref_value}")
+        self._driver.set_context("content")
+
+        assert (
+            pref_value == exp["pref_value"]
+        ), f"the browser.felt.enabled pref is {exp['pref_value']}"
+
+        return True
 
     def test_about_support(self, exp):
         self.open_tab("about:support")
@@ -48,5 +65,27 @@ class EnterpriseTests(EnterpriseTestsBase):
         return True
 
 
+# Loaded from mach runner
+if __name__ == "test_firefox_start":
+    this = os.path.dirname(os.path.abspath(__file__))
+
+    app_ini = configparser.ConfigParser()
+    app_ini.read(
+        os.path.join(os.environ.get("TOPOBJDIR"), "dist", "bin", "application.ini")
+    )
+    version = app_ini.get("App", "Version")
+
+    json_in = os.path.join(this, "firefox_start.json.in")
+    json_out = os.path.join(this, "firefox_start.json")
+    with open(json_out, "w") as outfile:
+        with open(json_in) as infile:
+            json_in_content = infile.read()
+            json_in_content_ready = json_in_content.replace(
+                "#RUNTIME_VERSION#", version
+            )
+            outfile.write(json_in_content_ready)
+
 if __name__ == "__main__":
-    EnterpriseTests(exp=sys.argv[1], firefox=sys.argv[2], geckodriver=sys.argv[3], profile_root=sys.argv[4])
+    EnterpriseTests(
+        firefox=sys.argv[1], geckodriver=sys.argv[2], profile_root=sys.argv[3]
+    )

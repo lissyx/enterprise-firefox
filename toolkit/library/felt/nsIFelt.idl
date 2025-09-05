@@ -27,6 +27,9 @@ interface nsIFelt : nsISupports {
   void sendStringPreference(in ACString name, in ACString value);
 
   [must_use]
+  void sendIntPreference(in ACString name, in int32_t value);
+
+  [must_use]
   void sendCookies(in Array<nsICookie> cookies);
 
   [must_use]

@@ -244,7 +244,7 @@ impl FeltClientThread {
 
                             match rx.try_recv_timeout(Duration::from_millis(250)) {
                                 Ok(FeltMessage::Cookie(felt_cookie)) => {
-                                    trace!("FeltClientThread::felt_client::ipc_loop(): received cookie");
+                                    trace!("FeltClientThread::felt_client::ipc_loop(): received cookie: {}", felt_cookie.clone());
                                     utils::inject_one_cookie(felt_cookie);
                                 },
                                 Ok(FeltMessage::BoolPreference((name, value))) => {
@@ -254,6 +254,10 @@ impl FeltClientThread {
                                 Ok(FeltMessage::StringPreference((name, value))) => {
                                     trace!("FeltClientThread::felt_client::ipc_loop(): StringPreference({}, {})", name, value);
                                     utils::inject_string_pref(name, value);
+                                },
+                                Ok(FeltMessage::IntPreference((name, value))) => {
+                                    trace!("FeltClientThread::felt_client::ipc_loop(): IntPreference({}, {})", name, value);
+                                    utils::inject_int_pref(name, value);
                                 },
                                 Ok(FeltMessage::StartupReady) => {
                                     trace!("FeltClientThread::felt_client::ipc_loop(): StartupReady");
@@ -341,6 +345,10 @@ impl FeltXPCOM {
         let mut rv = NS_ERROR_FAILURE;
         let cookies = unsafe { &*cookies };
         trace!("FeltXPCOM:SendCookies processing {}", cookies.len());
+        if cookies.len() == 0 {
+            return NS_OK;
+        }
+
         cookies.iter().flatten().for_each(|x| {
             trace!("FeltXPCOM::SendCookies: oneCookie ....");
             let cookie = utils::nsICookie_to_Cookie(x);
@@ -362,6 +370,12 @@ impl FeltXPCOM {
         let value_s = unsafe { (*value).to_string() };
         trace!("FeltXPCOM::SendStringPreference: {}", name_s);
         self.send(FeltMessage::StringPreference((name_s, value_s)))
+    }
+
+    fn SendIntPreference(&self, name: *const nsACString, value: i32) -> nserror::nsresult {
+        let name_s = unsafe { (*name).to_string() };
+        trace!("FeltXPCOM::SendIntPreference: {}", name_s);
+        self.send(FeltMessage::IntPreference((name_s, value)))
     }
 
     fn SendReady(&self) -> nserror::nsresult {

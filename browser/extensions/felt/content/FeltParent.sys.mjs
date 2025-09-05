@@ -64,6 +64,10 @@ export class FeltParent extends JSWindowActorParent {
             case "string":
               this.felt.sendStringPreference(name, value);
               break;
+
+            case "number":
+              this.felt.sendIntPreference(name, value);
+              break;
           }
         });
         this.felt.sendCookies(this.getAllCookies());
@@ -112,10 +116,8 @@ export class FeltParent extends JSWindowActorParent {
       const profilePath = Services.prefs.getStringPref(
         "browser.felt.profile_path"
       );
-      return [
-        "--profile",
-        Services.prefs.getStringPref("browser.felt.profile_path"),
-      ];
+      console.debug(`Felt: profilePath=${profilePath}`);
+      return ["--profile", profilePath];
     } catch {
       return ["-P", "enterprise-profile"];
     }
@@ -160,8 +162,18 @@ export class FeltParent extends JSWindowActorParent {
         }
       }
 
+      let extraRunArgs = [];
+      if (Services.prefs.getBoolPref("browser.felt.is_testing", false)) {
+        extraRunArgs = [
+          "--marionette",
+          "--remote-allow-hosts",
+          "localhost",
+          "--remote-allow-system-access",
+        ];
+      }
+
       const firefoxRunArgs = ["-no-remote", "-felt", socket].concat(
-        this.getProfileArgs()
+        this.getProfileArgs().concat(extraRunArgs)
       );
 
       const firefoxRun = {
@@ -169,8 +181,8 @@ export class FeltParent extends JSWindowActorParent {
         arguments: firefoxRunArgs,
         stdout: "stdout",
         stderr: "stderr",
-        // environmentAppend: true,
-        // environment: env,
+        /* environmentAppend: true,
+        environment: env, */
       };
 
       this.proc = await lazy.Subprocess.call(firefoxRun)

@@ -13,53 +13,73 @@ use time::OffsetDateTime;
 use log::trace;
 
 pub fn inject_one_cookie(raw_cookie: String) {
+    trace!("inject_one_cookie() raw_cookie:{:?}", raw_cookie.clone());
     match cookie::Cookie::parse(raw_cookie) {
         Ok(cookie) => {
             let cookie2 = cookie.clone();
-            let cookie_name = cookie2.name();
-            trace!("inject_one_cookie() name:{}", cookie_name);
+            trace!("inject_one_cookie() name:{} value:{} domain:{:?} path:{:?}", cookie2.name(), cookie2.value(), cookie2.domain(), cookie2.path());
             do_main_thread("felt_inject_one_cookie", async move {
 
-                let host: nsCString = cookie.domain().unwrap().into();
-                let path: nsCString = cookie.path().unwrap().into();
+                let host: nsCString = cookie.domain().unwrap_or("").into();
+                let path: nsCString = cookie.path().unwrap_or("").into();
                 let name: nsCString = cookie.name().into();
                 let value: nsCString = cookie.value().into();
-                let expiry: i64 = cookie
-                    .expires()
-                    .unwrap()
-                    .datetime()
-                    .unwrap()
-                    .unix_timestamp()
-                    * 1000;
+                let expiry: i64 = if let Some(exp) = cookie.expires() {
+                    exp
+                        .datetime()
+                        .unwrap()
+                        .unix_timestamp() * 1000
+                } else {
+                    0
+                };
+                trace!("inject_one_cookie() expiry:{:?}", expiry);
+
+                let is_secure = cookie.secure().unwrap_or(false);
+                trace!("inject_one_cookie() is_secure:{}", is_secure);
+
+                let is_http_only = cookie.http_only().unwrap_or(false);
+                trace!("inject_one_cookie() is_http_only:{}", is_http_only);
+
+                let same_site = match cookie.same_site() {
+                    Some(cookie::SameSite::Strict) => nsICookie::SAMESITE_STRICT,
+                    Some(cookie::SameSite::Lax) => nsICookie::SAMESITE_LAX,
+                    Some(cookie::SameSite::None) => nsICookie::SAMESITE_NONE,
+                    _ => nsICookie::SAMESITE_NONE,
+                }
+                .try_into()
+                .unwrap();
+                trace!("inject_one_cookie() cookie.same_site():{:?}", cookie.same_site());
+                trace!("inject_one_cookie() same_site:{:?}", same_site);
+
+                let is_session = cookie.expires().unwrap_or(cookie::Expiration::from(None)).is_session();
+                trace!("inject_one_cookie() is_session:{}", is_session);
 
                 let cookie_manager = xpcom::get_service::<nsICookieManager>(cstr!("@mozilla.org/cookiemanager;1")).unwrap();
-
-                unsafe {
+                let rv = unsafe {
                     cookie_manager.AddNativeForFelt(
                         &*host,
                         &*path,
                         &*name,
                         &*value,
-                        cookie.secure().unwrap_or(false),
-                        cookie.http_only().unwrap_or(false),
-                        cookie.expires().unwrap().is_session(),
+                        is_secure,
+                        is_http_only,
+                        is_session,
                         expiry,
-                        match cookie.same_site() {
-                            Some(cookie::SameSite::Strict) => nsICookie::SAMESITE_STRICT,
-                            Some(cookie::SameSite::Lax) => nsICookie::SAMESITE_LAX,
-                            Some(cookie::SameSite::None) => nsICookie::SAMESITE_NONE,
-                            _ => nsICookie::SAMESITE_NONE,
-                        }
-                        .try_into()
-                        .unwrap(),
+                        same_site,
                         nsICookie::SCHEME_UNSET,
                         false, // cookie.partitioned().unwrap(), NOT IN cookie 0.16 crate
                     )
                 };
+
+                if rv == NS_OK {
+                  trace!("inject_one_cookie() AddNativeForFelt({}) SUCCESS", cookie.name());
+                } else {
+                  trace!("inject_one_cookie() AddNativeForFelt({}) FAILED: {}", cookie.name(), rv);
+                }
             });
         }
         Err(err) => {
-            trace!("FeltThread::felt_client::ipc_loop() PARSE ERROR: {}", err);
+            trace!("inject_one_cookie(): PARSE ERROR: {}", err);
         }
     }
 }
@@ -85,6 +105,18 @@ pub fn inject_string_pref(name: String, value: String) {
             trace!("inject_string_pref(): StringPreference({}, {}) NS_OK", name, value);
         } else {
             trace!("inject_string_pref(): StringPreference({}, {}) ERROR", name, value);
+        }
+    });
+}
+
+pub fn inject_int_pref(name: String, value: i32) {
+    do_main_thread("felt_inject_int_pref", async move {
+        let c_name = CString::new(name.clone()).unwrap().into_raw();
+        let prefs: RefPtr<nsIPrefBranch> = xpcom::components::Preferences::service().unwrap();
+        if unsafe { prefs.SetIntPref(c_name, value) } == NS_OK {
+            trace!("inject_int_pref(): IntPreference({}, {}) NS_OK", name, value);
+        } else {
+            trace!("inject_int_pref(): IntPreference({}, {}) ERROR", name, value);
         }
     });
 }
@@ -160,12 +192,12 @@ pub fn nsICookie_to_Cookie(cookie: &RefPtr<nsICookie>) -> cookie::Cookie {
     }
     rv.set_path(path.to_string());
 
-    let same_site: u32 = nsICookie::SAMESITE_UNSET;
+    let mut same_site: i32 = 42;
     unsafe {
-        cookie.GetSameSite(&mut (same_site as i32));
+        cookie.GetSameSite(&mut same_site);
     }
 
-    let val_same_site = match same_site {
+    let val_same_site = match same_site as u32 {
         nsICookie::SAMESITE_STRICT => Some(cookie::SameSite::Strict),
         nsICookie::SAMESITE_LAX => Some(cookie::SameSite::Lax),
         nsICookie::SAMESITE_NONE => Some(cookie::SameSite::None),

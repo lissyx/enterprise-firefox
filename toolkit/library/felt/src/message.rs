@@ -12,6 +12,7 @@ pub enum FeltMessage {
     Cookie(String),
     BoolPreference((String, bool)),
     StringPreference((String, String)),
+    IntPreference((String, i32)),
     StartupReady,
     RestartForced,
     Restarting,

@@ -242,9 +242,9 @@ this.felt = class extends ExtensionAPI {
 
     Services.ww.registerNotification(windowObserver);
 
-    // Required to make sure that things are starting properly
-    Services.obs.notifyObservers(this._win, "browser-delayed-startup-finished");
-    Services.obs.notifyObservers(this._win, "extensions-late-startup");
+    // The window will send notifyObservers() itself. This is required
+    // to make sure things are starting properly, including registration
+    // of browsers with Marionette
   }
 
   onShutdown(isAppShutdown) {

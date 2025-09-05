@@ -9,6 +9,7 @@ import io
 import json
 import os
 import subprocess
+import shutil
 import sys
 import tempfile
 import time
@@ -29,14 +30,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 class EnterpriseTestsBase:
     _INSTANCE = None
 
-    def __init__(self, exp, firefox, geckodriver, profile_root):
+    def __init__(self, exp, firefox, geckodriver, profile_root, extra_cli_args=[], extra_prefs=None, dont_maximize=False):
         self._EXE_PATH = rf"{geckodriver}"
         self._BIN_PATH = rf"{firefox}"
 
-        profile_path = tempfile.mkdtemp(
-            prefix="enterprise-tests",
-            dir=os.path.expanduser(profile_root),
-        )
+        self._profile_root = profile_root
 
         driver_service_args = []
         if self.need_allow_system_access():
@@ -50,6 +48,11 @@ class EnterpriseTestsBase:
             service_args=driver_service_args,
         )
 
+        self._logger = structuredlog.StructuredLogger(self.__class__.__name__)
+        self._logger.add_handler(
+            handlers.StreamHandler(sys.stdout, formatters.TbplFormatter())
+        )
+
         options = Options()
         if "TEST_GECKODRIVER_TRACE" in os.environ.keys():
             options.log.level = "trace"
@@ -60,14 +63,21 @@ class EnterpriseTestsBase:
             os.environ["MOZ_LOG_FILE"] = os.path.join(
                 os.environ.get("ARTIFACT_DIR"), "gecko.log"
             )
+
+        profile_path = self.get_profile_path(name="enterprise-tests")
         options.add_argument("-profile")
         options.add_argument(profile_path)
-        self._driver = webdriver.Firefox(service=driver_service, options=options)
 
-        self._logger = structuredlog.StructuredLogger(self.__class__.__name__)
-        self._logger.add_handler(
-            handlers.StreamHandler(sys.stdout, formatters.TbplFormatter())
-        )
+        if extra_prefs:
+            self._logger.info(f"Setting extra prefs at {profile_path}")
+            with open(os.path.join(profile_path, "user.js"), "w") as user_pref:
+                for pref in extra_prefs:
+                    user_pref.write(f'user_pref("{pref[0]}", "{pref[1]}");\n')
+
+        for arg in extra_cli_args:
+            options.add_argument(arg)
+
+        self._driver = webdriver.Firefox(service=driver_service, options=options)
 
         test_filter = "test_{}".format(os.environ.get("TEST_FILTER", ""))
         object_methods = [
@@ -82,21 +92,29 @@ class EnterpriseTestsBase:
         self._update_channel = None
         self._version_major = None
 
-        self._driver.maximize_window()
+        if not dont_maximize:
+            self._driver.maximize_window()
 
         self._wait = WebDriverWait(self._driver, self.get_timeout())
         self._longwait = WebDriverWait(self._driver, 60)
 
-        with open(exp) as j:
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(this_dir, exp)) as j:
             self._expectations = json.load(j)
 
         # exit code ; will be set to 1 at first assertion failure
         ec = 0
-        first_tab = self._driver.window_handles[0]
+        try:
+            first_tab = self._driver.window_handles[0]
+        except:
+            first_tab = None
         channel = self.update_channel()
         self._logger.info(f"Channel: {channel}")
 
+        self.setup()
+
         for m in object_methods:
+            self._logger.info(f"Running method {m}")
             tabs_before = set()
             tabs_after = set()
             self._logger.test_start(m)
@@ -105,10 +123,12 @@ class EnterpriseTestsBase:
                 if not channel in self._expectations[m]
                 else self._expectations[m][channel]
             )
-            self._driver.switch_to.window(first_tab)
+            if first_tab:
+                self._driver.switch_to.window(first_tab)
 
             try:
                 tabs_before = set(self._driver.window_handles)
+                self._logger.info(f"Calling method {m}")
                 rv = getattr(self, m)(expectations)
                 assert rv is not None, "test returned no value"
 
@@ -129,12 +149,31 @@ class EnterpriseTestsBase:
                     test_status = "TIMEOUT"
 
                 test_message = repr(ex)
-                self._driver.switch_to.parent_frame()
+                self.save_screenshot(
+                    f"screenshot_{m.lower()}_{test_status.lower()}.png"
+                )
+                self.save_screenshot_child(
+                    f"screenshot_{m.lower()}_{test_status.lower()}_childBrowser.png"
+                )
+                try:
+                    self._driver.switch_to.parent_frame()
+                    self.save_screenshot(
+                        f"screenshot_{m.lower()}_{test_status.lower()}_parent.png"
+                    )
+                    self.save_screenshot_child(
+                        f"screenshot_{m.lower()}_{test_status.lower()}_parent_childBrowser.png"
+                    )
+                except Exception:
+                    self._logger.info("Failed to switch to parent frame for screenshot.")
+
                 self._logger.test_end(m, status=test_status, message=test_message)
                 traceback.print_exc()
 
-                tabs_after = set(self._driver.window_handles)
-                self._logger.info(f"tabs_after EXCEPTION {tabs_after}")
+                try:
+                    tabs_after = set(self._driver.window_handles)
+                    self._logger.info(f"tabs_after EXCEPTION {tabs_after}")
+                except Exception:
+                    self._logger.info("Failed to get tab list after exception.")
             finally:
                 self._logger.info(f"tabs_before {tabs_before}")
                 tabs_opened = tabs_after - tabs_before
@@ -153,21 +192,58 @@ class EnterpriseTestsBase:
                     self._wait.until(
                         EC.number_of_windows_to_be(len(tabs_after) - closed)
                     )
+                if first_tab:
+                    self._driver.switch_to.window(first_tab)
 
-                self._driver.switch_to.window(first_tab)
+        self.teardown()
 
         if not "TEST_NO_QUIT" in os.environ.keys():
             self._driver.quit()
 
         self._logger.info(f"Exiting with {ec}")
         self._logger.suite_end()
+
+        shutil.rmtree(profile_path, ignore_errors=True)
+
         sys.exit(ec)
+
+    def get_screenshot_destination(self, name):
+        final_name = name
+        if "MOZ_AUTOMATION" in os.environ.keys():
+            final_name = os.path.join(os.environ.get("ARTIFACT_DIR"), name)
+        return final_name
+
+    def save_screenshot(self, name):
+        final_name = self.get_screenshot_destination(name)
+        self._logger.info(f"Saving screenshot '{name}' to '{final_name}'")
+        try:
+            self._driver.save_screenshot(final_name)
+        except WebDriverException as ex:
+            self._logger.info(f"Saving screenshot FAILED due to {ex}")
+
+    def save_screenshot_child(self, name):
+        if not hasattr(self, "_child_driver"):
+            self._logger.info(f"No child browser to save screenshot '{name}' to '{final_name}'")
+            return
+
+        final_name = self.get_screenshot_destination(name)
+        self._logger.info(f"Saving child browser screenshot '{name}' to '{final_name}'")
+        try:
+            self._child_driver.save_screenshot(final_name)
+        except WebDriverException as ex:
+            self._logger.info(f"Saving child browser screenshot FAILED due to {ex}")
 
     def get_timeout(self):
         if "TEST_TIMEOUT" in os.environ.keys():
             return int(os.getenv("TEST_TIMEOUT"))
         else:
             return 5
+
+    def get_profile_path(self, name):
+        return tempfile.mkdtemp(
+            prefix=name,
+            dir=os.path.expanduser(self._profile_root),
+        )
 
     def open_tab(self, url):
         opened_tabs = len(self._driver.window_handles)
@@ -178,11 +254,59 @@ class EnterpriseTestsBase:
 
         return self._driver.current_window_handle
 
+    def open_tab_child(self, url):
+        opened_tabs = len(self._child_driver.window_handles)
+
+        self._child_driver.switch_to.new_window("tab")
+        self._child_wait.until(EC.number_of_windows_to_be(opened_tabs + 1))
+        self._child_driver.get(url)
+
+        return self._driver.current_window_handle
+
     def need_allow_system_access(self):
         geckodriver_output = subprocess.check_output(
             [self._EXE_PATH, "--help"]
         ).decode()
         return "--allow-system-access" in geckodriver_output
+
+    def connect_child_browser(self):
+        marionette_port_file = os.path.join(self._child_profile_path, "MarionetteActivePort")
+
+        found_marionette_port = False
+        tries = 0
+        max_try = 100
+        while (not found_marionette_port) and (tries < max_try):
+            tries += 1
+            found_marionette_port = os.path.isfile(marionette_port_file)
+            time.sleep(0.5)
+
+        marionette_port = 0
+        with open(marionette_port_file) as infile:
+            marionette_port = int(infile.read())
+
+        assert marionette_port > 0, "Valid marionette port"
+        self._logger.info(f"Marionette PORT: {marionette_port}")
+
+        driver_service_args = ["--allow-system-access", "--connect-existing", "--marionette-port", str(marionette_port)]
+        driver_service = Service(
+            executable_path=self._EXE_PATH,
+            log_output="geckodriver_child.log",
+            service_args=driver_service_args,
+        )
+
+        options = Options()
+        options.log.level = "trace"
+
+        new_marionette_port = 0
+        with open(marionette_port_file) as infile:
+            new_marionette_port = int(infile.read())
+
+        self._logger.info(f"Marionette PORT NEW: {new_marionette_port}")
+        assert marionette_port == new_marionette_port, "STILL Valid marionette port"
+
+        self._child_driver = webdriver.Firefox(service=driver_service, options=options)
+        self._child_wait = WebDriverWait(self._child_driver, self.get_timeout())
+        self._child_longwait = WebDriverWait(self._child_driver, 60)
 
     def update_channel(self):
         if self._update_channel is None:
