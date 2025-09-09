@@ -126,6 +126,8 @@ class nsStyleChangeList;
 class nsViewManager;
 class nsWindowSizes;
 
+enum class AttrModType : uint8_t;  // Defined by nsIMutationObserver.h
+
 struct CharacterDataChangeInfo;
 
 namespace mozilla {
@@ -2588,10 +2590,10 @@ class nsIFrame : public nsQueryFrame {
    * @param aNameSpaceID the namespace of the attribute
    * @param aAttribute the atom name of the attribute
    * @param aModType Whether or not the attribute was added, changed, or
-   * removed. The constants are defined in MutationEvent.webidl.
+   * removed.
    */
   virtual nsresult AttributeChanged(int32_t aNameSpaceID, nsAtom* aAttribute,
-                                    int32_t aModType);
+                                    AttrModType aModType);
 
   /**
    * When the element states of mContent change, this method is invoked on the
@@ -3736,13 +3738,6 @@ class nsIFrame : public nsQueryFrame {
    * Note that very few frames are, so default to false.
    */
   virtual bool IsFloatContainingBlock() const { return false; }
-
-  /**
-   * If this frame is absolute positioned, attempts to lookup and return the
-   * Archor Positioning anchor given by aAnchorSpec.
-   * https://drafts.csswg.org/css-anchor-position-1/#target
-   */
-  nsIFrame* FindAnchorPosAnchor(const nsAtom* aAnchorSpec) const;
 
   /**
    * Marks all display items created by this frame as needing a repaint,

@@ -7703,7 +7703,7 @@ nsresult nsIFrame::CharacterDataChanged(const CharacterDataChangeInfo&) {
 }
 
 nsresult nsIFrame::AttributeChanged(int32_t aNameSpaceID, nsAtom* aAttribute,
-                                    int32_t aModType) {
+                                    AttrModType) {
   return NS_OK;
 }
 
@@ -8731,14 +8731,6 @@ nsIFrame* nsIFrame::GetContainingBlock(
     f = f->GetParent();
   }
   return f;
-}
-
-nsIFrame* nsIFrame::FindAnchorPosAnchor(const nsAtom* aAnchorSpec) const {
-  if (!StyleDisplay()->IsAbsolutelyPositionedStyle()) {
-    return nullptr;
-  }
-
-  return PresShell()->GetAnchorPosAnchor(aAnchorSpec, this);
 }
 
 #ifdef DEBUG_FRAME_DUMP

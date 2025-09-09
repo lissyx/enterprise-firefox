@@ -7472,7 +7472,7 @@ end = "2024-04-25"
 criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-04-23"
-end = "2024-05-30"
+end = "2026-09-05"
 
 [[trusted.quote]]
 criteria = "safe-to-deploy"
@@ -7580,7 +7580,7 @@ end = "2024-05-06"
 criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-03-01"
-end = "2025-07-04"
+end = "2026-09-05"
 
 [[trusted.termcolor]]
 criteria = "safe-to-deploy"
