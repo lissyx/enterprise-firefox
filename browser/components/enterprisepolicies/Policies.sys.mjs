@@ -359,6 +359,8 @@ export var Policies = {
       if (param) {
         blockAboutPage(manager, "about:config");
         setAndLockPref("devtools.chrome.enabled", false);
+      } else {
+        unblockAboutPage(manager, "about:config");
       }
     },
   },
@@ -3200,14 +3202,35 @@ function clearBlockedAboutPages() {
 
 function blockAboutPage(manager, feature) {
   addChromeURLBlocker();
-  gBlockedAboutPages.push(feature);
+  if (!gBlockedAboutPages.includes(feature)) {
+    gBlockedAboutPages.push(feature);
+  }
 
   try {
     let aboutModule = Cc[ABOUT_CONTRACT + feature.split(":")[1]].getService(
       Ci.nsIAboutModule
     );
     let chromeURL = aboutModule.getChromeURI(Services.io.newURI(feature)).spec;
-    gBlockedAboutPages.push(chromeURL);
+    if (!gBlockedAboutPages.includes(chromeURL)) {
+      gBlockedAboutPages.push(chromeURL);
+    }
+  } catch (e) {
+    // Some about pages don't have chrome URLS (compat)
+  }
+}
+
+function unblockAboutPage(manager, feature) {
+  addChromeURLBlocker();
+  let idx = gBlockedAboutPages.indexOf(feature);
+  gBlockedAboutPages.splice(idx, 1);
+
+  try {
+    let aboutModule = Cc[ABOUT_CONTRACT + feature.split(":")[1]].getService(
+      Ci.nsIAboutModule
+    );
+    let chromeURL = aboutModule.getChromeURI(Services.io.newURI(feature)).spec;
+    let idxChrome = gBlockedAboutPages.indexOf(chromeURL);
+    gBlockedAboutPages.splice(idxChrome, 1);
   } catch (e) {
     // Some about pages don't have chrome URLS (compat)
   }

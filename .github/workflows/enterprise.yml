@@ -15,7 +15,12 @@ jobs:
         with:
           sparse-checkout: |
             testing/enterprise/
+            python/sites/enterprise-tests.txt
           sparse-checkout-cone-mode: false
+
+      - name: "generate requirements.txt"
+        run: |
+          grep "^pypi:" python/sites/enterprise-tests.txt | sed -e "s/^pypi://g" > testing/enterprise/requirements.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -44,6 +49,7 @@ jobs:
         uses: ./.github/actions/create-vm
         with:
           instance_kind: "linux-build"
+          gcp_machine_type: "c4d-highcpu-48"
           extra_labels: "build,LinuxNative"
           gcp_credentials: "${{ secrets.GCP_CREDENTIALS }}"
           github_runner_token: "${{ secrets.GH_RUNNER_TOKEN }}"
@@ -94,8 +100,7 @@ jobs:
         uses: ./.github/actions/create-vm
         with:
           instance_kind: "linux-test"
-          gcp_machine_type: "c4d-standard-2"
-          gcp_provisioning_model: "STANDARD"
+          gcp_machine_type: "c4d-highcpu-2"
           extra_labels: "test,LinuxNative"
           gcp_credentials: "${{ secrets.GCP_CREDENTIALS }}"
           github_runner_token: "${{ secrets.GH_RUNNER_TOKEN }}"
@@ -186,13 +191,28 @@ jobs:
           . venv_tests/bin/activate
           pip3 install -r requirements.txt
 
-      - name: "run tests"
+      - name: "test firefox start"
         run: |
           RUNTIME_VERSION=$(${{ steps.unpack.outputs.runtime_path }} --version | awk '{ print $3 }')
-          sed -e "s/#RUNTIME_VERSION#/${RUNTIME_VERSION}/g" < expectations.json.in > expectations.json
+          sed -e "s/#RUNTIME_VERSION#/${RUNTIME_VERSION}/g" < firefox_start.json.in > firefox_start.json
           mkdir -p ./profiles/
           . venv_tests/bin/activate
-          python3 test_firefox_start.py expectations.json ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+          python3 test_firefox_start.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
+      - name: "test felt"
+        run: |
+          mkdir -p ./profiles/
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_start.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-tests-results
+          path: |
+            geckodriver.log
+            screenshot_*.png
+          compression-level: 0
+        if: "always()"
 
   windows-build-vm:
     runs-on: ubuntu-24.04
@@ -215,6 +235,7 @@ jobs:
         uses: ./.github/actions/create-vm
         with:
           instance_kind: "windows-build"
+          gcp_machine_type: "c4d-highcpu-48"
           extra_labels: "build,WinCross"
           gcp_credentials: "${{ secrets.GCP_CREDENTIALS }}"
           github_runner_token: "${{ secrets.GH_RUNNER_TOKEN }}"
@@ -265,8 +286,7 @@ jobs:
         uses: ./.github/actions/create-vm
         with:
           instance_kind: "windows-test"
-          gcp_machine_type: "c4d-standard-2"
-          gcp_provisioning_model: "STANDARD"
+          gcp_machine_type: "c4d-highcpu-2"
           gcp_disk_size: "100"
           gcp_disk_source: "disk-2025-dc-v20250813-20250902102015"
           gcp_metadata_startup: "--metadata-from-file=windows-startup-script-ps1=./repo-checkout/.github/workflows/windows-startup.ps1"
@@ -351,28 +371,46 @@ jobs:
         run: |
           $zipFile = Get-ChildItem -Path .\obj-*\dist\firefox-*.win64.zip | Select-Object -First 1 -ExpandProperty FullName
           C:\mozilla-build\bin\unzip.exe $zipFile
+          $firefoxPath = Get-ChildItem -Path .\firefox\firefox.exe | Select-Object -First 1 -ExpandProperty FullName
+          echo "firefox_path=$firefoxPath" >> $Env:GITHUB_OUTPUT
+
+          Invoke-WebRequest -Uri https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-win32.zip -OutFile geckodriver-v0.36.0-win32.zip
+          C:\mozilla-build\bin\unzip.exe geckodriver-v0.36.0-win32.zip
+          $geckodriverPath = Join-Path -Path $PWD -ChildPath "geckodriver.exe"
+          echo "geckodriver_path=$geckodriverPath" >> $Env:GITHUB_OUTPUT
+
+          $profilesPath = Join-Path -Path $PWD -ChildPath "profiles"
+          New-Item -ItemType Directory -Force -Path $profilesPath
+          echo "profiles_path=$profilesPath" >> $Env:GITHUB_OUTPUT
 
       - name: "install python"
         run: |
           python3 -m venv venv_tests
-
-      - name: "install deps"
-        run: |
-          Invoke-WebRequest -Uri https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-win32.zip -OutFile geckodriver-v0.36.0-win32.zip
-          C:\mozilla-build\bin\unzip.exe geckodriver-v0.36.0-win32.zip
           . venv_tests\Scripts\activate
           pip3 install -r requirements.txt
 
-      - name: "run tests"
+      - name: "test firefox start"
         run: |
-          $firefoxPath = Get-ChildItem -Path .\firefox\firefox.exe | Select-Object -First 1 -ExpandProperty FullName
-          $geckodriverPath = Join-Path -Path $PWD -ChildPath "geckodriver.exe"
-          $profilesPath = Join-Path -Path $PWD -ChildPath "profiles"
           $runtimeVersion = (Get-Content ".\firefox\application.ini") -match "^Version=" | ForEach-Object { $_.Split('=')[1] }
-          (Get-Content expectations.json.in) -replace '#RUNTIME_VERSION#', $runtimeVersion | Set-Content expectations.json
+          (Get-Content firefox_start.json.in) -replace '#RUNTIME_VERSION#', $runtimeVersion | Set-Content firefox_start.json
+          . venv_tests\Scripts\activate
+          python3 test_firefox_start.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test felt"
+        run: |
           New-Item -ItemType Directory -Force -Path .\profiles
           . venv_tests\Scripts\activate
-          python3 test_firefox_start.py expectations.json $firefoxPath $geckodriverPath $profilesPath
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_start.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests-results
+          path: |
+            screenshot_*.png
+            geckodriver.log
+          compression-level: 0
+        if: "always()"
 
   macOS-build-vm:
     runs-on: ubuntu-24.04
@@ -478,7 +516,7 @@ jobs:
         id: attach
         run: |
           MOUNT_DIR=$(hdiutil attach ./obj-aarch64-apple-darwin/dist/firefox-144.0a1.en-US.mac.dmg | grep "/Volumes" | sed -e "s/.*\/Volumes/\/Volumes/g")
-          ls -hal "${MOUNT_DIR}"/Firefox.app/Contents/MacOS/firefox
+          ls -halR "${MOUNT_DIR}"
           echo "mount_dir='${MOUNT_DIR}'" >> "$GITHUB_OUTPUT"
           RUNTIME_PATH=$(find "${MOUNT_DIR}" -type f -name "firefox")
           echo "runtime_path=$RUNTIME_PATH" >> "$GITHUB_OUTPUT"
@@ -493,13 +531,28 @@ jobs:
           . venv_tests/bin/activate
           pip3 install -r requirements.txt
 
-      - name: "run tests"
+      - name: "test firefox start"
         run: |
           RUNTIME_VERSION=$("${{ steps.attach.outputs.runtime_path }}" --version | awk '{ print $3 }')
-          sed -e "s/#RUNTIME_VERSION#/${RUNTIME_VERSION}/g" < expectations.json.in > expectations.json
+          sed -e "s/#RUNTIME_VERSION#/${RUNTIME_VERSION}/g" < firefox_start.json.in > firefox_start.json
           mkdir -p ./profiles/
           . venv_tests/bin/activate
-          python3 test_firefox_start.py expectations.json "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+          python3 test_firefox_start.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
+      - name: "test felt"
+        run: |
+          mkdir -p ./profiles/
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_start.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-tests-results
+          path: |
+            geckodriver.log
+            screenshot_*.png
+          compression-level: 0
+        if: "always()"
 
       - name: "detach"
         if: "always()"
