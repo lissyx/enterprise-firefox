@@ -199,11 +199,25 @@ jobs:
           . venv_tests/bin/activate
           python3 test_firefox_start.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
 
-      - name: "test felt"
+      - name: "test browser starts from felt"
         run: |
-          mkdir -p ./profiles/
           . venv_tests/bin/activate
-          MOZ_LOG=console:5 python3 test_felt_start.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+          MOZ_LOG=console:5 python3 test_felt_browser_starts.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser about:config is blocked"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_about_config_blocked.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser restart is a quit"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_restart_is_quit.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser restart works"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_restart_works.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -396,12 +410,29 @@ jobs:
           . venv_tests\Scripts\activate
           python3 test_firefox_start.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
 
-      - name: "test felt"
+      - name: "test browser starts from felt"
         run: |
-          New-Item -ItemType Directory -Force -Path .\profiles
           . venv_tests\Scripts\activate
           $Env:MOZ_LOG="console:5"
-          python3 test_felt_start.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+          python3 test_felt_browser_starts.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test browser about:config is blocked"
+        run: |
+          . venv_tests\Scripts\activate
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_browser_about_config_blocked.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test browser restart is a quit"
+        run: |
+          . venv_tests\Scripts\activate
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_browser_restart_is_quit.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test browser restart works"
+        run: |
+          . venv_tests\Scripts\activate
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_browser_restart_works.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -502,6 +533,11 @@ jobs:
     needs: [ macOS-build-opt, package-tests ]
 
     steps:
+      - name: "clean state"
+        id: clean
+        run: |
+          rm -fr ./*
+
       - name: "download firefox build"
         uses: actions/download-artifact@v5
         with:
@@ -515,8 +551,9 @@ jobs:
       - name: "attach"
         id: attach
         run: |
-          MOUNT_DIR=$(hdiutil attach ./obj-aarch64-apple-darwin/dist/firefox-144.0a1.en-US.mac.dmg | grep "/Volumes" | sed -e "s/.*\/Volumes/\/Volumes/g")
-          ls -halR "${MOUNT_DIR}"
+          DMG_FILE=$(find ./obj-aarch64-apple-darwin/dist -type f -name "firefox*.dmg")
+          MOUNT_DIR=$(hdiutil attach "${DMG_FILE}" | grep "/Volumes" | sed -e "s/.*\/Volumes/\/Volumes/g")
+          echo "Mounted ${DMG_FILE} at ${MOUNT_DIR}"
           echo "mount_dir='${MOUNT_DIR}'" >> "$GITHUB_OUTPUT"
           RUNTIME_PATH=$(find "${MOUNT_DIR}" -type f -name "firefox")
           echo "runtime_path=$RUNTIME_PATH" >> "$GITHUB_OUTPUT"
@@ -539,11 +576,25 @@ jobs:
           . venv_tests/bin/activate
           python3 test_firefox_start.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
 
-      - name: "test felt"
+      - name: "test browser starts from felt"
         run: |
-          mkdir -p ./profiles/
           . venv_tests/bin/activate
-          MOZ_LOG=console:5 python3 test_felt_start.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+          MOZ_LOG=console:5 python3 test_felt_browser_starts.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser about:config is blocked"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_about_config_blocked.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser restart is a quit"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_restart_is_quit.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
+      - name: "test browser restart works"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_restart_works.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -557,4 +608,6 @@ jobs:
       - name: "detach"
         if: "always()"
         run: |
-          hdiutil unmount ${{ steps.attach.outputs.mount_dir }}
+          pkill -f "${{ steps.attach.outputs.runtime_path }}"
+          hdiutil unmount -force -whole ${{ steps.attach.outputs.mount_dir }}
+          rm -fr ./obj-aarch64-apple-darwin/
