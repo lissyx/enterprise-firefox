@@ -13,7 +13,6 @@ import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from multiprocessing import Process, Value
 
-import portpicker
 import requests
 from base_test import EnterpriseTestsBase
 from selenium.common.exceptions import WebDriverException
@@ -205,7 +204,8 @@ def serve(
 
 
 class FeltTests(EnterpriseTestsBase):
-    def __init__(self, firefox, geckodriver, profile_root, console, sso_server):
+    def __init__(self, json, firefox, geckodriver, profile_root, console, sso_server, test_prefs=[]):
+        self._manually_closed_child = False
         self.console_port = console
         self.sso_port = sso_server
         self.policy_block_about_config = Value("B", 1)
@@ -246,10 +246,10 @@ class FeltTests(EnterpriseTestsBase):
                 "browser.felt.redirect_after_sso",
                 f"http://localhost:{self.sso_port}/redirect_after_sso",
             ],
-        ]
+        ] + test_prefs
 
         super(__class__, self).__init__(
-            "felt_start.json",
+            json,
             firefox,
             geckodriver,
             profile_root,
@@ -298,6 +298,16 @@ class FeltTests(EnterpriseTestsBase):
         self.set_felt_window()
 
     def teardown(self):
+        if not self._manually_closed_child:
+            self._logger.info("Closing browser")
+            self._child_driver.set_context("chrome")
+            self._child_driver.execute_script(
+                "Services.startup.quit(Ci.nsIAppStartup.eForceQuit);"
+            )
+            self._logger.info("Closed browser")
+        else:
+            self._logger.info("Browser was already manually closed.")
+
         print("Shutting down console")
         requests.post(f"http://localhost:{self.console_port}/:shutdown", timeout=2)
         print("Shutting down SSO")
@@ -394,17 +404,6 @@ class FeltTests(EnterpriseTestsBase):
         return True
 
     def test_felt_2_redirect_after_sso(self, exp):
-        self._logger.info(
-            f"Checking redirection after SSO ... Waiting for URL: http://localhost:{self.sso_port}/redirect_after_sso"
-        )
-        self._wait.until(
-            EC.url_to_be(f"http://localhost:{self.sso_port}/redirect_after_sso")
-        )
-
-        self._logger.info("On landing page")
-        new_page = self.get_elem("h1")
-        assert new_page.text == "New page", "Landing page loaded"
-
         expected_cookie = list(
             filter(
                 lambda x: x["name"] == self.cookie_name
@@ -415,103 +414,3 @@ class FeltTests(EnterpriseTestsBase):
         assert len(expected_cookie) == 1, f"Cookie {self.cookie_name} was properly set"
 
         return True
-
-    def test_felt_3_firefox_started(self, exp):
-        self.connect_child_browser()
-        self.open_tab_child(f"http://localhost:{self.sso_port}/sso_page")
-
-        expected_cookie = list(
-            filter(
-                lambda x: x["name"] == self.cookie_name
-                and x["value"] == self.cookie_value,
-                self._child_driver.get_cookies(),
-            )
-        )
-        assert (
-            len(expected_cookie) == 1
-        ), f"Cookie {self.cookie_name} was properly set on Firefox started by FELT"
-
-        return True
-
-    def test_felt_4_about_config_allowed_in_felt(self, exp):
-        self._driver.get("about:config")
-        warning = self.get_elem("#warningTitle")
-        assert warning is not None, "about:config is loadable in FELT"
-
-        return True
-
-    def test_felt_5_about_config_blocked_in_browser(self, exp):
-        self._logger.info(
-            f"Value of BlockAboutConfig policy: {self.policy_block_about_config.value}"
-        )
-
-        try:
-            self.open_tab_child("about:config")
-            assert False, "about:config should have been blocked in Firefox"
-        except WebDriverException as ex:
-            assert ex.msg.startswith(
-                "Reached error page: about:neterror?e=blockedByPolicy&u=about%3Aconfig"
-            ), "about:config is blocked in Firefox"
-
-        return True
-
-    def test_felt_6_change_about_config_policy(self, exp):
-        self._logger.info("Changing BlockAboutConfig policy")
-        self.policy_block_about_config.value = 0
-        self._logger.info("Changed BlockAboutConfig policy")
-
-        url = f"http://localhost:{self.console_port}/policies"
-        max_try = 0
-        while max_try < 20:
-            max_try += 1
-            try:
-                r = requests.get(f"{url}")
-                j = r.json()
-                if j["policies"]["BlockAboutConfig"] == False:
-                    self._logger.info(f"Policy update propagated at {url}!")
-                    break
-                self._logger.info(f"Policy update not yet propagated at {url}")
-                time.sleep(0.5)
-            except Exception as ex:
-                self._logger.info(f"Policy update issue {url}: {ex}")
-                time.sleep(2)
-
-        # Give time to make sure Policy got applied
-        time.sleep(2)
-
-        self._logger.info("Policy update propagated, continue tests")
-        return True
-
-    def test_felt_7_about_config_allowed_in_browser(self, exp):
-        self._logger.info(
-            f"Value of BlockAboutConfig policy: {self.policy_block_about_config.value}"
-        )
-
-        self.open_tab_child("about:config")
-
-        warning = self.get_elem_child("#warningTitle")
-        assert warning is not None, "about:config is loadable in FELT"
-
-        return True
-
-    def test_felt_8_quit_browser(self, exp):
-        self._logger.info("Closing browser")
-        self._child_driver.set_context("chrome")
-        self._child_driver.execute_script(
-            "Services.startup.quit(Services.startup.eForceQuit);"
-        )
-        self._logger.info("Closed browser")
-
-        return True
-
-
-if __name__ == "__main__":
-    port_console = portpicker.pick_unused_port()
-    port_sso_serv = portpicker.pick_unused_port()
-    FeltTests(
-        firefox=sys.argv[1],
-        geckodriver=sys.argv[2],
-        profile_root=sys.argv[3],
-        console=port_console,
-        sso_server=port_sso_serv,
-    )

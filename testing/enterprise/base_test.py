@@ -72,7 +72,13 @@ class EnterpriseTestsBase:
             self._logger.info(f"Setting extra prefs at {profile_path}")
             with open(os.path.join(profile_path, "user.js"), "w") as user_pref:
                 for pref in extra_prefs:
-                    user_pref.write(f'user_pref("{pref[0]}", "{pref[1]}");\n')
+                    if type(pref[1]) is bool:
+                        v = "true" if pref[1] else "false"
+                        user_pref.write(f'user_pref("{pref[0]}", {v});\n')
+                    elif type(pref[1]) is int:
+                        user_pref.write(f'user_pref("{pref[0]}", {pref[1]});\n')
+                    else:
+                        user_pref.write(f'user_pref("{pref[0]}", "{pref[1]}");\n')
 
         for arg in extra_cli_args:
             options.add_argument(arg)
@@ -104,10 +110,6 @@ class EnterpriseTestsBase:
 
         # exit code ; will be set to 1 at first assertion failure
         ec = 0
-        try:
-            first_tab = self._driver.window_handles[0]
-        except:
-            first_tab = None
         channel = self.update_channel()
         self._logger.info(f"Channel: {channel}")
 
@@ -115,27 +117,18 @@ class EnterpriseTestsBase:
 
         for m in object_methods:
             self._logger.info(f"Running method {m}")
-            tabs_before = set()
-            tabs_after = set()
             self._logger.test_start(m)
             expectations = (
                 self._expectations[m]
                 if not channel in self._expectations[m]
                 else self._expectations[m][channel]
             )
-            if first_tab:
-                self._driver.switch_to.window(first_tab)
 
             try:
-                tabs_before = set(self._driver.window_handles)
                 self._logger.info(f"Calling method {m}")
                 rv = getattr(self, m)(expectations)
                 assert rv is not None, "test returned no value"
 
-                tabs_after = set(self._driver.window_handles)
-                self._logger.info(f"tabs_after OK {tabs_after}")
-
-                self._driver.switch_to.parent_frame()
                 if rv:
                     self._logger.test_end(m, status="OK")
                 else:
@@ -160,6 +153,7 @@ class EnterpriseTestsBase:
                     self.save_screenshot(
                         f"screenshot_{m.lower()}_{test_status.lower()}_parent.png"
                     )
+                    self._child_driver.switch_to.parent_frame()
                     self.save_screenshot_child(
                         f"screenshot_{m.lower()}_{test_status.lower()}_parent_childBrowser.png"
                     )
@@ -168,32 +162,6 @@ class EnterpriseTestsBase:
 
                 self._logger.test_end(m, status=test_status, message=test_message)
                 traceback.print_exc()
-
-                try:
-                    tabs_after = set(self._driver.window_handles)
-                    self._logger.info(f"tabs_after EXCEPTION {tabs_after}")
-                except Exception:
-                    self._logger.info("Failed to get tab list after exception.")
-            finally:
-                self._logger.info(f"tabs_before {tabs_before}")
-                tabs_opened = tabs_after - tabs_before
-                self._logger.info(f"opened {len(tabs_opened)} tabs")
-                self._logger.info(f"opened {tabs_opened} tabs")
-                closed = 0
-                for tab in tabs_opened:
-                    self._logger.info(f"switch to {tab}")
-                    self._driver.switch_to.window(tab)
-                    self._logger.info(f"close {tab}")
-                    self._driver.close()
-                    closed += 1
-                    self._logger.info(
-                        f"wait EC.number_of_windows_to_be({len(tabs_after) - closed})"
-                    )
-                    self._wait.until(
-                        EC.number_of_windows_to_be(len(tabs_after) - closed)
-                    )
-                if first_tab:
-                    self._driver.switch_to.window(first_tab)
 
         self.teardown()
 
@@ -245,23 +213,18 @@ class EnterpriseTestsBase:
             dir=os.path.expanduser(self._profile_root),
         )
 
+    def _open_tab(self, url, driver, waiter):
+        tabs = driver.window_handles
+        driver.switch_to.new_window("tab")
+        waiter.until(EC.new_window_is_opened(tabs))
+        driver.get(url)
+        return driver.current_window_handle
+
     def open_tab(self, url):
-        opened_tabs = len(self._driver.window_handles)
-
-        self._driver.switch_to.new_window("tab")
-        self._wait.until(EC.number_of_windows_to_be(opened_tabs + 1))
-        self._driver.get(url)
-
-        return self._driver.current_window_handle
+        return self._open_tab(url, self._driver, self._wait)
 
     def open_tab_child(self, url):
-        opened_tabs = len(self._child_driver.window_handles)
-
-        self._child_driver.switch_to.new_window("tab")
-        self._child_wait.until(EC.number_of_windows_to_be(opened_tabs + 1))
-        self._child_driver.get(url)
-
-        return self._driver.current_window_handle
+        return self._open_tab(url, self._child_driver, self._child_wait)
 
     def need_allow_system_access(self):
         geckodriver_output = subprocess.check_output(
@@ -269,12 +232,11 @@ class EnterpriseTestsBase:
         ).decode()
         return "--allow-system-access" in geckodriver_output
 
-    def connect_child_browser(self):
+    def get_marionette_port(self, max_try=100):
         marionette_port_file = os.path.join(self._child_profile_path, "MarionetteActivePort")
 
         found_marionette_port = False
         tries = 0
-        max_try = 100
         while (not found_marionette_port) and (tries < max_try):
             tries += 1
             found_marionette_port = os.path.isfile(marionette_port_file)
@@ -284,6 +246,10 @@ class EnterpriseTestsBase:
         with open(marionette_port_file) as infile:
             marionette_port = int(infile.read())
 
+        return (marionette_port, marionette_port_file)
+
+    def connect_child_browser(self):
+        (marionette_port, marionette_port_file) = self.get_marionette_port()
         assert marionette_port > 0, "Valid marionette port"
         self._logger.info(f"Marionette PORT: {marionette_port}")
 
