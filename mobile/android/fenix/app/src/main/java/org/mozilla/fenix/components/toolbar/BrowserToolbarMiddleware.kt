@@ -280,6 +280,7 @@ class BrowserToolbarMiddleware(
                 observeReaderModeUpdates(context)
                 observePageTranslationsUpdates(context)
                 observePageRefreshUpdates(context)
+                observePageTrackingProtectionUpdates(context)
                 observePageSecurityUpdates(context)
             }
 
@@ -537,7 +538,7 @@ class BrowserToolbarMiddleware(
                 selectedTab?.let {
                     environment?.viewLifecycleOwner?.lifecycleScope?.launch(Dispatchers.IO) {
                         val parentGuid = settings.lastSavedFolderCache.getGuid() ?: BookmarkRoot.Mobile.id
-                        val parentNode = bookmarksStorage.getBookmark(parentGuid)
+                        val parentNode = bookmarksStorage.getBookmark(parentGuid).getOrNull()
                         val guidToEdit = useCases.bookmarksUseCases.addBookmark(
                             url = selectedTab.content.url,
                             title = selectedTab.content.title,
@@ -563,9 +564,10 @@ class BrowserToolbarMiddleware(
                 environment?.viewLifecycleOwner?.lifecycleScope?.launch(Dispatchers.Main) {
                     val guidToEdit: String? = withContext(Dispatchers.IO) {
                       bookmarksStorage
-                        .getBookmarksWithUrl(selectedTab.content.url)
-                        .firstOrNull()
-                        ?.guid
+                          .getBookmarksWithUrl(selectedTab.content.url)
+                          .getOrDefault(listOf())
+                          .firstOrNull()
+                          ?.guid
                     }
 
                     guidToEdit?.let { guid ->
@@ -806,7 +808,7 @@ class BrowserToolbarMiddleware(
         val url = browserStore.state.selectedTab?.content?.url
         val isBookmarked = if (url != null) {
             withContext(Dispatchers.IO) {
-                bookmarksStorage.getBookmarksWithUrl(url).isNotEmpty()
+                bookmarksStorage.getBookmarksWithUrl(url).getOrDefault(listOf()).isNotEmpty()
             }
         } else {
             false
@@ -1004,6 +1006,15 @@ class BrowserToolbarMiddleware(
         }
     }
 
+    private fun observePageTrackingProtectionUpdates(
+        context: MiddlewareContext<BrowserToolbarState, BrowserToolbarAction>,
+    ) {
+        browserStore.observeWhileActive {
+            distinctUntilChangedBy { it.selectedTab?.trackingProtection }
+                .collect { updateStartPageActions(context) }
+        }
+    }
+
     private fun observeSelectedTabBookmarkedUpdates(
         context: MiddlewareContext<BrowserToolbarState, BrowserToolbarAction>,
     ) {
@@ -1170,13 +1181,18 @@ class BrowserToolbarMiddleware(
         }
 
         ToolbarAction.SiteInfo -> {
-            if (browserStore.state.selectedTab?.content?.url?.isContentUrl() == true) {
+            val selectedTab = browserStore.state.selectedTab
+            if (selectedTab?.content?.url?.isContentUrl() == true) {
                 ActionButtonRes(
                     drawableResId = iconsR.drawable.mozac_ic_page_portrait_24,
                     contentDescription = toolbarR.string.mozac_browser_toolbar_content_description_site_info,
                     onClick = StartPageActions.SiteInfoClicked,
                 )
-            } else if (browserStore.state.selectedTab?.content?.securityInfo?.secure == true) {
+            } else if (
+                selectedTab?.content?.securityInfo?.secure == true &&
+                selectedTab.trackingProtection.enabled &&
+                !selectedTab.trackingProtection.ignoredOnTrackingProtection
+            ) {
                 ActionButtonRes(
                     drawableResId = iconsR.drawable.mozac_ic_shield_checkmark_24,
                     contentDescription = toolbarR.string.mozac_browser_toolbar_content_description_site_info,

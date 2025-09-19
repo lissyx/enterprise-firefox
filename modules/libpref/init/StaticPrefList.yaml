@@ -3684,6 +3684,14 @@
   mirror: always
   do_not_use_directly: true
 
+# Strict mode for navigation API.
+# Known issues can be guarded using this pref
+# to avoid crashing users while investigating the issue.
+- name: dom.navigation.api.strict.enabled
+  type: bool
+  value: false
+  mirror: always
+
 # Network Information API
 # This feature is not available on Firefox desktop. It exposes too much
 # user information. Let's be consistent and disable it on Android.
@@ -10784,7 +10792,22 @@
   rust: true
 
 # Is the '-webkit-fill-available' keyword enabled, as an alias for 'stretch'?
+# NOTE: This pref being 'true' is sufficient to enable this keyword in the
+# 'width' and 'height' properties (and their logical aliases).  To enable
+# the keyword for other properties, see the "all-size-properties" variant
+# below.
 - name: layout.css.webkit-fill-available.enabled
+  type: RelaxedAtomicBool
+  value: true
+  mirror: always
+  rust: true
+
+# This pref is an additional gate on whether the '-webkit-fill-available'
+# keyword is enabled for other size-valued CSS properties (beyond 'width' and
+# 'height'). In such properties, -webkit-fill-available will not be accepted
+# unless this pref *and* layout.css.webkit-fill-available.enabled are both
+# set to 'true'.
+- name: layout.css.webkit-fill-available.all-size-properties.enabled
   type: RelaxedAtomicBool
   value: false
   mirror: always
@@ -11047,6 +11070,14 @@
 - name: mathml.top_bottom_spacing_for_stretchy_operators.disabled
   type: bool
   value: true
+  mirror: always
+  rust: true
+
+# Whether to enable font-family: math in mathml instead of using the
+# internal language x-math.
+- name: mathml.font_family_math.enabled
+  type: RelaxedAtomicBool
+  value: @IS_NIGHTLY_BUILD@
   mirror: always
   rust: true
 
