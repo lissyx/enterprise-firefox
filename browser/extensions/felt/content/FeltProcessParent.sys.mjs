@@ -7,6 +7,7 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   Subprocess: "resource://gre/modules/Subprocess.sys.mjs",
   AppConstants: "resource://gre/modules/AppConstants.sys.mjs",
+  ConsoleClient: "chrome://felt/content/ConsoleClient.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   setInterval: "resource://gre/modules/Timer.sys.mjs",
 });
@@ -50,13 +51,11 @@ export class FeltProcessParent extends JSProcessActorParent {
     this.firefox = this.startFirefoxProcess();
     this.firefox
       .then(async () => {
-        const consoleAddr = Services.prefs.getStringPref(
-          "browser.felt.console"
-        );
+        const consoleAddr = lazy.ConsoleClient.consoleAddr
         this.felt.sendStringPreference("browser.felt.console", consoleAddr);
         this.felt.sendStringPreference("browser.policies.server", consoleAddr);
 
-        const json = await (await await fetch(`${consoleAddr}/default`)).json();
+        const json = await lazy.ConsoleClient.getDefaultPolicies()
         json.prefs.forEach(pref => {
           const name = pref[0];
           const value = pref[1];
@@ -77,7 +76,6 @@ export class FeltProcessParent extends JSProcessActorParent {
         });
         this.felt.sendCookies(this.getAllCookies());
         this.felt.sendReady();
-        Services.ppmm.broadcastAsyncMessage("FeltParent:Done", {});
         Services.cpmm.sendAsyncMessage("FeltParent:FirefoxStarted", {});
       })
       .then(() => {

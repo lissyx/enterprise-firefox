@@ -8,16 +8,22 @@ const { E10SUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/E10SUtils.sys.mjs"
 );
 
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  ConsoleClient: "chrome://felt/content/ConsoleClient.sys.mjs",
+});
+
 // Will at least make move forward marionette
 Services.obs.notifyObservers(window, "browser-delayed-startup-finished");
 
-function connectToConsole() {
+function connectToConsole(email) {
   let browser = document.getElementById("browser");
 
   let oa = E10SUtils.predictOriginAttributes({ browser });
   browser.setAttribute("maychangeremoteness", "true");
 
-  const SOURCE_URI = Services.prefs.getStringPref("browser.felt.sso_url");
+  const SOURCE_URI = lazy.ConsoleClient.ssoUri + `&email=${email}`
 
   browser.setAttribute(
     "remoteType",
@@ -46,10 +52,6 @@ function listenFormEmailSubmission() {
   const signInBtn = document.getElementById("felt-login__form-sign-in-btn");
   const emailInput = document.getElementById("felt-login__form-email")
 
-  function handleSubmit() {
-    connectToConsole()
-  }
-
   emailInput.addEventListener("input", () => {
     signInBtn.disabled = emailInput.value.trim() === "";
   });
@@ -57,12 +59,12 @@ function listenFormEmailSubmission() {
   // <moz-button> does not trigger the native "submit" event on <form>
   // so we manually handle submission on button click and when Enter is pressed
   signInBtn.addEventListener("click", () => {
-    handleSubmit();
+    connectToConsole(emailInput.value)
   });
   emailInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !signInBtn.disabled) {
       e.preventDefault();
-      handleSubmit();
+      connectToConsole(emailInput.value)
     }
   });
 }
