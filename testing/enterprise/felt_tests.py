@@ -11,6 +11,7 @@ import sys
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import urllib.parse
 from multiprocessing import Process, Value
 
 import requests
@@ -36,18 +37,23 @@ class LocalHttpRequestHandler(BaseHTTPRequestHandler):
             setattr(self.server, "_BaseServer__shutdown_request", True)
             self.server.server_close()
 
+    def not_found(self, path=None):
+        self.send_response(404, "Not Found")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
 
 class SsoHttpHandler(LocalHttpRequestHandler):
     def do_GET(self):
         print("GET", self.path)
         m = None
 
-        try:
-            (path, query) = self.path.split("?")
-        except ValueError:
-            path = self.path
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        print("path: ", path)
 
         if path == "/sso_url":
+            # Dummy sso login page
             m = """
 <html>
 <head>
@@ -65,45 +71,26 @@ class SsoHttpHandler(LocalHttpRequestHandler):
 </html>
             """
 
-        elif path == "/dashboard":
-            m = """
-<html>
-<head>
-    <title>Dashboard!</title>
-</head>
-<body>
-    <h1>Welcome!</h1>
-</body>
-</html>
-            """
-
-        elif path == "/sso_page":
-            m = """
-<html>
-<head>
-    <title>SSO Page!</title>
-</head>
-<body>
-    <h1>This is the SSO page for the Firefox instance</h1>
-</body>
-</html>
-            """
-
         elif path == "/auth":
             expires = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
             cookie_expiry = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
-            self.send_response(301, "Moved Permanently")
+            location = f"http://localhost:{self.server.console_port}/sso/callback?foo"
+            self.send_response(302, "Found")
             self.send_header(
                 "Set-Cookie",
                 f"{self.server.cookie_name}={self.server.cookie_value}; Domain=localhost; Path=/; Expires={cookie_expiry}; SameSite=Strict",
             )
             self.send_header(
-                "Location", f"http://localhost:{self.server.sso_port}/dashboard"
+                "Location", location
             )
+            self.send_header("Content-Length", "0")
             self.end_headers()
+            return
 
-        if m:
+        if m is not None:
             self.reply(m)
+        else:
+            self.not_found(path)
 
 
 class ConsoleHttpHandler(LocalHttpRequestHandler):
@@ -111,18 +98,23 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
         print("GET", self.path)
         m = None
 
-        try:
-            (path, query) = self.path.split("?")
-        except ValueError:
-            path = self.path
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        print("path: ", path)
 
-        # Handling of Firefox NON FELT prefs
-        if path == "/default":
+        if path == "/sso/login":
+            location = f"http://localhost:{self.server.sso_port}/sso_url"
+            self.send_response(302, "Found")  # or 301/308 as needed
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        elif path == "/api/browser/hacks/default":
+            # Handling of Firefox NON FELT prefs
             m = json.dumps(
                 {
                     "prefs": [
                         ["devtools.browsertoolbox.scope", "everything"],
-                        ["browser.felt.enabled", False],
                         ["browser.sessionstore.restore_on_demand", False],
                         ["browser.sessionstore.resume_from_crash", False],
                         ["marionette.port", 0],
@@ -131,7 +123,7 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
                 }
             )
 
-        elif path == "/policies":
+        elif path == "/api/browser/hacks/policies":
             if hasattr(self.server, "policy_block_about_config"):
                 with self.server.policy_block_about_config.get_lock():
                     policy_value = (
@@ -143,11 +135,14 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
             else:
                 m = json.dumps({"policies": {}})
 
-        elif path == "/dashboard":
+        elif path == "/sso/callback":
             m = """
 <html>
 <head>
     <title>Dashboard!</title>
+    <script id="token_data" type="application/json">
+        {"access_token":"dummy_access_token","token_type":"bearer","expires_in":71999,"refresh_token":"dummy_refresh_token"}
+    </script>
 </head>
 <body>
     <h1>Welcome!</h1>
@@ -165,30 +160,33 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
 </body>
 </html>
             """
-
-        if m:
+        if m is not None:
             self.reply(m)
+        else:
+            self.not_found(path)
 
 
 def serve(
     port,
     classname,
     sso_port,
+    console_port,
     cookie_name=None,
     cookie_value=None,
     policy_block_about_config=None,
 ):
-    httpd = HTTPServer(("", port), classname, sso_port)
+    httpd = HTTPServer(("", port), classname)
     httpd.sso_port = sso_port
-    if cookie_name:
+    httpd.console_port = console_port
+    if cookie_name is not None:
         httpd.cookie_name = cookie_name
-    if cookie_value:
+    if cookie_value is not None:
         httpd.cookie_value = cookie_value
-    if policy_block_about_config:
+    if policy_block_about_config is not None:
         httpd.policy_block_about_config = policy_block_about_config
-    print(f"Serving localhost:{port} SSO={sso_port} with {classname}")
+    print(f"Serving localhost:{port} SSO={sso_port} CONSOLE={console_port} with {classname}")
     httpd.serve_forever()
-    print(f"Stopped serving localhost:{port} SSO={sso_port} with {classname}")
+    print(f"Stopped serving localhost:{port} SSO={sso_port} CONSOLE={console_port} with {classname}")
 
 
 class FeltTests(EnterpriseTestsBase):
@@ -204,6 +202,7 @@ class FeltTests(EnterpriseTestsBase):
             args=(self.console_port, ConsoleHttpHandler),
             kwargs=dict(
                 sso_port=self.sso_port,
+                console_port=self.console_port,
                 policy_block_about_config=self.policy_block_about_config,
             ),
         )
@@ -217,6 +216,7 @@ class FeltTests(EnterpriseTestsBase):
             args=(self.sso_port, SsoHttpHandler),
             kwargs=dict(
                 sso_port=self.sso_port,
+                console_port=self.console_port,
                 cookie_name=self.cookie_name,
                 cookie_value=self.cookie_value,
             ),
@@ -225,11 +225,10 @@ class FeltTests(EnterpriseTestsBase):
 
         prefs = [
             ["browser.felt.console", f"http://localhost:{self.console_port}"],
-            ["browser.felt.sso_url", f"http://localhost:{self.sso_port}/sso_url"],
             # Bug? matcher https://searchfox.org/firefox-main/source/toolkit/components/extensions/MatchPattern.cpp#370-384
             # ends up with mDomain=localhost:8000 and aDomain=localhost
-            # for pref value http://localhost/dashboard
-            ["browser.felt.matches", "http://localhost/dashboard"],
+            ["browser.felt.matches", "http://localhost/sso/callback?*"],
+            ["browser.felt.is_testing", True]
         ] + test_prefs
 
         super(__class__, self).__init__(
@@ -273,11 +272,11 @@ class FeltTests(EnterpriseTestsBase):
         else:
             self._child_profile_path_value = self._child_profile_path
 
-        self.set_string_pref("browser.felt.console", console_addr)
+        # self.set_string_pref("browser.felt.console", console_addr)
         self.set_string_pref(
             "browser.felt.profile_path", self._child_profile_path_value
         )
-        self.set_bool_pref("browser.felt.is_testing", True)
+        # self.set_bool_pref("browser.felt.is_testing", True)
 
         self._driver.set_context("chrome")
         windows = len(self._driver.window_handles)
@@ -387,7 +386,7 @@ class FeltTests(EnterpriseTestsBase):
 
         return True
 
-    def test_felt_1_dashboard(self, exp):
+    def test_felt_1_perform_sso_auth(self, exp):
         self._logger.info("Performing SSO auth")
         self.get_elem("#login").send_keys("username@company.tld")
         self.get_elem("#password").send_keys("86c53cba7ccd")

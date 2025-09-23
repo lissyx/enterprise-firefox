@@ -786,7 +786,7 @@ class RemotePoliciesProvider {
         const serverAddr = Services.prefs.getStringPref(
           "browser.policies.server"
         );
-        const response = await fetch(`${serverAddr}/policies`);
+        const response = await fetch(`${serverAddr}/api/browser/hacks/policies`);
         resolve(await response.json());
       } catch (error) {
         console.error(error.message);

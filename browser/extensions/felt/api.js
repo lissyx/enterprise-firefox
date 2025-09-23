@@ -27,51 +27,9 @@ this.felt = class extends ExtensionAPI {
       ["content", "felt", "content/"],
     ]);
   }
-
-  setFeltPrefs() {
-    const consoleAddr = Services.prefs.getStringPref("browser.felt.console");
-    const prefs = [
-      ["browser.felt.sso_url", `${consoleAddr}/sso_url`],
-      ["browser.felt.matches", `${consoleAddr}/dashboard`],
-      ["browser.felt.redirect_after_sso", `${consoleAddr}/redirect_after_sso`],
-    ];
-
-    prefs.forEach(pref => {
-      const name = pref[0];
-      const value = pref[1];
-
-      switch (typeof value) {
-        case "boolean":
-          try {
-            Services.prefs.getBoolPref(name);
-          } catch {
-            Services.prefs.setBoolPref(name, value);
-          }
-          break;
-
-        case "string":
-          try {
-            Services.prefs.getStringPref(name);
-          } catch {
-            Services.prefs.setStringPref(name, value);
-          }
-          break;
-
-        case "number":
-          try {
-            Services.prefs.getIntPref(name);
-          } catch {
-            Services.prefs.setIntPref(name, value);
-          }
-          break;
-      }
-    });
-  }
-
   registerActors() {
-    const matches = Services.prefs
-          .getStringPref("browser.felt.matches")
-          .split(",");
+    const { ConsoleClient } = ChromeUtils.importESModule("chrome://felt/content/ConsoleClient.sys.mjs")
+    const matches = [ConsoleClient.ssoCallbackUri]
     ChromeUtils.registerWindowActor(this.FELT_WINDOW_ACTOR, {
       child: {
         esModuleURI: "chrome://felt/content/FeltWindowChild.sys.mjs",
@@ -97,7 +55,6 @@ this.felt = class extends ExtensionAPI {
     );
 
     if (this.feltXPCOM.isFeltUI()) {
-      this.setFeltPrefs();
       this.registerChrome();
       this.registerActors();
       this.showWindow();

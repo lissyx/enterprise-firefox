@@ -4,6 +4,12 @@
 
 console.debug(`FeltExtension: FeltWindowChild.sys.mjs`);
 
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  ConsoleClient: "chrome://felt/content/ConsoleClient.sys.mjs",
+});
+
 export class FeltWindowChild extends JSWindowActorChild {
   actorCreated() {
     console.debug(`FeltExtension: FeltParent.sys.mjs: FeltWindowChild: getActor()`);   
@@ -11,12 +17,17 @@ export class FeltWindowChild extends JSWindowActorChild {
     console.debug(`FeltExtension: FeltParent.sys.mjs: FeltWindowChild: getActor(): actor=${this.actor}`);   
   }
 
-  // Only handle DOMContentLoaded on https://sso.mozilla.com/dashboard
   handleEvent(event) {
     if (event.type !== "DOMContentLoaded") {
       console.error(`Unexpected event.type=${event.type}`);
       return;
     }
+
+    console.debug("Extracting token data")
+    const consoleTokenData = JSON.parse(event.target.querySelector("#token_data").textContent)
+
+    console.debug("Sending token data to ConsoleClient")
+    lazy.ConsoleClient.onConsoleTokenDataReceived(consoleTokenData)
 
     this.actor.sendAsyncMessage("FeltChild:StartFirefox", {});
   }
