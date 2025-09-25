@@ -103,7 +103,7 @@ EnterprisePoliciesManager.prototype = {
 
     const changesHandler = provider => {
       if (!provider.hasPolicies) {
-        this.status = Ci.nsIEnterprisePolicies.INACTIVE;
+        this._status = Ci.nsIEnterprisePolicies.INACTIVE;
         Services.prefs.setBoolPref(PREF_POLICIES_APPLIED, false);
         return;
       }
@@ -116,22 +116,22 @@ EnterprisePoliciesManager.prototype = {
         Object.keys(provider.policies.Certificates).length === 1 &&
         provider.policies.Certificates.ImportEnterpriseRoots === true
       ) {
-        this.status = Ci.nsIEnterprisePolicies.INACTIVE;
+        this._status = Ci.nsIEnterprisePolicies.INACTIVE;
         return;
       }
 
-      this.status = Ci.nsIEnterprisePolicies.ACTIVE;
+      this._status = Ci.nsIEnterprisePolicies.ACTIVE;
       this._parsedPolicies = {};
       this._activatePolicies(provider.policies);
       Services.prefs.setBoolPref(PREF_POLICIES_APPLIED, true);
     };
 
-    this.status = Ci.nsIEnterprisePolicies.INACTIVE;
+    this._status = Ci.nsIEnterprisePolicies.INACTIVE;
     Services.prefs.setBoolPref(PREF_POLICIES_APPLIED, false);
 
     let provider = this._chooseProvider(changesHandler);
     if (provider.failed) {
-      this.status = Ci.nsIEnterprisePolicies.FAILED;
+      this._status = Ci.nsIEnterprisePolicies.FAILED;
     }
   },
 
@@ -224,11 +224,11 @@ EnterprisePoliciesManager.prototype = {
       if (policyCallback) {
         this._schedulePolicyCallback(
           timing,
-          policyCallback.bind(
+          [ policyCallback,
             policyImpl,
             this /* the EnterprisePoliciesManager */,
             parsedParameters
-          )
+          ]
         );
       }
     }
@@ -256,13 +256,31 @@ EnterprisePoliciesManager.prototype = {
   },
 
   _schedulePolicyCallback(timing, callback) {
+    // Check for existence of the same callback. Since callback are .bind()
+    // they cannot be just pushed to the array and checked for existence with
+    // .includes() as each bind is a new different object.
+    //
+    // Instead the array contains everything:
+    //  - policyCallback,
+    //  - policyImpl,
+    //  - this reference
+    //  - parsedParameters
+    //
+    // And we manually check for pre-existence of all. The parsedParameters
+    // may differ at the object level so we force the comparison with
+    // JSON.stringify()
+    const exists = this._callbacks[timing].filter(e => e[0] == callback[0] && e[1] == callback[1] && e[2] == callback[2] && JSON.stringify(e[3]) == JSON.stringify(callback[3]));
+    if (exists.length > 0) {
+      return;
+    }
     this._callbacks[timing].push(callback);
   },
 
   _runPoliciesCallbacks(timing) {
     let callbacks = this._callbacks[timing];
     while (callbacks.length) {
-      let callback = callbacks.shift();
+      let [ policyCallback, policyImpl, self, parsedParameters ] = callbacks.shift();
+      const callback = policyCallback.bind(policyImpl, self, parsedParameters);
       try {
         callback();
       } catch (ex) {
@@ -299,8 +317,20 @@ EnterprisePoliciesManager.prototype = {
     await notifyTopicOnIdle("distribution-customization-complete");
   },
 
+  observersReceived: [],
+
   // nsIObserver implementation
   observe: function BG_observe(subject, topic, data) {
+
+    const policiesCallbackMapping = {
+      "onBeforeAddons": "policies-startup",
+      "onProfileAfterChange": "profile-after-change",
+      "onBeforeUIStartup": "final-ui-startup",
+      "onAllWindowsRestored": "sessionstore-windows-restored",
+    };
+
+    this.observersReceived.push(topic);
+
     switch (topic) {
       case "policies-startup":
         // Before the first set of policy callbacks runs, we must
@@ -330,12 +360,15 @@ EnterprisePoliciesManager.prototype = {
         const parsed = JSON.parse(data);
         this._parsedPolicies = {};
         this._activatePolicies(parsed.policies);
-        let callbacksToRun = Object.keys(parsed.policies).flatMap(name => {
+
+        const callbacksToRun = Object.keys(parsed.policies).flatMap(name => {
           return Object.keys(lazy.Policies[name]).flatMap(cb => {
             return cb;
           });
-        });
-        // Run everything maybe
+        }).filter(cbName => this.observersReceived.includes(policiesCallbackMapping[cbName]));
+
+        // Only run callbacks that are ready right now. The rest is handled by
+        // this._activatePolicies()
         callbacksToRun.map(cb => this._runPoliciesCallbacks(cb));
         break;
 
@@ -796,6 +829,9 @@ class RemotePoliciesProvider {
     } else {
       // TODO, this is haha. meh. Maybe restart should be done by activate.
       Services.obs.notifyObservers(null, "EnterprisePolicies:Restart");
+      // Make sure that handler is triggered even when payload is empty as
+      // in "_cleanup"
+      this.triggerOnPoliciesChanges();
     }
   }
 
