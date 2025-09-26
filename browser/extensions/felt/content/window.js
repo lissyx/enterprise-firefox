@@ -42,15 +42,18 @@ function connectToConsole(email) {
     triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
   });
 
-  document.querySelector(".felt-login__form").classList.add("is-hidden");
+  document.querySelector(".felt-login__email-pane").classList.add("is-hidden");
   document
     .querySelector(".felt-login__sso")
     .classList.remove("is-hidden");
+
+  const ssoBrowsingContext = document.querySelector("browser")
+  ssoBrowsingContext.focus()
 }
 
 function listenFormEmailSubmission() {
-  const signInBtn = document.getElementById("felt-login__form-sign-in-btn");
-  const emailInput = document.getElementById("felt-login__form-email")
+  const signInBtn = document.getElementById("felt-form__sign-in-btn");
+  const emailInput = document.getElementById("felt-form__email")
 
   emailInput.addEventListener("input", () => {
     signInBtn.disabled = emailInput.value.trim() === "";

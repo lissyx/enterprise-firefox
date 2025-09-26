@@ -4,11 +4,13 @@
 
 ## FELT (Firefox Enterprise Launcher Tool) SSO Login
 
-felt-sso-title = Sign in to your enterprise workspace.
+felt-sso-title = Sign in
 felt-sso-input-email =
     .label = Company email
     .accesskey = E
 felt-sso-btn-sign-in =
     .label = Sign in
+felt-powered-by =
+    Powered by Mozilla
 felt-version =
     Version v{ $version }

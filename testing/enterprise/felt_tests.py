@@ -375,7 +375,7 @@ class FeltTests(EnterpriseTestsBase):
     def test_felt_00_chrome_on_email_submit(self, exp):
         self._driver.set_context("chrome")
         self._logger.info("Submitting email in chrome context ...")
-        email = self.get_elem("#felt-login__form-email")
+        email = self.get_elem("#felt-form__email")
         self._logger.info(f"Submitting email in chrome context: {email}")
 
         # <moz-input-text> fails with 'unreachable by keyboard' in Selenium
@@ -388,7 +388,7 @@ class FeltTests(EnterpriseTestsBase):
             """, email, "random@mozilla.com")
 
         self._logger.info("Submitting email by clicking")
-        btn = self.get_elem("#felt-login__form-sign-in-btn")
+        btn = self.get_elem("#felt-form__sign-in-btn")
         btn.click()
 
         self._logger.info("Email submitted and SSO browser displayed")
