@@ -6,6 +6,11 @@
 @import url("chrome://global/skin/design-system/text-and-typography.css");
 @import url("chrome://global/skin/design-system/tokens-brand.css");
 
+:root {
+  min-width: 727px;
+  min-height: 744px;
+}
+
 body {
   margin: 0;
   display: flex;
@@ -20,50 +25,68 @@ body {
 
 .felt-logo {
   display: flex;
-  background: var(--color-blue-80, #0041a4);
+  background: linear-gradient(101deg, #1A3560 0%, #0C66B4 98.12%);
   overflow: hidden;
+  flex-direction: column;
+  justify-content: center;
+
 }
 
 .felt-logo__container {
   display: flex;
-  align-self: flex-end;
-  height: 398px;
-  width: 398px;
-  margin: 22px -111px -48px 23px;
-  background-image: url("chrome://felt/content/assets/enterprise-fox.svg");
+  width: 310px;
+  height: 602px;
+  justify-content: center;
+  align-items: center;
+  background-image: url("chrome://felt/content/assets/icon-fullColor.svg");
   background-repeat: no-repeat;
+  background-size: contain; 
+  background-position: center;
 }
 
 .felt-login {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  flex: 1 0 0;
-  align-self: stretch;
   background-color: #ffffff;
+  flex: 1 0 0;
+  justify-content: center;
+  position: relative;
 }
 
-.felt-login__form {
+.felt-login__email-pane {
   display: flex;
-  width: 267px;
   flex-direction: column;
+  padding: 128px 50px;
   align-items: center;
-  gap: 32px;
-  margin: 30px;
+  align-self: stretch;
+  gap: 36px;
+  flex: 1 0 0;
 }
 
-.felt-login__form > h1 {
+.felt-login__wordmark {
+  background-image: url("chrome://felt/content/assets/firefox-for-enterprise-wordmark.svg");
+  background-repeat: no-repeat;
+  width: 265px;
+  height: 117px;
+}
+
+
+.felt-form {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 16px;
-  align-self: stretch;
-  color: #000;
-  font-size: x-large;
+  width: 265px;
 }
 
-.felt-login__form-elements {
+.felt-form__title {
+  color: var(--text-color, #15141A);
+  font-size: 42px;
+  font-style: normal;
+  font-weight: 274;
+  line-height: normal;
+}
+
+
+.felt-form__elements {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -81,17 +104,21 @@ moz-input-text::part(label) {
 
 .felt-login__sso {
   display: flex;
-  /* Sizes fitting sso.mozilla.com into <browser> not leaving too much empty space around */
-  height: 100%;
   width: 400px;
-  /* Balance out the white space on the bottom of sso.mozilla.com without overlaying the version <span> */
-  padding: 50px 0;
+  padding: 60px 5px;
 }
 
-.felt-login__sso > browser {
+.felt-login__sso>browser {
   height: 100%;
   width: 100%;
   flex: 1 1 auto;
+}
+
+.felt-powered-by {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: small;
 }
 
 .felt-version {
