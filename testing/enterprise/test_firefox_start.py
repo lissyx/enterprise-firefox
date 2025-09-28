@@ -36,17 +36,17 @@ class EnterpriseTests(EnterpriseTestsBase):
 
         return True
 
-    def test_about_buildconfig(self, exp):
+    def test_about_buildconfig_enterprise_branding(self, exp):
         self.open_tab("about:buildconfig")
 
         build_flags_box = self._wait.until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, "p:last-child"))
         )
         self._wait.until(lambda d: len(build_flags_box.text) > 0)
-        self._logger.info(f"about:support buildflags: {build_flags_box.text}")
+        self._logger.info(f"about:buildconfig buildflags: {build_flags_box.text}")
         assert (
-            build_flags_box.text.find(exp["official"]) >= 0
-        ), "official build flag should be there"
+            exp["branding"] in build_flags_box.text
+        ), "enterprise branding build flag should be there"
 
         return True
 
