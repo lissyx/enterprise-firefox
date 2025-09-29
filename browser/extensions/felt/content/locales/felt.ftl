@@ -6,11 +6,12 @@
 
 felt-sso-title = Sign in
 felt-sso-input-email =
-    .label = Company email
+    .description = Use your organizational-issued email
+    .label = Work email
     .accesskey = E
-felt-sso-btn-sign-in =
-    .label = Sign in
+felt-sso-continue-btn =
+    .label = Continue
 felt-powered-by =
     Powered by Mozilla
 felt-version =
-    Version v{ $version }
+    Version { $version }
