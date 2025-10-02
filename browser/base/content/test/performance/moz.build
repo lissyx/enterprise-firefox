@@ -7,6 +7,7 @@
 
 BROWSER_CHROME_MANIFESTS += [
     "browser.toml",
+    "cryptoio/browser.toml",
     "hidpi/browser.toml",
     "io/browser.toml",
     "lowdpi/browser.toml",

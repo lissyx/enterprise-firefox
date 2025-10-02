@@ -40,6 +40,8 @@ if CONFIG["OS_ARCH"] == "WINNT":
     ]
 elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "cocoa":
     UNIFIED_SOURCES += [
+        "CryptoIOInterposerBase.cpp",
+        "CryptoIOInterposerMac.cpp",
         "PoisonIOInterposerBase.cpp",
         "PoisonIOInterposerMac.cpp",
     ]
@@ -112,5 +114,6 @@ if CONFIG["MOZ_PHC"]:
 
 if CONFIG["OS_ARCH"] == "Darwin":
     DIRS += [
+        'cryptoiointerposerlib',
         'poisoniointerposerlib',
     ]

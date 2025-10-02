@@ -122,8 +122,6 @@ export class FeltProcessParent extends JSProcessActorParent {
   async startFirefoxProcess() {
     let socket = this.felt.oneShotIpcServer();
 
-    const firefoxBin = this.felt.binPath();
-
     let profilePath = Services.prefs.getStringPref(
       "browser.felt.profile_path",
       ""
@@ -164,6 +162,16 @@ export class FeltProcessParent extends JSProcessActorParent {
       ];
     }
 
+    const firefoxBin = this.felt.binPath();
+    const libCryptoIOInterposer = PathUtils.join(PathUtils.parent(PathUtils.parent(this.felt.binPath())), "Resources", "libcryptoiointerposer.dylib");
+    const libCryptoIOLog = PathUtils.join(Services.dirsvc.get("TmpD", Ci.nsIFile).path, "felt.cryptoio.log");
+
+    const env = {
+      "DYLD_INSERT_LIBRARIES": libCryptoIOInterposer,
+      "MOZ_ENABLE_PROFILE_ENCRYPTION": "1",
+      "MOZ_PROFILE_ENCRYPTION_DEBUG": libCryptoIOLog,
+    };
+
     const firefoxRunArgs = [
       "--foreground",
       "--profile",
@@ -178,8 +186,8 @@ export class FeltProcessParent extends JSProcessActorParent {
       arguments: firefoxRunArgs,
       stdout: "stdout",
       stderr: "stderr",
-      /* environmentAppend: true,
-      environment: env, */
+      environmentAppend: true,
+      environment: env,
     };
 
     this.proc = await lazy.Subprocess.call(firefoxRun)

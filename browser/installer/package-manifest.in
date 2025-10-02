@@ -230,6 +230,11 @@
 @RESPATH@/chrome/pdfjs/*
 @RESPATH@/defaults/pref/PdfJsDefaultPrefs.js
 
+; LibCryptoIO
+#ifdef XP_MACOSX
+@RESPATH@/libcryptoiointerposer.dylib
+#endif
+
 ; shell icons
 #ifdef XP_UNIX
 #ifndef XP_MACOSX

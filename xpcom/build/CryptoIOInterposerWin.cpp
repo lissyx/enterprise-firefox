@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "CryptoIOInterposer.h"
+#include "CryptoIOInterposerCommon.h"
 
 #include <algorithm>
 #include <stdio.h>
@@ -121,13 +122,6 @@ typedef NTSTATUS(NTAPI* NtQueryFullAttributesFileFn)(
 /*************************** Auxiliary Declarations ***************************/
 
 std::unordered_map<HANDLE, nsString> handlesOfInterest{};
-
-bool IsFileUnderProfile(nsAString& aFilename) {
-  if (mozilla::profileRoot.Length() == 0) {
-    return false;
-  }
-  return FindInReadable(mozilla::profileRoot, aFilename);
-}
 
 bool isFileHandleTracked(HANDLE aFileHandle) {
   return handlesOfInterest.find(aFileHandle) != handlesOfInterest.end();
@@ -249,52 +243,6 @@ static NTSTATUS NTAPI InterposedNtClose(HANDLE aFileHandle) {
   return realStatus;
 }
 
-#define BLOCK_SIZE 128
-
-/**
- * get the blocks to read/write, based on BLOCK_SIZE
- *
- * returns first/last blocks (included) to read/write from
- *
- * First block is defined as the one that contains the offset position
- * Last block is definded as the one that contains the (offset + length - 1) position
- *   -> (length/offset - 1) because indexing starts at 0
- *
-#define GET_BLOCKS(f, l, ef, el) { \
-    printf("read %d@%d, expect to read from blocks (%d, %d)\n", f, l, ef, el); \
-    size_t first, last; compute_blocks(f, l, &first, &last); \
-    assert(first == ef); assert(last == el);
-}
-
-    //         length, offset, expected first, expected last
-    GET_BLOCKS(1,      0,      0,              0);
-    GET_BLOCKS(128,    0,      0,              0);
-    GET_BLOCKS(128,    1,      0,              1);
-    GET_BLOCKS(128,    1,      0,              1);
-    GET_BLOCKS(128,    2,      0,              1);
-    GET_BLOCKS(256,    1,      0,              2);
-    GET_BLOCKS(256,    64,     0,              2);
-    GET_BLOCKS(320,    64,     0,              2);
-    GET_BLOCKS(320,    96,     0,              3);
-    GET_BLOCKS(1,      127,    0,              0);
-    GET_BLOCKS(1,      128,    1,              1);
-    GET_BLOCKS(1,      127,    0,              0);
-    GET_BLOCKS(2,      127,    0,              1);
-
- **/
-void compute_blocks(size_t aLength, size_t aOffset, size_t* first, size_t* last)
-{
-    size_t firstBlock = std::floor((double)aOffset / (double)BLOCK_SIZE);
-    size_t lastBlock  = std::floor(((double)aOffset + (double)aLength - 1.0) / (double)BLOCK_SIZE);
-
-    *first = firstBlock;
-    *last = lastBlock;
-}
-
-size_t blocks_access_size(size_t first, size_t last) {
-  return ((last - first) + 1) * BLOCK_SIZE;
-}
-
 static NTSTATUS NTAPI InterposedNtReadFile(HANDLE aFileHandle, HANDLE aEvent,
                                            PIO_APC_ROUTINE aApc, PVOID aApcCtx,
                                            PIO_STATUS_BLOCK aIoStatus,
@@ -320,23 +268,23 @@ static NTSTATUS NTAPI InterposedNtReadFile(HANDLE aFileHandle, HANDLE aEvent,
       void* encryptedBlocksBuffer = (void*)malloc(sizeof(char) * readSpan);
       memset(encryptedBlocksBuffer, '0', readSpan);
       IO_STATUS_BLOCK encryptedIoStatus;
-      LARGE_INTEGER encryptedOffset = { .QuadPart = static_cast<LONGLONG>(firstBlock * BLOCK_SIZE) };
+      LARGE_INTEGER encryptedOffset = { .QuadPart = static_cast<LONGLONG>(firstBlock * CRYPTOIO_BLOCK_SIZE) };
 
       NTSTATUS encryptedBlocksStatus = gOriginalNtReadFile(aFileHandle, nullptr, nullptr, nullptr, &encryptedIoStatus, encryptedBlocksBuffer, readSpan, &encryptedOffset, nullptr);
       if (NT_SUCCESS(encryptedBlocksStatus)) {
         for (size_t block = 0; block < (lastBlock - firstBlock); block++) {
-          decrypt(BLOCK_SIZE, (void*)(((char*)encryptedBlocksBuffer) + (block * BLOCK_SIZE)));
+          decrypt(CRYPTOIO_BLOCK_SIZE, (void*)(((char*)encryptedBlocksBuffer) + (block * CRYPTOIO_BLOCK_SIZE)));
         }
         void* decryptedBlocksBuffer = encryptedBlocksBuffer;
-        void* offsetInDecryptedBlocksBuffer = (void*)(((char*)decryptedBlocksBuffer) + (offset - BLOCK_SIZE * firstBlock));
-        // printf_stderr("%s: %s => encryptedBlocksBuffer=%p offsetInBuffer=%zu\n", "NtReadFile", filename, encryptedBlocksBuffer, (offset - BLOCK_SIZE * firstBlock));
+        void* offsetInDecryptedBlocksBuffer = (void*)(((char*)decryptedBlocksBuffer) + (offset - CRYPTOIO_BLOCK_SIZE * firstBlock));
+        // printf_stderr("%s: %s => encryptedBlocksBuffer=%p offsetInBuffer=%zu\n", "NtReadFile", filename, encryptedBlocksBuffer, (offset - CRYPTOIO_BLOCK_SIZE * firstBlock));
         // int same = memcmp(aBuffer, offsetInDecryptedBlocksBuffer, realLength);
         // printf_stderr("%s: %s(%lu @ %zu) => memcmp(%p, %p, %lu)=%d == %s\n", "NtReadFile", filename, aLength, offset, aBuffer, offsetInDecryptedBlocksBuffer, realLength, same, same == 0 ? "IDENTICAL" : "DIFFERENT");
         // printf_stderr("%s: %s(%lu @ %zu) => memcpy(%p, %p, %lu)\n", "NtReadFile", filename, aLength, offset, aBuffer, offsetInDecryptedBlocksBuffer, realLength);
         memcpy(aBuffer, offsetInDecryptedBlocksBuffer, realLength);
         /* } else {
           printf_stderr("%s: %s (%lu@%lld) == [%zu; %zu] => %zu\n", "NtReadFile", NS_ConvertUTF16toUTF8(handlesOfInterest[aFileHandle]).get(), aLength, offset, firstBlock, lastBlock, blocks_access_size(firstBlock, lastBlock));
-          printf_stderr("%s: %s readSpan=%zu offset=%zu readBytes=%lld ==> %s\n", "ENCRYPTED gOriginalNtReadFile", NS_ConvertUTF16toUTF8(handlesOfInterest[aFileHandle]).get(), readSpan, firstBlock * BLOCK_SIZE, encryptedIoStatus.Information, NT_SUCCESS(encryptedBlocksStatus) ? "SUCCESS" : "FAILURE");
+          printf_stderr("%s: %s readSpan=%zu offset=%zu readBytes=%lld ==> %s\n", "ENCRYPTED gOriginalNtReadFile", NS_ConvertUTF16toUTF8(handlesOfInterest[aFileHandle]).get(), readSpan, firstBlock * CRYPTOIO_BLOCK_SIZE, encryptedIoStatus.Information, NT_SUCCESS(encryptedBlocksStatus) ? "SUCCESS" : "FAILURE");
         */
       }
       free(encryptedBlocksBuffer);
@@ -390,28 +338,28 @@ static NTSTATUS NTAPI InterposedNtWriteFile(HANDLE aFileHandle, HANDLE aEvent,
       void* encryptedBlocksBuffer = (void*)malloc(sizeof(char) * writeSpan);
       memset(encryptedBlocksBuffer, 0x42, writeSpan);
       IO_STATUS_BLOCK encryptedIoStatus;
-      LARGE_INTEGER encryptedOffset = { .QuadPart = static_cast<LONGLONG>(firstBlock * BLOCK_SIZE) };
+      LARGE_INTEGER encryptedOffset = { .QuadPart = static_cast<LONGLONG>(firstBlock * CRYPTOIO_BLOCK_SIZE) };
 
       // read the encrypted existing data that may exist
       NTSTATUS encryptedBlocksStatus = gOriginalNtReadFile(aFileHandle, nullptr, nullptr, nullptr, &encryptedIoStatus, encryptedBlocksBuffer, writeSpan, &encryptedOffset, nullptr);
       if (NT_SUCCESS(encryptedBlocksStatus)) {
         // decrypt blocks
         for (size_t block = 0; block < (lastBlock - firstBlock); block++) {
-          decrypt(BLOCK_SIZE, (void*)(((char*)encryptedBlocksBuffer) + (block * BLOCK_SIZE)));
+          decrypt(CRYPTOIO_BLOCK_SIZE, (void*)(((char*)encryptedBlocksBuffer) + (block * CRYPTOIO_BLOCK_SIZE)));
         }
       }
 
       void* decryptedBlocksBuffer = encryptedBlocksBuffer;
 
       // where new data goes into decrypted buffer
-      void* offsetInDecryptedBlocksBuffer = (void*)(((char*)decryptedBlocksBuffer) + (offset - BLOCK_SIZE * firstBlock));
+      void* offsetInDecryptedBlocksBuffer = (void*)(((char*)decryptedBlocksBuffer) + (offset - CRYPTOIO_BLOCK_SIZE * firstBlock));
 
       // copy new data in decrypted buffer
       memcpy(offsetInDecryptedBlocksBuffer, aBuffer, aLength);
 
       // encrypt back blocks
       for (size_t block = 0; block < (lastBlock - firstBlock); block++) {
-        encrypt(BLOCK_SIZE, (void*)(((char*)decryptedBlocksBuffer) + (block * BLOCK_SIZE)));
+        encrypt(CRYPTOIO_BLOCK_SIZE, (void*)(((char*)decryptedBlocksBuffer) + (block * CRYPTOIO_BLOCK_SIZE)));
       }
       void* reEncryptedBlocksBuffer = decryptedBlocksBuffer;
 

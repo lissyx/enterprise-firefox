@@ -1,0 +1,16 @@
+if CONFIG["OS_ARCH"] == "Darwin":
+    USE_LIBS += ["gkrust"]
+
+    SOURCES += [
+        "CryptoIOInterposerMacLib.cpp",
+    ]
+
+    LOCAL_INCLUDES += [
+        "/xpcom/build",
+    ]
+
+    GeckoSharedLibrary("cryptoiointerposer")
+
+    SYMBOLS_FILE = "cryptoiointerposer.symbols"
+
+    NoVisibilityFlags()

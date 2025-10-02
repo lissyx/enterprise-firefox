@@ -18,6 +18,7 @@ namespace mozilla {
 
 extern PathString profileRoot;
 void CryptoIOInterposerSetProfilePath(PathString aProfilePath);
+bool IsFileUnderProfile(const char* aFilename);
 
 /**
  * Initialize IO poisoning, this is only safe to do on the main-thread when no
@@ -26,16 +27,6 @@ void CryptoIOInterposerSetProfilePath(PathString aProfilePath);
  * Please, note that this probably has performance implications as all
  */
 void InitCryptoIOInterposer();
-
-#    ifdef XP_MACOSX
-/**
- * Check that writes are dirty before reporting I/O (Mac OS X only)
- * This is necessary for late-write checks on Mac OS X, but reading the buffer
- * from file to see if we're writing dirty bits is expensive, so we don't want
- * to do this for everything else that uses
- */
-void OnlyReportDirtyWrites();
-#    endif /* XP_MACOSX */
 
 /**
  * Clear IO poisoning, this is only safe to do on the main-thread when no other

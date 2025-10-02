@@ -45,7 +45,7 @@ bool IsValidWrite(int aFd, const void* aWbuf, size_t aCount);
 bool IsIPCWrite(int aFd, const struct stat& aBuf);
 
 // Callbacks to pass to the interposer library.
-poisonio::InterposerCallbacks interposerCallbacks;
+poisonio::InterposerCallbacks poisonIoInterposerCallbacks;
 
 /******************************** IO AutoTimer ********************************/
 
@@ -225,11 +225,11 @@ void end_timer(void* aTimer) {
 namespace mozilla {
 
 void InitPoisonIOInterposer() {
-  interposerCallbacks.start_write_timer = start_write_timer;
-  interposerCallbacks.start_writev_timer = start_writev_timer;
-  interposerCallbacks.start_pwrite_timer = start_pwrite_timer;
-  interposerCallbacks.start_aio_write_timer = start_aio_write_timer;
-  interposerCallbacks.end_timer = end_timer;
+  poisonIoInterposerCallbacks.start_write_timer = start_write_timer;
+  poisonIoInterposerCallbacks.start_writev_timer = start_writev_timer;
+  poisonIoInterposerCallbacks.start_pwrite_timer = start_pwrite_timer;
+  poisonIoInterposerCallbacks.start_aio_write_timer = start_aio_write_timer;
+  poisonIoInterposerCallbacks.end_timer = end_timer;
 
   // Enable reporting from poisoned write methods
   sIsEnabled = true;
@@ -259,7 +259,7 @@ void InitPoisonIOInterposer() {
   register_io_interposers =
       (register_io_interposers_t)dlsym(RTLD_DEFAULT, "register_io_interposers");
   if (register_io_interposers) {
-    register_io_interposers(&interposerCallbacks);
+    register_io_interposers(&poisonIoInterposerCallbacks);
   }
 }
 

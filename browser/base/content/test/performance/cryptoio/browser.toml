@@ -2,7 +2,6 @@
 # Currently disabled on debug due to debug-only failures, see bug 1549723.
 # Disabled on Linux asan due to bug 1549729.
 skip-if = [
-  "debug",
   "tsan",
   "os == 'linux' && asan",
 ]
@@ -21,17 +20,13 @@ environment = [
   "MOZ_PROFILER_STARTUP_PERFORMANCE_TEST=1",
   "MOZ_PROFILER_STARTUP_FEATURES=js,mainthreadio",
   "MOZ_PROFILER_STARTUP_ENTRIES=10000000",
-  "DYLD_INSERT_LIBRARIES=libpoisoniointerposer.dylib",
+  "MOZ_ENABLE_PROFILE_ENCRYPTION=1",
+  "MOZ_PROFILE_ENCRYPTION_DEBUG=1",
+  "DYLD_INSERT_LIBRARIES=libcryptoiointerposer.dylib",
 ]
 
 ["../browser_startup_content_mainthreadio.js"]
 
 ["../browser_startup_mainthreadio.js"]
-skip-if = [
-  "os == 'mac' && os_version == '11.20' && arch == 'aarch64'", # bug 1707724
-  "socketprocess_networking",
-  "win11_2009 && bits == 32",
-  "os == 'win' && msix", # Bug 1833639
-]
 
 ["../browser_startup_syncIPC.js"]

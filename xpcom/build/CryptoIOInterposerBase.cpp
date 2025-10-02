@@ -21,5 +21,21 @@ void CryptoIOInterposerSetProfilePath(PathString aProfilePath) {
   profileRoot = aProfilePath;
 }
 
+inline bool IsFileUnderProfile
+#if defined(XP_WIN)
+  (nsAString& aFilename) {
+  if (mozilla::profileRoot.Length() == 0) {
+    return false;
+  }
+  return FindInReadable(mozilla::profileRoot, aFilename);
+#else
+  (const char* aFilename) {
+  if (mozilla::profileRoot.Length() == 0) {
+    return false;
+  }
+  return FindInReadable(mozilla::profileRoot, nsCString(aFilename));
+#endif
+}
+
 }  // namespace mozilla
 

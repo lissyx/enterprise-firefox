@@ -152,6 +152,9 @@ if CONFIG["OS_ARCH"] == "Darwin":
     UNIFIED_SOURCES += [
         "DarwinFileUtils.mm",
     ]
+    EXPORTS.mozilla += [
+        "DarwinFileUtils.h",
+    ]
 
 DEFINES["MOZ_APP_BASENAME"] = '"%s"' % CONFIG["MOZ_APP_BASENAME"]
 
