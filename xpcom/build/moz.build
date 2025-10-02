@@ -109,3 +109,8 @@ if CONFIG["MOZ_VPX"]:
 
 if CONFIG["MOZ_PHC"]:
     DEFINES["MOZ_PHC"] = 1
+
+if CONFIG["OS_ARCH"] == "Darwin":
+    DIRS += [
+        'poisoniointerposerlib',
+    ]

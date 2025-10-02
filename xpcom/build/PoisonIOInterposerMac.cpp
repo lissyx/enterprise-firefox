@@ -5,10 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "PoisonIOInterposer.h"
-// Disabled until bug 1658385 is fixed.
-#ifndef __aarch64__
-#  include "mach_override.h"
-#endif
+#include "PoisonIOInterposerMac.h"
 
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Assertions.h"
@@ -21,9 +18,6 @@
 #include "mozilla/StackWalk.h"
 #include "nsTraceRefcnt.h"
 #include "prio.h"
-
-#include <algorithm>
-#include <vector>
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -49,6 +43,9 @@ static bool sOnlyReportDirtyWrites = false;
 // Routines for write validation
 bool IsValidWrite(int aFd, const void* aWbuf, size_t aCount);
 bool IsIPCWrite(int aFd, const struct stat& aBuf);
+
+// Callbacks to pass to the interposer library.
+poisonio::InterposerCallbacks interposerCallbacks;
 
 /******************************** IO AutoTimer ********************************/
 
@@ -188,115 +185,52 @@ bool IsValidWrite(int aFd, const void* aWbuf, size_t aCount) {
   return false;
 }
 
-/*************************** Function Interception  ***************************/
+/**************************** Interposer Callbacks ****************************/
 
-/** Structure for declaration of function override */
-struct FuncData {
-  const char* Name;     // Name of the function for the ones we use dlsym
-  const void* Wrapper;  // The function that we will replace 'Function' with
-  void* Function;       // The function that will be replaced with 'Wrapper'
-  void* Buffer;         // Will point to the jump buffer that lets us call
-                        // 'Function' after it has been replaced.
-};
+using mozilla::UniquePtr;
 
-// Wrap aio_write. We have not seen it before, so just assert/report it.
-typedef ssize_t (*aio_write_t)(struct aiocb* aAioCbp);
-ssize_t wrap_aio_write(struct aiocb* aAioCbp);
-FuncData aio_write_data = {0, (void*)wrap_aio_write, (void*)aio_write};
-ssize_t wrap_aio_write(struct aiocb* aAioCbp) {
-  MacIOAutoObservation timer(mozilla::IOInterposeObserver::OpWrite,
-                             aAioCbp->aio_fildes);
+/*
+ * Timer callbacks invoked from the interposing library to time IO operations.
+ */
 
-  aio_write_t old_write = (aio_write_t)aio_write_data.Buffer;
-  return old_write(aAioCbp);
+void* start_write_timer(int aFd, const void* aBuf, int aCount) {
+  return new MacIOAutoObservation(mozilla::IOInterposeObserver::OpWrite, aFd,
+                                  aBuf, aCount);
 }
 
-// Wrap pwrite-like functions.
-// We have not seen them before, so just assert/report it.
-typedef ssize_t (*pwrite_t)(int aFd, const void* buf, size_t aNumBytes,
-                            off_t aOffset);
-template <FuncData& foo>
-ssize_t wrap_pwrite_temp(int aFd, const void* aBuf, size_t aNumBytes,
+void* start_writev_timer(int aFd, const struct iovec* aIov, int aIovCount) {
+  return new MacIOAutoObservation(mozilla::IOInterposeObserver::OpWrite, aFd,
+                                  nullptr, aIovCount);
+}
+
+void* start_pwrite_timer(int aFd, const void* aBuf, size_t aNumBytes,
                          off_t aOffset) {
-  MacIOAutoObservation timer(mozilla::IOInterposeObserver::OpWrite, aFd);
-  pwrite_t old_write = (pwrite_t)foo.Buffer;
-  return old_write(aFd, aBuf, aNumBytes, aOffset);
+  return new MacIOAutoObservation(mozilla::IOInterposeObserver::OpWrite, aFd);
 }
 
-// Define a FuncData for a pwrite-like functions.
-#define DEFINE_PWRITE_DATA(X, NAME) \
-  FuncData X##_data = {NAME, (void*)wrap_pwrite_temp<X##_data>};
-
-// This exists everywhere.
-DEFINE_PWRITE_DATA(pwrite, "pwrite")
-// These exist on 32 bit OS X
-DEFINE_PWRITE_DATA(pwrite_NOCANCEL_UNIX2003, "pwrite$NOCANCEL$UNIX2003");
-DEFINE_PWRITE_DATA(pwrite_UNIX2003, "pwrite$UNIX2003");
-// This exists on 64 bit OS X
-DEFINE_PWRITE_DATA(pwrite_NOCANCEL, "pwrite$NOCANCEL");
-
-typedef ssize_t (*writev_t)(int aFd, const struct iovec* aIov, int aIovCount);
-template <FuncData& foo>
-ssize_t wrap_writev_temp(int aFd, const struct iovec* aIov, int aIovCount) {
-  MacIOAutoObservation timer(mozilla::IOInterposeObserver::OpWrite, aFd,
-                             nullptr, aIovCount);
-  writev_t old_write = (writev_t)foo.Buffer;
-  return old_write(aFd, aIov, aIovCount);
+void* start_aio_write_timer(struct aiocb* aAioCbp) {
+  return new MacIOAutoObservation(mozilla::IOInterposeObserver::OpWrite,
+                                  aAioCbp->aio_fildes);
 }
 
-// Define a FuncData for a writev-like functions.
-#define DEFINE_WRITEV_DATA(X, NAME) \
-  FuncData X##_data = {NAME, (void*)wrap_writev_temp<X##_data>};
-
-// This exists everywhere.
-DEFINE_WRITEV_DATA(writev, "writev");
-// These exist on 32 bit OS X
-DEFINE_WRITEV_DATA(writev_NOCANCEL_UNIX2003, "writev$NOCANCEL$UNIX2003");
-DEFINE_WRITEV_DATA(writev_UNIX2003, "writev$UNIX2003");
-// This exists on 64 bit OS X
-DEFINE_WRITEV_DATA(writev_NOCANCEL, "writev$NOCANCEL");
-
-typedef ssize_t (*write_t)(int aFd, const void* aBuf, size_t aCount);
-template <FuncData& foo>
-ssize_t wrap_write_temp(int aFd, const void* aBuf, size_t aCount) {
-  MacIOAutoObservation timer(mozilla::IOInterposeObserver::OpWrite, aFd, aBuf,
-                             aCount);
-  write_t old_write = (write_t)foo.Buffer;
-  return old_write(aFd, aBuf, aCount);
+void end_timer(void* aTimer) {
+  UniquePtr<MacIOAutoObservation> timer(
+      static_cast<MacIOAutoObservation*>(aTimer));
 }
-
-// Define a FuncData for a write-like functions.
-#define DEFINE_WRITE_DATA(X, NAME) \
-  FuncData X##_data = {NAME, (void*)wrap_write_temp<X##_data>};
-
-// This exists everywhere.
-DEFINE_WRITE_DATA(write, "write");
-// These exist on 32 bit OS X
-DEFINE_WRITE_DATA(write_NOCANCEL_UNIX2003, "write$NOCANCEL$UNIX2003");
-DEFINE_WRITE_DATA(write_UNIX2003, "write$UNIX2003");
-// This exists on 64 bit OS X
-DEFINE_WRITE_DATA(write_NOCANCEL, "write$NOCANCEL");
-
-FuncData* Functions[] = {&aio_write_data,
-
-                         &pwrite_data,          &pwrite_NOCANCEL_UNIX2003_data,
-                         &pwrite_UNIX2003_data, &pwrite_NOCANCEL_data,
-
-                         &write_data,           &write_NOCANCEL_UNIX2003_data,
-                         &write_UNIX2003_data,  &write_NOCANCEL_data,
-
-                         &writev_data,          &writev_NOCANCEL_UNIX2003_data,
-                         &writev_UNIX2003_data, &writev_NOCANCEL_data};
-
-const int NumFunctions = std::size(Functions);
 
 }  // namespace
 
-/******************************** IO Poisoning ********************************/
+/****************************** IO Poisoning **********************************/
 
 namespace mozilla {
 
 void InitPoisonIOInterposer() {
+  interposerCallbacks.start_write_timer = start_write_timer;
+  interposerCallbacks.start_writev_timer = start_writev_timer;
+  interposerCallbacks.start_pwrite_timer = start_pwrite_timer;
+  interposerCallbacks.start_aio_write_timer = start_aio_write_timer;
+  interposerCallbacks.end_timer = end_timer;
+
   // Enable reporting from poisoned write methods
   sIsEnabled = true;
 
@@ -319,26 +253,13 @@ void InitPoisonIOInterposer() {
   ReplaceMalloc::InitDebugFd(registry);
 #endif
 
-  for (int i = 0; i < NumFunctions; ++i) {
-    FuncData* d = Functions[i];
-    if (!d->Function) {
-      d->Function = dlsym(RTLD_DEFAULT, d->Name);
-    }
-    if (!d->Function) {
-      continue;
-    }
+  typedef void (*register_io_interposers_t)(poisonio::InterposerCallbacks*);
+  void (*register_io_interposers)(poisonio::InterposerCallbacks*);
 
-    // Disable the interposer on arm64 until there's
-    // a mach_override_ptr implementation.
-#ifndef __aarch64__
-    // Temporarily disable the interposer on macOS x64
-    // while dynamic code disablement rides the trains.
-#  ifdef MOZ_INTERPOSER_FORCE_MACOS_X64
-    DebugOnly<mach_error_t> t =
-        mach_override_ptr(d->Function, d->Wrapper, &d->Buffer);
-    MOZ_ASSERT(t == err_none);
-#  endif  // MOZ_INTERPOSER_FORCE_MACOS_X64
-#endif
+  register_io_interposers =
+      (register_io_interposers_t)dlsym(RTLD_DEFAULT, "register_io_interposers");
+  if (register_io_interposers) {
+    register_io_interposers(&interposerCallbacks);
   }
 }
 

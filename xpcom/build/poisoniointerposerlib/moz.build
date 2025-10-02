@@ -1,0 +1,16 @@
+if CONFIG["OS_ARCH"] == "Darwin":
+    USE_LIBS += ["gkrust"]
+
+    SOURCES += [
+        "PoisonIOInterposerMacLib.cpp",
+    ]
+
+    LOCAL_INCLUDES += [
+        "/xpcom/build",
+    ]
+
+    GeckoSharedLibrary("poisoniointerposer")
+
+    SYMBOLS_FILE = "poisoniointerposer.symbols"
+
+    NoVisibilityFlags()
