@@ -28,8 +28,8 @@ mod utils;
 mod message;
 use crate::message::{FeltMessage, FELT_IPC_VERSION};
 
-pub static mut IS_FELT_UI: AtomicBool = AtomicBool::new(false);
-pub static mut IS_FELT_BROWSER: AtomicBool = AtomicBool::new(false);
+pub static IS_FELT_UI: AtomicBool = AtomicBool::new(false);
+pub static IS_FELT_BROWSER: AtomicBool = AtomicBool::new(false);
 
 pub struct FeltIpcClient {
     tx: Option<ipc_channel::ipc::IpcSender<FeltMessage>>,
