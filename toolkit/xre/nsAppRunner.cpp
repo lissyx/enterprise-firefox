@@ -5996,13 +5996,15 @@ int XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig) {
 
 #if defined(MOZ_WIDGET_FELT)
   if (XRE_IsParentProcess()) {
-    Maybe<bool> feltUI = geckoargs::sFeltUI.Get(gArgc, gArgv, CheckArgFlag::None);
+    Maybe<bool> feltUI =
+        geckoargs::sFeltUI.Get(gArgc, gArgv, CheckArgFlag::None);
 
     // FELT IPC channel
     Maybe<const char*> felt =
         geckoargs::sFelt.Get(gArgc, gArgv, CheckArgFlag::None);
     const char* mozFeltEnv = PR_GetEnv("MOZ_FELT_UI");
-    if (felt.isSome() || (feltUI.isSome() && *feltUI) || (mozFeltEnv && strcmp(mozFeltEnv, "1") == 0)) {
+    if (felt.isSome() || (feltUI.isSome() && *feltUI) ||
+        (mozFeltEnv && strcmp(mozFeltEnv, "1") == 0)) {
       // Deal with env_logger and all. Too early for CookieService
       felt_init();
 
