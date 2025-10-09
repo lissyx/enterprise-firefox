@@ -1268,7 +1268,6 @@ newtabPrivatePing:
         pref: browser.newtabpage.activity-stream.telemetry.privatePing.maxSubmissionDelayMs
       description: >-
         The maximum range for the random delay from scheduling the newtab-content ping to actually sending it. The minimum is 1000 by default. This is in milliseconds.
-
 newtabPublisherFavicons:
   description: Enabled publihser favicons on cards in newtab
   owner: nbarrett@mozilla.com
@@ -1424,10 +1423,10 @@ newtabInferredPersonalization:
       type: int
       description: >-
         Time to refresh interest vector in hours
-    iv_unary_dp_in_request:
-      type: boolean
+    history_cull_days:
+      type: int
       description: >-
-        Whether to use Unary encoding with differential privacy in the interest vector. If false or not set, we default to laplace noise with real values
+        Number of days local inferred feature history to preserve
     normalized_time_zone_offset:
       type: boolean
       description: >-

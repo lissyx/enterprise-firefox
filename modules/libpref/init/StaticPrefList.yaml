@@ -1808,6 +1808,17 @@
   value: 2
   mirror: always
 
+# Whether (-moz-native-theme) evaluates to true by default.
+- name: browser.theme.native-theme
+  type: RelaxedAtomicBool
+#ifdef MOZ_WIDGET_GTK
+  value: true
+#else
+  value: false
+#endif
+  mirror: always
+  rust: true
+
 # Communicates the preferred content theme color to platform (for e.g.,
 # prefers-color-scheme).
 #
@@ -4804,7 +4815,7 @@
 # Enable Storage-Access-Headers
 - name: dom.storage_access.headers.enabled
   type: bool
-  value: false
+  value: @IS_NIGHTLY_BUILD@
   mirror: always
 
 # Forward-Declared Storage-access API.
@@ -5538,9 +5549,13 @@
 #
 # When this condition changes, be sure to update the `run-if` / `skip-if`
 # conditions in `dom/webgpu/tests/mochitest/*.toml` accordingly.
+#
+# preprocessor.py doesn't understand parentheses, but && is higher precedence
+# than ||, meaning this pref defaults to true on any Windows architecture, or
+# on aarch64 (Apple Silicon) MacOS.
 - name: dom.webgpu.enabled
   type: RelaxedAtomicBool
-#ifdef XP_WIN
+#if defined(XP_WIN) || defined(XP_MACOSX) && defined(MOZ_AARCH64)
   value: true
 #else
   value: @IS_EARLY_BETA_OR_EARLIER@
@@ -11002,6 +11017,21 @@
   value: false
   mirror: always
 
+# Determines how we snap css outline-offset:
+#   0: No snapping (historical behavior)
+#   1: Always snap as border-width (proposed behavior in
+#      https://github.com/w3c/csswg-drafts/issues/12906)
+#   2: The above, but only on chrome code, for now.
+- name: layout.css.outline-offset.snapping
+  type: RelaxedAtomicInt32
+#ifdef NIGHTLY_BUILD
+  value: 1
+#else
+  value: 2
+#endif
+  mirror: always
+  rust: true
+
 - name: layout.visibility.min-recompute-interval-ms
   type: uint32_t
   value: 1000
@@ -12316,11 +12346,7 @@
 # Hls
 - name: media.hls.enabled
   type: RelaxedAtomicBool
-#if defined(ANDROID)
-  value: @IS_NOT_EARLY_BETA_OR_EARLIER@
-#else
-  value: false
-#endif
+  value: @IS_ANDROID@
   mirror: always
 
 # Max number of HLS players that can be created concurrently. Used only on
@@ -15738,6 +15764,12 @@
 - name: network.essential_domains_fallback
   type: RelaxedAtomicBool
   value: false
+  mirror: always
+
+# Enable HTTP Compression Dictionary support
+- name: network.http.dictionaries.enable
+  type: RelaxedAtomicBool
+  value: true
   mirror: always
 
 #---------------------------------------------------------------------------
