@@ -9,10 +9,12 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
+const LEARN_MORE_URL = "https://console-gcp-eu.enterfox.eu/downloads/firefox.html";
 
 export const EnterpriseHandler = {
   /**
@@ -59,13 +61,28 @@ export const EnterpriseHandler = {
   },
 
   openPanel(element, event) {
-    element.ownerGlobal.PanelUI.showSubView(
+    const win = element.ownerGlobal;
+    win.PanelUI.showSubView(
       "panelUI-enterprise",
       element,
       event
     );
     const document = element.ownerDocument;
     const email = document.querySelector(".panelUI-enterprise__email");
+    const learnMoreLink = document.getElementById("enterprise-learn-more-link");
+
+    if (!learnMoreLink.href) {
+      learnMoreLink.setAttribute("href", LEARN_MORE_URL);
+      
+      learnMoreLink.addEventListener("click", (e) => {
+        let where = lazy.BrowserUtils.whereToOpenLink(e, false, false);
+        if (where == "current") {
+          where = "tab";
+        }
+        win.openTrustedLinkIn(LEARN_MORE_URL, where);
+        e.preventDefault();
+      })
+    }
 
     if (!this._signedInUser) {
       email.hidden = true;
