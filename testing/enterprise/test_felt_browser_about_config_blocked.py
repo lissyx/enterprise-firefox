@@ -49,7 +49,7 @@ class BrowserAboutConfigBlocked(FeltTests):
                     },
                 )
                 j = r.json()
-                if not j["policies"]["BlockAboutConfig"]:
+                if not ("BlockAboutConfig" in j["policies"]):
                     self._logger.info(f"Policy update propagated at {url}!")
                     break
                 self._logger.info(f"Policy update not yet propagated at {url}")

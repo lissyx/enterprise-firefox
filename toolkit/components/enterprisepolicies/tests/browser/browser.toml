@@ -13,6 +13,8 @@ prefs = [
 
 ["browser_policies_broken_json.js"]
 
+["browser_policies_diffing.js"]
+
 ["browser_policies_gpo.js"]
 run-if = ["os == 'win'"]
 

@@ -102,6 +102,11 @@ export var Policies = {
         console.log("_cleanup from onAllWindowsRestored");
       }
     },
+    onRemove() {
+      if (Cu.isInAutomation || isXpcshell) {
+        console.log("_cleanup from onRemove");
+      }
+    },
   },
 
   "3rdparty": {

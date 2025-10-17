@@ -152,7 +152,10 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
                         if self.server.policy_block_about_config.value == 0
                         else True
                     )
-                    m = json.dumps({"policies": {"BlockAboutConfig": policy_value}})
+                    policy_content = (
+                        {"BlockAboutConfig": policy_value} if policy_value else {}
+                    )
+                    m = json.dumps({"policies": policy_content})
             else:
                 m = json.dumps({"policies": {}})
 
