@@ -1,4 +1,4 @@
-<img src="./docs/readme/readme-banner.svg" alt="Firefox for Enterprise Browser" width=2024 height=320/>
+<img src="./docs/readme/readme-banner.svg" alt="Firefox for Enterprise Browser" width=2024 height=200/>
 
 [Firefox](https://firefox.com/) is a fast, reliable and private web browser from the non-profit [Mozilla organization](https://mozilla.org/).
 
@@ -12,4 +12,4 @@ Add the following line to your `.mozconfig` depending on the platform you're dev
 
 
 #### Run:
-`./mach run -feltUI --temp-profile`
+`./mach run -feltUI`
