@@ -364,8 +364,13 @@ export var Policies = {
       if (param) {
         blockAboutPage(manager, "about:config");
         setAndLockPref("devtools.chrome.enabled", false);
-      } else {
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        // if it was block, just unblock
         unblockAboutPage(manager, "about:config");
+        unsetAndUnlockPref("devtools.chrome.enabled");
       }
     },
   },
