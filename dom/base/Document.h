@@ -546,6 +546,14 @@ enum class SheetPreloadStatus : uint8_t {
 
 //----------------------------------------------------------------------
 
+enum class LoadedAsData : uint8_t {
+  // Not "loaded as data"
+  No,
+  // The "loaded as data" case: scripting disabled and CSS loader creation made
+  // lazy
+  AsData,
+};
+
 // Document interface.  This is implemented by all document objects in
 // Gecko.
 class Document : public nsINode,
@@ -559,7 +567,7 @@ class Document : public nsINode,
   friend class LinkedListElement<Document>;
 
  protected:
-  explicit Document(const char* aContentType);
+  Document(const char* aContentType, LoadedAsData aLoadedAsData);
   virtual ~Document();
 
   Document(const Document&) = delete;
@@ -1008,22 +1016,37 @@ class Document : public nsINode,
    */
   void SetBidiEnabled() { mBidiEnabled = true; }
 
+  enum class InitialStatus : uint8_t {
+    IsInitial,
+    IsInitialButExplicitlyOpened,
+    WasInitial,
+    NeverInitial,
+  };
+
   /**
    * Ask this document whether it's the initial document in its window.
    */
-  bool IsInitialDocument() const { return mIsInitialDocumentInWindow; }
+  bool IsInitialDocument() const {
+    return mInitialStatus == InitialStatus::IsInitial;
+  }
 
   /**
    * Ask this document whether it has ever been a initial document in its
    * window.
    */
-  bool IsEverInitialDocument() const { return mIsEverInitialDocumentInWindow; }
+  bool IsEverInitialDocument() const {
+    return mInitialStatus != InitialStatus::NeverInitial;
+  }
 
   /**
    * Tell this document that it's the initial document in its window.  See
    * comments on mIsInitialDocumentInWindow for when this should be called.
    */
   void SetIsInitialDocument(bool aIsInitialDocument);
+
+  InitialStatus GetInitialStatus() const { return mInitialStatus; }
+
+  void SetInitialStatus(Document::InitialStatus aStatus);
 
   void SetLoadedAsData(bool aLoadedAsData, bool aConsiderForMemoryReporting);
 
@@ -1708,16 +1731,50 @@ class Document : public nsINode,
   size_t FindDocStyleSheetInsertionPoint(const StyleSheet& aSheet);
 
   /**
-   * Get this document's CSSLoader.  This is guaranteed to not return null.
+   * Get this document's CSSLoader. This is guaranteed not to return null
+   * during normal loads but will return null when loading as data if
+   * EnsureCSSLoader() or EnsureStyleImageLoader() hasn't been
+   * called previously.
    */
-  css::Loader* CSSLoader() const { return mCSSLoader; }
+  css::Loader* GetExistingCSSLoader() const { return mCSSLoader; }
 
   /**
-   * Get this document's StyleImageLoader.  This is guaranteed to not return
-   * null.
+   * Get this document's CSS loader. If it doesn't already exist, which
+   * is possible in the loaded as data case, this first creates the CSS
+   * loader and style image loader and then returns the former.
    */
-  css::ImageLoader* StyleImageLoader() const { return mStyleImageLoader; }
+  css::Loader& EnsureCSSLoader() {
+    if (!mCSSLoader) {
+      CreateCSSAndStyleImageLoaders();
+    }
+    return *mCSSLoader;
+  }
 
+  /**
+   * Get this document's StyleImageLoader. This is guaranteed not to return null
+   * during normal loads but will return null when loading as data with
+   * styling disabled.
+   */
+  css::ImageLoader* GetExistingStyleImageLoader() const {
+    return mStyleImageLoader;
+  }
+
+  /**
+   * Get this document's style image loader. If it doesn't already exist,
+   * which is possible in the loaded as data case, this first creates the CSS
+   * loader and style image loader and then returns the latter.
+   */
+  css::ImageLoader& EnsureStyleImageLoader() {
+    if (!mStyleImageLoader) {
+      CreateCSSAndStyleImageLoaders();
+    }
+    return *mStyleImageLoader;
+  }
+
+ private:
+  void CreateCSSAndStyleImageLoaders(bool aLazy = true);
+
+ public:
   /**
    * Get the channel that was passed to StartDocumentLoad or Reset for this
    * document.  Note that this may be null in some cases (eg if
@@ -1817,9 +1874,10 @@ class Document : public nsINode,
   }
 
   /**
-   * Get the script loader for this document
+   * Get the script loader for this document. Non-null for normal loads
+   * and null when loaded as data.
    */
-  dom::ScriptLoader* ScriptLoader() { return mScriptLoader; }
+  dom::ScriptLoader* GetScriptLoader() { return mScriptLoader; }
 
   /**
    * Add/Remove an element to the document's id and name hashes
@@ -2563,7 +2621,7 @@ class Document : public nsINode,
            !NodePrincipal()->SchemeIs("file");
   }
 
-  bool IsLoadedAsData() { return mLoadedAsData; }
+  bool IsLoadedAsData() const { return mLoadedAsData; }
 
   void SetAddedToMemoryReportAsDataDocument() {
     mAddedToMemoryReportingAsDataDocument = true;
@@ -2723,7 +2781,7 @@ class Document : public nsINode,
    * Return true if the documents current url can be re-written to `aTargetURL`.
    * This implements https://html.spec.whatwg.org/#can-have-its-url-rewritten.
    */
-  bool CanRewriteURL(nsIURI* aTargetURL) const;
+  bool CanRewriteURL(nsIURI* aTargetURL, bool aReportErrors = true) const;
 
   /**
    * Return true if this document is fully active as described by spec.
@@ -3053,13 +3111,6 @@ class Document : public nsINode,
                                   css::StylePreloadKind,
                                   uint64_t aEarlyHintPreloaderId,
                                   const nsAString& aFetchPriority);
-
-  /**
-   * Called by the chrome registry to load style sheets.
-   *
-   * This always does a synchronous load, and parses as a normal document sheet.
-   */
-  RefPtr<StyleSheet> LoadChromeSheetSync(nsIURI* aURI);
 
   /**
    * Returns true if the locale used for the document specifies a direction of
@@ -4799,12 +4850,23 @@ class Document : public nsINode,
   // GetPermissionDelegateHandler
   RefPtr<PermissionDelegateHandler> mPermissionDelegateHandler;
 
+  // https://html.spec.whatwg.org/#is-initial-about:blank
+  // Track the initial about:blank status of this document.
+  // We track both whether the document was previously initial,
+  // and whether it is an initial about:blank which has had document.open called
+  // on it (see bug 1995397).
+  InitialStatus mInitialStatus;
+
   bool mCachedStateObjectValid : 1;
   bool mBlockAllMixedContent : 1;
   bool mBlockAllMixedContentPreloads : 1;
   bool mUpgradeInsecureRequests : 1;
   bool mUpgradeInsecurePreloads : 1;
   bool mDevToolsWatchingDOMMutations : 1;
+
+  // Indicates whether this document is normal as in navigation or loaded as
+  // data as in XHR or DOMParser.
+  bool mLoadedAsData : 1;
 
   // https://drafts.csswg.org/css-view-transitions-1/#document-rendering-suppression-for-view-transitions
   bool mRenderingSuppressedForViewTransitions : 1;
@@ -4814,22 +4876,7 @@ class Document : public nsINode,
   // True if we may need to recompute the language prefs for this document.
   bool mMayNeedFontPrefsUpdate : 1;
 
-  // True if this document is the initial document for a window.  This should
-  // basically be true only for documents that exist in newly-opened windows or
-  // documents created to satisfy a GetDocument() on a window when there's no
-  // document in it.
-  bool mIsInitialDocumentInWindow : 1;
-
-  // True if this document has ever been the initial document for a window. This
-  // is useful to determine if a document that was the initial document at one
-  // point, and became non-initial later.
-  bool mIsEverInitialDocumentInWindow : 1;
-
   bool mIgnoreDocGroupMismatches : 1;
-
-  // True if we're loaded as data and therefor has any dangerous stuff, such
-  // as scripts and plugins, disabled.
-  bool mLoadedAsData : 1;
 
   // True if the document is considered for memory reporting as a
   // data document
@@ -5772,20 +5819,21 @@ bool IsInActiveTab(Document* aDoc);
 NON_VIRTUAL_ADDREF_RELEASE(mozilla::dom::Document)
 
 // XXX These belong somewhere else
-nsresult NS_NewHTMLDocument(mozilla::dom::Document** aInstancePtrResult,
-                            nsIPrincipal* aPrincipal,
-                            nsIPrincipal* aPartitionedPrincipal,
-                            bool aLoadedAsData = false);
+nsresult NS_NewHTMLDocument(
+    mozilla::dom::Document** aInstancePtrResult, nsIPrincipal* aPrincipal,
+    nsIPrincipal* aPartitionedPrincipal,
+    mozilla::dom::LoadedAsData aLoadedAsData = mozilla::dom::LoadedAsData::No);
 
-nsresult NS_NewXMLDocument(mozilla::dom::Document** aInstancePtrResult,
-                           nsIPrincipal* aPrincipal,
-                           nsIPrincipal* aPartitionedPrincipal,
-                           bool aLoadedAsData = false,
-                           bool aIsPlainDocument = false);
+nsresult NS_NewXMLDocument(
+    mozilla::dom::Document** aInstancePtrResult, nsIPrincipal* aPrincipal,
+    nsIPrincipal* aPartitionedPrincipal,
+    mozilla::dom::LoadedAsData aLoadedAsData = mozilla::dom::LoadedAsData::No,
+    bool aIsPlainDocument = false);
 
-nsresult NS_NewSVGDocument(mozilla::dom::Document** aInstancePtrResult,
-                           nsIPrincipal* aPrincipal,
-                           nsIPrincipal* aPartitionedPrincipal);
+nsresult NS_NewSVGDocument(
+    mozilla::dom::Document** aInstancePtrResult, nsIPrincipal* aPrincipal,
+    nsIPrincipal* aPartitionedPrincipal,
+    mozilla::dom::LoadedAsData aLoadedAsData = mozilla::dom::LoadedAsData::No);
 
 nsresult NS_NewImageDocument(mozilla::dom::Document** aInstancePtrResult,
                              nsIPrincipal* aPrincipal,
@@ -5811,7 +5859,8 @@ nsresult NS_NewDOMDocument(
     mozilla::dom::Document** aInstancePtrResult, const nsAString& aNamespaceURI,
     const nsAString& aQualifiedName, mozilla::dom::DocumentType* aDoctype,
     nsIURI* aDocumentURI, nsIURI* aBaseURI, nsIPrincipal* aPrincipal,
-    bool aLoadedAsData, nsIGlobalObject* aEventObject, DocumentFlavor aFlavor);
+    mozilla::dom::LoadedAsData aLoadedAsData, nsIGlobalObject* aEventObject,
+    DocumentFlavor aFlavor);
 
 inline mozilla::dom::Document* nsINode::GetOwnerDocument() const {
   mozilla::dom::Document* ownerDoc = OwnerDoc();

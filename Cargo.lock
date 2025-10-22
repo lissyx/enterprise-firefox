@@ -4762,7 +4762,7 @@ dependencies = [
 [[package]]
 name = "mtu"
 version = "0.2.9"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "bindgen 0.69.999",
  "cfg_aliases",
@@ -4781,7 +4781,7 @@ checksum = "a2983372caf4480544083767bf2d27defafe32af49ab4df3a0b7fc90793a3664"
 [[package]]
 name = "naga"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -4806,8 +4806,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-bin"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "clap",
  "clap-verbosity-flag",
@@ -4830,8 +4830,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-common"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "enum-map",
  "env_logger",
@@ -4844,8 +4844,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-crypto"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "bindgen 0.69.999",
  "enum-map",
@@ -4862,8 +4862,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-http3"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "enumset",
  "log",
@@ -4881,8 +4881,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-qpack"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "log",
  "neqo-common",
@@ -4895,8 +4895,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-transport"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "enum-map",
  "enumset",
@@ -4915,8 +4915,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-udp"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.17.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.17.0#0f8a822da1766cd397a4b0687f23da096d762733"
 dependencies = [
  "cfg_aliases",
  "libc",
@@ -7926,7 +7926,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -7956,7 +7956,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-apple"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "wgpu-hal",
 ]
@@ -7964,7 +7964,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-windows-linux-android"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "wgpu-hal",
 ]
@@ -7972,7 +7972,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -8010,7 +8010,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=1072b87894b7c3084f80bc9d2679e822435186ba#1072b87894b7c3084f80bc9d2679e822435186ba"
+source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
 dependencies = [
  "bitflags 2.9.0",
  "bytemuck",
