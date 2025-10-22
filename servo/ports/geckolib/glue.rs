@@ -136,12 +136,12 @@ use style::stylesheets::scope_rule::{ImplicitScopeRoot, ScopeRootCandidate, Scop
 use style::stylesheets::supports_rule::parse_condition_or_declaration;
 use style::stylesheets::{
     AllowImportRules, ContainerRule, CounterStyleRule, CssRule, CssRuleType, CssRuleTypes,
-    CssRules, CssRulesHelpers, DocumentRule, FontFaceRule, FontFeatureValuesRule,
-    FontPaletteValuesRule, ImportRule, KeyframesRule, LayerBlockRule, LayerStatementRule,
-    MarginRule, MediaRule, NamespaceRule, NestedDeclarationsRule, Origin, OriginSet,
-    PagePseudoClassFlags, PageRule, PositionTryRule, PropertyRule, SanitizationData,
-    SanitizationKind, ScopeRule, StartingStyleRule, StyleRule, StylesheetContents,
-    StylesheetInDocument, StylesheetLoader as StyleStylesheetLoader, SupportsRule, UrlExtraData,
+    CssRules, DocumentRule, FontFaceRule, FontFeatureValuesRule, FontPaletteValuesRule, ImportRule,
+    KeyframesRule, LayerBlockRule, LayerStatementRule, MarginRule, MediaRule, NamespaceRule,
+    NestedDeclarationsRule, Origin, OriginSet, PagePseudoClassFlags, PageRule, PositionTryRule,
+    PropertyRule, SanitizationData, SanitizationKind, ScopeRule, StartingStyleRule, StyleRule,
+    StylesheetContents, StylesheetInDocument, StylesheetLoader as StyleStylesheetLoader,
+    SupportsRule, UrlExtraData,
 };
 use style::stylist::{
     add_size_of_ua_cache, replace_parent_selector_with_implicit_scope, scope_root_candidates,
@@ -170,9 +170,9 @@ use style::values::generics::easing::BeforeFlag;
 use style::values::generics::length::GenericAnchorSizeFunction;
 use style::values::resolved;
 use style::values::specified::intersection_observer::IntersectionObserverMargin;
+use style::values::specified::position::DashedIdentAndOrTryTactic;
 use style::values::specified::source_size_list::SourceSizeList;
 use style::values::specified::svg_path::PathCommand;
-use style::values::specified::position::DashedIdentAndOrTryTactic;
 use style::values::specified::{AbsoluteLength, NoCalcLength};
 use style::values::{specified, AtomIdent, CustomIdent, KeyframesName};
 use style_traits::{CssWriter, ParseError, ParsingMode, ToCss, TypedValue};
@@ -2099,8 +2099,7 @@ pub extern "C" fn Servo_StyleSheet_GetSourceMapURL(
     contents: &StylesheetContents,
     result: &mut nsACString,
 ) {
-    let url_opt = contents.source_map_url.read();
-    if let Some(ref url) = *url_opt {
+    if let Some(ref url) = contents.source_map_url {
         result.assign(url);
     }
 }
@@ -2110,8 +2109,7 @@ pub extern "C" fn Servo_StyleSheet_GetSourceURL(
     contents: &StylesheetContents,
     result: &mut nsACString,
 ) {
-    let url_opt = contents.source_url.read();
-    if let Some(ref url) = *url_opt {
+    if let Some(ref url) = contents.source_url {
         result.assign(url);
     }
 }
@@ -2231,24 +2229,28 @@ pub extern "C" fn Servo_CssRules_InsertRule(
     let rule = unsafe { rule.as_str_unchecked() };
 
     let global_style_data = &*GLOBAL_STYLE_DATA;
-    let result = rules.insert_rule(
-        &global_style_data.shared_lock,
-        rule,
-        contents,
-        index as usize,
-        CssRuleTypes::from_bits(containing_rule_types),
-        parse_relative_rule_type.cloned(),
-        loader,
-        allow_import_rules,
-    );
+    let index = index as usize;
+    let new_rule = {
+        let guard = global_style_data.shared_lock.read();
+        match rules.read_with(&guard).parse_rule_for_insert(
+            &global_style_data.shared_lock,
+            rule,
+            contents,
+            index,
+            CssRuleTypes::from_bits(containing_rule_types),
+            parse_relative_rule_type.cloned(),
+            loader,
+            allow_import_rules,
+        ) {
+            Ok(r) => r,
+            Err(e) => return e.into(),
+        }
+    };
 
-    match result {
-        Ok(new_rule) => {
-            *rule_type = new_rule.rule_type();
-            nsresult::NS_OK
-        },
-        Err(err) => err.into(),
-    }
+    let mut write_guard = global_style_data.shared_lock.write();
+    *rule_type = new_rule.rule_type();
+    rules.write_with(&mut write_guard).0.insert(index, new_rule);
+    nsresult::NS_OK
 }
 
 #[no_mangle]
@@ -2904,8 +2906,8 @@ pub extern "C" fn Servo_StyleRule_SetSelectorText(
         use selectors::parser::ParseRelative;
         use style::selector_parser::SelectorParser;
 
-        let namespaces = contents.namespaces.read();
-        let url_data = contents.url_data.read();
+        let namespaces = &contents.namespaces;
+        let url_data = &contents.url_data;
         let parser = SelectorParser {
             stylesheet_origin: contents.origin,
             namespaces: &namespaces,
@@ -3324,7 +3326,7 @@ pub extern "C" fn Servo_PageRule_SetSelectorText(
             return true;
         }
 
-        let url_data = contents.url_data.read();
+        let url_data = &contents.url_data;
         let context = ParserContext::new(
             Origin::Author,
             &url_data,
@@ -4395,13 +4397,9 @@ pub unsafe extern "C" fn Servo_ComputedValues_GetForPositionTry(
     let guards = StylesheetGuards::same(&guard);
     let element = GeckoElement(element);
     let data = raw_data.borrow();
-    data.stylist.resolve_position_try(
-        style,
-        &guards,
-        element,
-        name_and_try_tactic
-    )
-    .into()
+    data.stylist
+        .resolve_position_try(style, &guards, element, name_and_try_tactic)
+        .into()
 }
 
 #[no_mangle]
@@ -9452,8 +9450,8 @@ pub unsafe extern "C" fn Servo_SharedMemoryBuilder_AddStylesheet(
     // Assert some things we assume when we create a style sheet from shared
     // memory.
     debug_assert_eq!(contents.quirks_mode, QuirksMode::NoQuirks);
-    debug_assert!(contents.source_map_url.read().is_none());
-    debug_assert!(contents.source_url.read().is_none());
+    debug_assert!(contents.source_map_url.is_none());
+    debug_assert!(contents.source_url.is_none());
 
     match builder.write(&contents.rules) {
         Ok(rules_ptr) => &**rules_ptr,

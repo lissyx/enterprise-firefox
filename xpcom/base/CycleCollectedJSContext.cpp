@@ -1064,7 +1064,7 @@ RunMicroTask(JSContext* aCx, JS::MutableHandle<JS::MicroTask> task) {
     }
   }
 
-  if (incumbentGlobal && schedulingState) {
+  if (incumbentGlobal) {
     // https://wicg.github.io/scheduling-apis/#sec-patches-html-hostcalljobcallback
     // 2. Set event loop’s current scheduling state to
     // callback.[[HostDefined]].[[SchedulingState]].
@@ -1088,7 +1088,7 @@ RunMicroTask(JSContext* aCx, JS::MutableHandle<JS::MicroTask> task) {
 
   // (The step after step 7): Set event loop’s current scheduling
   // state to null
-  if (incumbentGlobal && schedulingState) {
+  if (incumbentGlobal) {
     incumbentGlobal->SetWebTaskSchedulingState(nullptr);
   }
 
@@ -1120,6 +1120,12 @@ bool CycleCollectedJSContext::PerformMicroTaskCheckPoint(bool aForce) {
   JSContext* cx = Context();
 
   if (StaticPrefs::javascript_options_use_js_microtask_queue()) {
+    // If we have no JSContext we are not capable of checking for
+    // nor running microtasks, and so simply return false early here.
+    if (!cx) {
+      return false;
+    }
+
     if (!JS::HasAnyMicroTasks(cx)) {
       MOZ_ASSERT(mDebuggerMicroTaskQueue.empty());
       MOZ_ASSERT(mPendingMicroTaskRunnables.empty());
@@ -1212,10 +1218,9 @@ bool CycleCollectedJSContext::PerformMicroTaskCheckPoint(bool aForce) {
         }
         didProcess = true;
 
-        // Note: We're dropping the return value on the floor here. This is
-        // consistent with the previous implementation, which left the
-        // exception if it was there pending on the context, but likely should
-        // be changed.
+        // Note: We're dropping the return value on the floor here, however
+        // cleanup and exception handling are done as part of the CallSetup
+        // destructor if necessary.
         (void)RunMicroTask(cx, &job);
       }
     }
