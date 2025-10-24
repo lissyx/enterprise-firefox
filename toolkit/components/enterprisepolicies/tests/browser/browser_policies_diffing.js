@@ -5,7 +5,7 @@
 
 add_setup(async function test_set_http_server_usage() {
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.policies.live_polling_freq", 1000]],
+    set: [["browser.policies.live_polling_freq", 250]],
   });
 
   Services.prefs.setBoolPref("browser.policies.testUseHttp", true);
@@ -45,8 +45,8 @@ add_task(async function test_simple_policy_removal() {
         blockSomePageApplied = true;
       }
     },
-    onRemove(manager, oldParams) {
-      if (oldParams) {
+    onRemove(manager, oldParam) {
+      if (oldParam) {
         // Previous policy param was "true" so revert and disable the blocking
         blockSomePageApplied = false;
       }
@@ -90,12 +90,14 @@ add_task(async function test_simple_policy_stays() {
   // Inspired by BlockAboutConfig
   lazy.Policies.BlockAnotherPage = {
     onBeforeUIStartup(manager, param) {
+      info(`BlockAnotherPage.onBeforeUIStartup(${param})`);
       if (param) {
         blockAnotherPageApplied = true;
       }
     },
-    onRemove(manager, oldParams) {
-      if (oldParams) {
+    onRemove(manager, oldParam) {
+      info(`BlockAnotherPage.onRemove(${oldParam})`);
+      if (oldParam) {
         // Previous policy param was "true" so revert and disable the blocking
         blockAnotherPageApplied = false;
       }
@@ -134,7 +136,7 @@ add_task(async function test_simple_policy_stays() {
   blockAnotherPageApplied = false;
 
   // polling happens on a specific frequency so wait enough to be certain
-  await new Promise(resolve => lazy.setTimeout(resolve, 5000));
+  await new Promise(resolve => lazy.setTimeout(resolve, 500));
 
   ok(!blockAnotherPageApplied, "BlockAnotherPage not re-enabled by policy");
 
