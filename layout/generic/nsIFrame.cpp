@@ -4172,9 +4172,13 @@ static bool ShouldSkipFrame(nsDisplayListBuilder* aBuilder,
   if (aBuilder->IsBackgroundOnly()) {
     return true;
   }
-  if (aBuilder->IsForGenerateGlyphMask() &&
-      (!aFrame->IsTextFrame() && aFrame->IsLeaf())) {
-    return true;
+  if (aBuilder->IsForGenerateGlyphMask()) {
+    if ((aFrame->IsLeaf() && !aFrame->IsTextFrame()) ||
+        aFrame->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW)) {
+      // Only in-flow text frames are painted for background-clip: text mask
+      // generation.
+      return true;
+    }
   }
   if (aBuilder->GetSelectedFramesOnly() && aFrame->IsLeaf() &&
       !aFrame->IsSelected()) {
@@ -7453,47 +7457,6 @@ void nsIFrame::DidReflow(nsPresContext* aPresContext,
   }
 
   aPresContext->ReflowedFrame();
-}
-
-void nsIFrame::FinishReflowWithAbsoluteFrames(nsPresContext* aPresContext,
-                                              ReflowOutput& aDesiredSize,
-                                              const ReflowInput& aReflowInput,
-                                              nsReflowStatus& aStatus) {
-  ReflowAbsoluteFrames(aPresContext, aDesiredSize, aReflowInput, aStatus);
-
-  FinishAndStoreOverflow(&aDesiredSize, aReflowInput.mStyleDisplay);
-}
-
-void nsIFrame::ReflowAbsoluteFrames(nsPresContext* aPresContext,
-                                    ReflowOutput& aDesiredSize,
-                                    const ReflowInput& aReflowInput,
-                                    nsReflowStatus& aStatus) {
-  if (HasAbsolutelyPositionedChildren()) {
-    AbsoluteContainingBlock* absoluteContainer = GetAbsoluteContainingBlock();
-
-    // Let the absolutely positioned container reflow any absolutely positioned
-    // child frames that need to be reflowed
-
-    // The containing block for the abs pos kids is formed by our padding edge.
-    nsMargin usedBorder = GetUsedBorder();
-    nscoord containingBlockWidth =
-        std::max(0, aDesiredSize.Width() - usedBorder.LeftRight());
-    nscoord containingBlockHeight =
-        std::max(0, aDesiredSize.Height() - usedBorder.TopBottom());
-    nsContainerFrame* container = do_QueryFrame(this);
-    NS_ASSERTION(container,
-                 "Abs-pos children only supported on container frames for now");
-
-    nsRect containingBlock(0, 0, containingBlockWidth, containingBlockHeight);
-    // XXX: To optimize the performance, set the flags only when the CB width or
-    // height actually changes.
-    AbsPosReflowFlags flags{AbsPosReflowFlag::AllowFragmentation,
-                            AbsPosReflowFlag::CBWidthChanged,
-                            AbsPosReflowFlag::CBHeightChanged};
-    absoluteContainer->Reflow(container, aPresContext, aReflowInput, aStatus,
-                              containingBlock, flags,
-                              &aDesiredSize.mOverflowAreas);
-  }
 }
 
 /* virtual */

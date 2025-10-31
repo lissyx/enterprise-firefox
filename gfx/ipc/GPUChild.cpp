@@ -58,7 +58,6 @@ void GPUChild::Init() {
       gfxConfig::GetValue(Feature::D3D11_COMPOSITING);
   devicePrefs.oglCompositing() =
       gfxConfig::GetValue(Feature::OPENGL_COMPOSITING);
-  devicePrefs.useD2D1() = gfxConfig::GetValue(Feature::DIRECT2D);
   devicePrefs.d3d11HwAngle() = gfxConfig::GetValue(Feature::D3D11_HW_ANGLE);
 
   nsTArray<LayerTreeIdMapping> mappings;
@@ -86,12 +85,12 @@ void GPUChild::OnVarChanged(const nsTArray<GfxVarUpdate>& aVar) {
   SendUpdateVar(aVar);
 }
 
-bool GPUChild::EnsureGPUReady() {
+bool GPUChild::EnsureGPUReady(bool aForceSync /* = false */) {
   // On our initial process launch, we want to block on the GetDeviceStatus
   // message. Additionally, we may have updated our compositor configuration
   // through the gfxVars after fallback, in which case we want to ensure the
   // GPU process has handled any updates before creating compositor sessions.
-  if (mGPUReady && !mWaitForVarUpdate) {
+  if (mGPUReady && !aForceSync) {
     return true;
   }
 
@@ -108,7 +107,6 @@ bool GPUChild::EnsureGPUReady() {
     mGPUReady = true;
   }
 
-  mWaitForVarUpdate = false;
   return true;
 }
 

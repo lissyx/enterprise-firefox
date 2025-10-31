@@ -84,6 +84,14 @@ exclude = [
   "NS_LogDtor",
   "SelectorList",
   "AuthorStyles",
+  "LockedStyleRule",
+  "LockedImportRule",
+  "LockedFontFaceRule",
+  "LockedCounterStyleRule",
+  "LockedKeyframesRule",
+  "LockedPageRule",
+  "LockedPositionTryRule",
+  "LockedNestedDeclarationsRule",
 ]
 include = [
   "AnchorName",
@@ -126,6 +134,8 @@ include = [
   "Platform",
   "PositionAnchor",
   "PositionArea",
+  "PositionAreaAxis",
+  "PositionAreaTrack",
   "PositionAreaKeyword",
   "PositionTryFallbacks",
   "PositionTryOrder",
@@ -184,7 +194,7 @@ include = [
   "NonNegativeLengthOrAuto",
   "TextDecorationSkipInk",
   "TextDecorationLength",
-  "TextDecorationTrim",
+  "TextDecorationInset",
   "Time",
   "Rect",
   "InitialLetter",
@@ -203,6 +213,7 @@ include = [
   "BorderRadius",
   "ColorScheme",
   "ColumnCount",
+  "CssRuleRef",
   "NonNegativeLengthOrNumberRect",
   "Perspective",
   "ZIndex",
@@ -1212,4 +1223,8 @@ renaming_overrides_prefixing = true
 
 "PositionArea" = """
   inline bool IsNone() const;
+  constexpr StylePositionArea()
+    : first(StylePositionAreaKeyword::None),
+      second(StylePositionAreaKeyword::None)
+  {}
 """

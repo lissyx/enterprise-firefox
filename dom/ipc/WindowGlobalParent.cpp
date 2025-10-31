@@ -22,7 +22,6 @@
 #include "mozilla/ServoStyleSet.h"
 #include "mozilla/StaticPrefs_dom.h"
 #include "mozilla/StaticPrefs_network.h"
-#include "mozilla/Variant.h"
 #include "mozilla/dom/BrowserBridgeParent.h"
 #include "mozilla/dom/BrowserHost.h"
 #include "mozilla/dom/BrowserParent.h"
@@ -259,7 +258,7 @@ already_AddRefed<WindowGlobalChild> WindowGlobalParent::GetChildActor() {
   return do_AddRef(static_cast<WindowGlobalChild*>(otherSide));
 }
 
-BrowserParent* WindowGlobalParent::GetBrowserParent() {
+BrowserParent* WindowGlobalParent::GetBrowserParent() const {
   if (IsInProcess() || !CanSend()) {
     return nullptr;
   }
@@ -571,7 +570,7 @@ IPCResult WindowGlobalParent::RecvRawMessage(
   return IPC_OK();
 }
 
-const nsACString& WindowGlobalParent::GetRemoteType() {
+const nsACString& WindowGlobalParent::GetRemoteType() const {
   if (RefPtr<BrowserParent> browserParent = GetBrowserParent()) {
     return browserParent->Manager()->GetRemoteType();
   }

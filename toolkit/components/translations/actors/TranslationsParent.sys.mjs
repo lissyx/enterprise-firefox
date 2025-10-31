@@ -1118,18 +1118,14 @@ export class TranslationsParent extends JSWindowActorParent {
    * The "Accept-Language" values that the localizer or user has indicated for
    * the preferences for the web. https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language
    *
-   * Note that this preference always has English in the fallback chain, even if the
+   * Note that this preference often has English in the fallback chain, even if the
    * user doesn't actually speak English, and to other languages they potentially do
    * not speak. However, this preference will be used as an indication that a user may
    * prefer this language.
-   *
-   * https://transvision.flod.org/string/?entity=toolkit/chrome/global/intl.properties:intl.accept_languages&repo=gecko_strings
    */
   static getWebContentLanguages() {
     if (!TranslationsParent.#webContentLanguages) {
-      const values = Services.prefs
-        .getComplexValue(ACCEPT_LANGUAGES_PREF, Ci.nsIPrefLocalizedString)
-        .data.split(/\s*,\s*/g);
+      const values = Services.locale.acceptLanguages.split(/\s*,\s*/g);
 
       TranslationsParent.#webContentLanguages = new Set();
 
@@ -3554,7 +3550,8 @@ export class TranslationsParent extends JSWindowActorParent {
   }
 
   /**
-   * Uses the page extractor to identify the current page's language.
+   * Extracts a substring of visible text from the content document and
+   * runs it through the language detector to determine the page's language.
    *
    * @returns {Promise<DetectionResult>}
    */
@@ -3563,52 +3560,91 @@ export class TranslationsParent extends JSWindowActorParent {
       return this.languageState.detectedLanguages.identified;
     }
 
-    const actor =
-      this.browsingContext?.currentWindowGlobal?.getActor("PageExtractor");
-
-    if (!actor) {
-      throw new Error("Unable to get the PageExtractor actor.");
-    }
-
-    const startTime = ChromeUtils.now();
-
-    // Manual profiling on 10 page loads of https://es.wikipedia.org/wiki/Felis_catus:
-    // -------------------------------------------------------------------------------
-    //
-    //   No limit: 2064 samples, 224/237/294 [min/med/max]ms (~85k code units)
-    // 8192 limit:  681 samples,  75/ 87/128 [min/med/max]ms
-    // 4096 limit:  457 samples,  51/ 55/ 97 [min/med/max]ms
-    // 2048 limit:  240 samples,  29/ 39/ 64 [min/med/max]ms
-    // 1024 limit:  142 samples,  19/ 28/ 58 [min/med/max]ms
-    //
-    // 2048 Code units feels like a decent length for performance and sample size.
-    const pageText = await actor.getText({ sufficientLength: 2048 });
-    if (this.#isDestroyed) {
-      return { language: "", confident: false, languages: [] };
-    }
-
-    const result = await lazy.LanguageDetector.detectLanguage(pageText);
-    if (this.#isDestroyed) {
-      return { language: "", confident: false, languages: [] };
-    }
-
-    const message =
-      `Identified page language as "${result.language}" ` +
-      `in ${((ChromeUtils.now() - startTime) / 1000).toFixed(3)} seconds: ` +
-      this.browsingContext?.currentURI?.spec;
-
-    ChromeUtils.addProfilerMarker(
-      "TranslationsParent",
-      { startTime, innerWindowId: this.innerWindowId },
-      message
+    lazy.console.log(
+      "Beginning text extraction:",
+      this.browsingContext?.currentURI?.spec
     );
 
-    lazy.console.debug("\nExtracted Page Text:\n\n", pageText);
-    lazy.console.log(message);
+    const extractionStartTime = ChromeUtils.now();
+    const pageText = await this.sendQuery("Translations:ExtractPageText", {
+      sufficientLength: 4096,
+    });
+
+    if (this.#isDestroyed) {
+      return { language: "en", confident: false, languages: [] };
+    }
+
+    const extractionTime = ChromeUtils.now() - extractionStartTime;
+
+    lazy.console.debug(
+      `Extracted Page Text (${pageText.length} code units):\n\n`,
+      pageText
+    );
+
+    const extractionLog =
+      `Extracted ${pageText.length} code units of text in ` +
+      `${extractionTime.toFixed(3)} ms.`;
+
+    lazy.console.log(extractionLog);
+    ChromeUtils.addProfilerMarker(
+      "TranslationsParent",
+      { startTime: extractionStartTime, innerWindowId: this.innerWindowId },
+      extractionLog
+    );
+
+    const identificationStartTime = ChromeUtils.now();
+    const result = await lazy.LanguageDetector.detectLanguage(pageText);
+
+    if (this.#isDestroyed) {
+      return { language: "en", confident: false, languages: [] };
+    }
+
+    const identificationTime = ChromeUtils.now() - identificationStartTime;
+    const identificationLog =
+      `Identified ${pageText.length} code units of text as "${result.language}" ` +
+      `in ${identificationTime.toFixed(3)} ms.`;
+
+    lazy.console.log(identificationLog);
+    ChromeUtils.addProfilerMarker(
+      "TranslationsParent",
+      { startTime: identificationStartTime, innerWindowId: this.innerWindowId },
+      identificationLog
+    );
+    ChromeUtils.addProfilerMarker(
+      "TranslationsParent",
+      { startTime: extractionStartTime, innerWindowId: this.innerWindowId },
+      "Total time to identify page language."
+    );
 
     if (pageText.length < TranslationsParent.#DOC_CONFIDENCE_THRESHOLD) {
       result.confident = false;
     }
+
+    // Some language tags are not supported by CLD2
+    result.language = this.maybeRefineMacroLanguageTag(result.language);
+
+    const htmlLangAttribute =
+      this.languageState?.detectedLanguages?.htmlLangAttribute ?? null;
+    const identifiedLanguage = result.language;
+
+    TranslationsParent.telemetry().onIdentifyPageLanguage({
+      htmlLangAttribute,
+      identifiedLanguage,
+      langTagsMatch: htmlLangAttribute
+        ? lazy.TranslationsUtils.langTagsMatch(
+            htmlLangAttribute,
+            identifiedLanguage
+          )
+        : null,
+      isLangAttributeValid: htmlLangAttribute
+        ? lazy.TranslationsUtils.isLangTagValid(htmlLangAttribute)
+        : null,
+      extractedCodeUnits: pageText.length,
+      extractionTime,
+      identificationTime,
+      totalTime: extractionTime + identificationTime,
+      confident: result.confident,
+    });
 
     return result;
   }

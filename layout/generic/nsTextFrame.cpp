@@ -5783,82 +5783,148 @@ static gfxFloat ComputeDecorationLineOffset(
   return 0;
 }
 
-// Helper to determine decoration trim offset.
-// Returns false if the trim would cut off the decoration entirely.
-static bool ComputeDecorationTrim(
-    const nsTextFrame* aFrame, const nsPresContext* aPresCtx,
+// Helper to determine decoration inset.
+// Returns false if the inset would cut off the decoration entirely.
+static bool ComputeDecorationInset(
+    nsTextFrame* aFrame, const nsPresContext* aPresCtx,
     const nsIFrame* aDecFrame, const gfxFont::Metrics& aMetrics,
     nsCSSRendering::DecorationRectParams& aParams) {
-  const gfxFloat app = aPresCtx->AppUnitsPerDevPixel();
   const WritingMode wm = aDecFrame->GetWritingMode();
   bool verticalDec = wm.IsVertical();
 
-  aParams.trimLeft = 0.0;
-  aParams.trimRight = 0.0;
+  aParams.insetLeft = 0.0;
+  aParams.insetRight = 0.0;
 
-  // Find the trim values for this frame.
-  const StyleTextDecorationTrim& cssTrim =
-      aDecFrame->StyleTextReset()->mTextDecorationTrim;
-  gfxFloat trimLeft, trimRight;
-  if (cssTrim.IsAuto()) {
-    // Use a trim factor of 1/12.5, so we get 2px of trim (resulting in a 4px
+  // Find the decoration-line inset values for this frame.
+  const StyleTextDecorationInset& cssInset =
+      aDecFrame->StyleTextReset()->mTextDecorationInset;
+  nscoord insetLeft, insetRight;
+  if (cssInset.IsAuto()) {
+    // Use an inset factor of 1/12.5, so we get 2px of inset (resulting in 4px
     // gap between adjacent lines) at font-size 25px.
-    constexpr gfxFloat kAutoTrimFactor = 1.0 / 12.5;
-    // Use the EM size multiplied by kAutoTrimFactor, with a minimum of one
+    constexpr gfxFloat kAutoInsetFactor = 1.0 / 12.5;
+    // Use the EM size multiplied by kAutoInsetFactor, with a minimum of one
     // CSS pixel to ensure that at least some separation occurs.
-    const gfxFloat scale = aPresCtx->CSSToDevPixelScale().scale;
-    const nscoord autoDecorationTrim =
-        std::max(aMetrics.emHeight * kAutoTrimFactor, scale);
-    trimLeft = autoDecorationTrim;
-    trimRight = autoDecorationTrim;
+    const nscoord autoDecorationInset =
+        std::max(aPresCtx->DevPixelsToAppUnits(
+                     NS_round(aMetrics.emHeight * kAutoInsetFactor)),
+                 nsPresContext::CSSPixelsToAppUnits(1));
+    insetLeft = autoDecorationInset;
+    insetRight = autoDecorationInset;
   } else {
-    MOZ_ASSERT(cssTrim.IsLength(), "Impossible text-decoration-trim");
-    const auto& length = cssTrim.AsLength();
+    MOZ_ASSERT(cssInset.IsLength(), "Impossible text-decoration-inset");
+    const auto& length = cssInset.AsLength();
     if (length.start.IsZero() && length.end.IsZero()) {
       // We can avoid doing the geometric calculations below, potentially
       // walking up and back down the frame tree, and walking continuations.
       return true;
     }
-    trimLeft = NSAppUnitsToDoublePixels(length.start.ToAppUnits(), app);
-    trimRight = NSAppUnitsToDoublePixels(length.end.ToAppUnits(), app);
+    insetLeft = length.start.ToAppUnits();
+    insetRight = length.end.ToAppUnits();
   }
 
-  if (wm.IsBidiRTL()) {
-    std::swap(trimLeft, trimRight);
+  if (wm.IsInlineReversed()) {
+    std::swap(insetLeft, insetRight);
   }
-  const nsPoint offset = aFrame->GetOffsetTo(aDecFrame);
-  const nsSize decSize = aDecFrame->GetSize();
-  const nsSize size = aFrame->GetSize();
-  nscoord start, end, max;
-  if (verticalDec) {
-    start = offset.y;
-    max = size.height;
-    end = decSize.height - (size.height + offset.y);
+
+  // These rects must be based on the same origin.
+  // If the decorating frame is an inline frame, then these rects are relative
+  // to the decorating frame.
+  // Otherwise, these rects are relative to the line container.
+  nsRect inlineRect, frameRect;
+
+  // If the decorating frame is an inline frame, we can use it as the
+  // reference frame for measurements.
+  // If the decorating frame is not inline, then we will need to consider
+  // text indentation and calculate geometry using line boxes.
+  if (aDecFrame->IsInlineFrame()) {
+    frameRect = nsRect{aFrame->GetOffsetTo(aDecFrame), aFrame->GetSize()};
+    inlineRect = nsRect{nsPoint(0, 0), aDecFrame->GetSize()};
   } else {
-    start = offset.x;
-    max = size.width;
-    end = decSize.width - (size.width + offset.x);
+    nsIFrame* const lineContainer = FindLineContainer(aFrame);
+    nsILineIterator* const iter = lineContainer->GetLineIterator();
+    MOZ_ASSERT(iter,
+               "Line container of a text frame must be able to produce a "
+               "line iterator");
+    MOZ_ASSERT(
+        lineContainer->GetWritingMode().IsVertical() == wm.IsVertical(),
+        "Decorating frame and line container must have writing modes in the "
+        "same axis");
+    const int32_t lineNum = GetFrameLineNum(aFrame, iter);
+    const nsILineIterator::LineInfo lineInfo = iter->GetLine(lineNum).unwrap();
+
+    // Create the rects, relative to the line container.
+    frameRect = nsRect{aFrame->GetOffsetTo(lineContainer), aFrame->GetSize()};
+    inlineRect = lineInfo.mLineBounds;
+
+    // Account for text-indent, which will push text frames into the line box.
+    const StyleTextIndent& textIndent = aFrame->StyleText()->mTextIndent;
+    if (!textIndent.length.IsDefinitelyZero()) {
+      bool isFirstLineOrAfterHardBreak = true;
+      if (lineNum > 0 && !textIndent.each_line) {
+        isFirstLineOrAfterHardBreak = false;
+      } else if (nsBlockFrame* prevBlock =
+                     do_QueryFrame(lineContainer->GetPrevInFlow())) {
+        if (!(textIndent.each_line &&
+              (prevBlock->Lines().empty() ||
+               !prevBlock->LinesEnd().prev()->IsLineWrapped()))) {
+          isFirstLineOrAfterHardBreak = false;
+        }
+      }
+      if (isFirstLineOrAfterHardBreak != textIndent.hanging) {
+        // Determine which side to shrink.
+        const Side side = wm.PhysicalSide(LogicalSide::IStart);
+        // Calculate the text indent, and shrink the line box by this amount to
+        // acount for the indent size at the start of the line.
+        const nscoord basis = lineContainer->GetLogicalSize(wm).ISize(wm);
+        nsMargin indentMargin;
+        indentMargin.Side(side) = textIndent.length.Resolve(basis);
+        inlineRect.Deflate(indentMargin);
+      }
+    }
+  }
+
+  // Find the margin of the of this frame inside its container.
+  nscoord marginLeft, marginRight, frameSize;
+  const nsMargin difference = inlineRect - frameRect;
+  if (verticalDec) {
+    marginLeft = difference.top;
+    marginRight = difference.bottom;
+    frameSize = frameRect.height;
+  } else {
+    marginLeft = difference.left;
+    marginRight = difference.right;
+    frameSize = frameRect.width;
   }
 
   const bool cloneDecBreak = aDecFrame->StyleBorder()->mBoxDecorationBreak ==
                              StyleBoxDecorationBreak::Clone;
   // TODO alaskanemily: This will not correctly account for the case that the
   // continuations are bidi continuations.
-  const bool applyLeft = cloneDecBreak || !aDecFrame->GetPrevContinuation();
-  if (applyLeft) {
-    trimLeft -= NSAppUnitsToDoublePixels(start, app);
+  bool applyLeft = cloneDecBreak || (!aFrame->GetPrevContinuation() &&
+                                     !aDecFrame->GetPrevContinuation());
+  bool applyRight = cloneDecBreak || (!aFrame->GetNextContinuation() &&
+                                      !aDecFrame->GetNextContinuation());
+  if (wm.IsInlineReversed()) {
+    std::swap(applyLeft, applyRight);
   }
-  const bool applyRight = cloneDecBreak || !aDecFrame->GetNextContinuation();
+  if (applyLeft) {
+    insetLeft -= marginLeft;
+  } else {
+    insetLeft = 0;
+  }
   if (applyRight) {
-    trimRight -= NSAppUnitsToDoublePixels(end, app);
+    insetRight -= marginRight;
+  } else {
+    insetRight = 0;
   }
 
-  if (trimLeft >= NSAppUnitsToDoublePixels(max, app) - trimRight) {
+  if (insetLeft + insetRight >= frameSize) {
     // This frame does not contain the decoration at all.
     return false;
   }
   // TODO alaskanemily: We currently determine if we should have a negative
-  // trim value by checking if we are at the edge of frame from which the
+  // inset value by checking if we are at the edge of frame from which the
   // decloration comes from.
   //
   // This is not absolutely correct, there could in theory be a zero-width
@@ -5868,11 +5934,11 @@ static bool ComputeDecorationTrim(
   // I am unsure if it's possible that the first/last frame might be inset
   // for some reason, as well, in which case we will not draw the outset
   // decorations.
-  if (applyLeft && (trimLeft > 0.0 || start == 0)) {
-    aParams.trimLeft = trimLeft;
+  if (insetLeft > 0 || marginLeft == 0) {
+    aParams.insetLeft = aPresCtx->AppUnitsToFloatDevPixels(insetLeft);
   }
-  if (applyRight && (trimRight > 0.0 || end == 0)) {
-    aParams.trimRight = trimRight;
+  if (insetRight > 0 || marginRight == 0) {
+    aParams.insetRight = aPresCtx->AppUnitsToFloatDevPixels(insetRight);
   }
   return true;
 }
@@ -6018,8 +6084,8 @@ void nsTextFrame::UnionAdditionalOverflow(nsPresContext* aPresContext,
                 metrics, appUnitsPerDevUnit, this, parentWM.IsCentralBaseline(),
                 swapUnderline);
 
-            if (!ComputeDecorationTrim(this, aPresContext, dec.mFrame, metrics,
-                                       params)) {
+            if (!ComputeDecorationInset(this, aPresContext, dec.mFrame, metrics,
+                                        params)) {
               return;
             }
 
@@ -6097,6 +6163,9 @@ gfxFloat nsTextFrame::ComputeDescentLimitForSelectionUnderline(
 
 // Make sure this stays in sync with DrawSelectionDecorations below
 static constexpr SelectionTypeMask kSelectionTypesWithDecorations =
+    ToSelectionTypeMask(SelectionType::eNormal) |
+    ToSelectionTypeMask(SelectionType::eTargetText) |
+    ToSelectionTypeMask(SelectionType::eHighlight) |
     ToSelectionTypeMask(SelectionType::eSpellCheck) |
     ToSelectionTypeMask(SelectionType::eURLStrikeout) |
     ToSelectionTypeMask(SelectionType::eIMERawClause) |
@@ -6109,6 +6178,9 @@ gfxFloat nsTextFrame::ComputeSelectionUnderlineHeight(
     nsPresContext* aPresContext, const gfxFont::Metrics& aFontMetrics,
     SelectionType aSelectionType) {
   switch (aSelectionType) {
+    case SelectionType::eNormal:
+    case SelectionType::eTargetText:
+    case SelectionType::eHighlight:
     case SelectionType::eIMERawClause:
     case SelectionType::eIMESelectedRawClause:
     case SelectionType::eIMEConvertedClause:
@@ -6154,6 +6226,7 @@ struct nsTextFrame::PaintDecorationLineParams
   DrawPathCallbacks* callbacks = nullptr;
   bool paintingShadows = false;
   bool allowInkSkipping = true;
+  StyleTextDecorationSkipInk skipInk = StyleTextDecorationSkipInk::None;
 };
 
 void nsTextFrame::PaintDecorationLine(
@@ -6166,6 +6239,7 @@ void nsTextFrame::PaintDecorationLine(
   params.icoordInFrame = Float(aParams.icoordInFrame);
   params.baselineOffset = Float(aParams.baselineOffset);
   params.allowInkSkipping = aParams.allowInkSkipping;
+  params.skipInk = aParams.skipInk;
   if (aParams.callbacks) {
     Rect path = nsCSSRendering::DecorationLineToPath(params);
     if (aParams.decorationType == DecorationType::Normal) {
@@ -6206,11 +6280,13 @@ static StyleTextDecorationStyle ToStyleLineStyle(const TextRangeStyle& aStyle) {
  */
 void nsTextFrame::DrawSelectionDecorations(
     gfxContext* aContext, const LayoutDeviceRect& aDirtyRect,
-    SelectionType aSelectionType, nsTextPaintStyle& aTextPaintStyle,
-    const TextRangeStyle& aRangeStyle, const Point& aPt,
-    gfxFloat aICoordInFrame, gfxFloat aWidth, gfxFloat aAscent,
-    const gfxFont::Metrics& aFontMetrics, DrawPathCallbacks* aCallbacks,
-    bool aVertical, StyleTextDecorationLine aDecoration) {
+    SelectionType aSelectionType, nsAtom* aHighlightName,
+    nsTextPaintStyle& aTextPaintStyle, const TextRangeStyle& aRangeStyle,
+    const Point& aPt, gfxFloat aICoordInFrame, gfxFloat aWidth,
+    gfxFloat aAscent, const gfxFont::Metrics& aFontMetrics,
+    DrawPathCallbacks* aCallbacks, bool aVertical,
+    StyleTextDecorationLine aDecoration, const Range& aGlyphRange,
+    PropertyProvider* aProvider) {
   PaintDecorationLineParams params;
   params.context = aContext;
   params.dirtyRect = aDirtyRect;
@@ -6224,20 +6300,74 @@ void nsTextFrame::DrawSelectionDecorations(
   params.sidewaysLeft = mTextRun->IsSidewaysLeft();
   params.descentLimit = ComputeDescentLimitForSelectionUnderline(
       aTextPaintStyle.PresContext(), aFontMetrics);
+  params.glyphRange = aGlyphRange;
+  params.provider = aProvider;
 
-  float relativeSize;
+  float relativeSize = 1.f;
   const auto& decThickness = StyleTextReset()->mTextDecorationThickness;
   const gfxFloat appUnitsPerDevPixel =
       aTextPaintStyle.PresContext()->AppUnitsPerDevPixel();
 
   const WritingMode wm = GetWritingMode();
   switch (aSelectionType) {
+    case SelectionType::eNormal:
+    case SelectionType::eHighlight:
+    case SelectionType::eTargetText: {
+      RefPtr computedStyleFromPseudo =
+          aTextPaintStyle.GetComputedStyleForSelectionPseudo(aSelectionType,
+                                                             aHighlightName);
+      const bool hasTextDecorations =
+          computedStyleFromPseudo
+              ? computedStyleFromPseudo->HasTextDecorationLines()
+              : false;
+      if (!hasTextDecorations) {
+        return;
+      }
+      params.style =
+          computedStyleFromPseudo->StyleTextReset()->mTextDecorationStyle;
+      params.color = computedStyleFromPseudo->StyleTextReset()
+                         ->mTextDecorationColor.CalcColor(this);
+      params.decoration =
+          computedStyleFromPseudo->StyleTextReset()->mTextDecorationLine;
+      params.descentLimit = -1.f;
+      params.defaultLineThickness = ComputeSelectionUnderlineHeight(
+          aTextPaintStyle.PresContext(), aFontMetrics, aSelectionType);
+      params.lineSize.height = ComputeDecorationLineThickness(
+          computedStyleFromPseudo->StyleTextReset()->mTextDecorationThickness,
+          params.defaultLineThickness, aFontMetrics, appUnitsPerDevPixel, this);
+
+      const bool swapUnderline =
+          wm.IsCentralBaseline() && IsUnderlineRight(*Style());
+      params.icoordInFrame = aICoordInFrame;
+      auto paintForLine = [&](StyleTextDecorationLine decoration) {
+        if (!(computedStyleFromPseudo->StyleTextReset()->mTextDecorationLine &
+              decoration)) {
+          return;
+        }
+
+        params.allowInkSkipping = true;
+        params.skipInk =
+            computedStyleFromPseudo->StyleText()->mTextDecorationSkipInk;
+        params.decoration = decoration;
+        params.offset = ComputeDecorationLineOffset(
+            params.decoration,
+            computedStyleFromPseudo->StyleText()->mTextUnderlinePosition,
+            computedStyleFromPseudo->StyleText()->mTextUnderlineOffset,
+            aFontMetrics, appUnitsPerDevPixel, this, wm.IsCentralBaseline(),
+            swapUnderline);
+
+        PaintDecorationLine(params);
+      };
+      paintForLine(StyleTextDecorationLine::UNDERLINE);
+      paintForLine(StyleTextDecorationLine::OVERLINE);
+      paintForLine(StyleTextDecorationLine::LINE_THROUGH);
+      return;
+    }
     case SelectionType::eIMERawClause:
     case SelectionType::eIMESelectedRawClause:
     case SelectionType::eIMEConvertedClause:
     case SelectionType::eIMESelectedClause:
-    case SelectionType::eSpellCheck:
-    case SelectionType::eHighlight: {
+    case SelectionType::eSpellCheck: {
       auto index = nsTextPaintStyle::GetUnderlineStyleIndexForSelectionType(
           aSelectionType);
       bool weDefineSelectionUnderline =
@@ -6256,8 +6386,7 @@ void nsTextFrame::DrawSelectionDecorations(
           styleText->mTextUnderlineOffset, aFontMetrics, appUnitsPerDevPixel,
           this, wm.IsCentralBaseline(), swapUnderline);
 
-      bool isIMEType = aSelectionType != SelectionType::eSpellCheck &&
-                       aSelectionType != SelectionType::eHighlight;
+      bool isIMEType = aSelectionType != SelectionType::eSpellCheck;
 
       if (isIMEType) {
         // IME decoration lines should not be drawn on the both ends, i.e., we
@@ -7097,11 +7226,12 @@ void nsTextFrame::PaintTextSelectionDecorations(
         }
         gfxFloat width = Abs(advance) / app;
         gfxFloat xInFrame = pt.x - (aParams.framePt.x / app);
-        DrawSelectionDecorations(aParams.context, aParams.dirtyRect,
-                                 aSelectionType, *aParams.textPaintStyle,
-                                 selectedStyles[index], pt, xInFrame, width,
-                                 mAscent / app, decorationMetrics,
-                                 aParams.callbacks, verticalRun, kDecoration);
+        DrawSelectionDecorations(
+            aParams.context, aParams.dirtyRect, aSelectionType,
+            highlightNames[index], *aParams.textPaintStyle,
+            selectedStyles[index], pt, xInFrame, width, mAscent / app,
+            decorationMetrics, aParams.callbacks, verticalRun, kDecoration,
+            aParams.glyphRange, aParams.provider);
       }
     }
     iterator.UpdateWithAdvance(advance);
@@ -7130,8 +7260,9 @@ bool nsTextFrame::PaintTextWithSelection(
   MOZ_ASSERT(kPresentSelectionTypes[0] == SelectionType::eNormal,
              "The following for loop assumes that the first item of "
              "kPresentSelectionTypes is SelectionType::eNormal");
-  for (size_t i = std::size(kPresentSelectionTypes) - 1; i >= 1; --i) {
-    SelectionType selectionType = kPresentSelectionTypes[i];
+
+  Span presentTypes(kPresentSelectionTypes);
+  for (SelectionType selectionType : Reversed(presentTypes)) {
     if (ToSelectionTypeMask(selectionType) & allSelectionTypeMask) {
       // There is some selection of this selectionType. Try to paint its
       // decorations (there might not be any for this type but that's OK,
@@ -7785,8 +7916,8 @@ void nsTextFrame::DrawTextRunAndDecorations(
         GetInflationForTextDecorations(dec.mFrame, inflationMinFontSize);
     const Metrics metrics = GetFirstFontMetrics(
         GetFontGroupForFrame(dec.mFrame, inflation), useVerticalMetrics);
-    if (!ComputeDecorationTrim(this, aParams.textStyle->PresContext(),
-                               dec.mFrame, metrics, params)) {
+    if (!ComputeDecorationInset(this, aParams.textStyle->PresContext(),
+                                dec.mFrame, metrics, params)) {
       return;
     }
     bCoord = (frameBStart - dec.mBaselineOffset) / app;
@@ -7805,12 +7936,13 @@ void nsTextFrame::DrawTextRunAndDecorations(
 
     params.style = dec.mStyle;
     params.allowInkSkipping = dec.mAllowInkSkipping;
+    params.skipInk = StyleText()->mTextDecorationSkipInk;
     gfxClipAutoSaveRestore clipRestore(params.context);
-    // If we have a negative trim value, then the decoration will extend
+    // If we have a negative inset value, then the decoration will extend
     // outside the edges of the text.
     // TODO alaskanemily: Ideally we would adjust the clipping rect, but as
     // an initial pass we just disable clipping in this case.
-    if (clipRect && !params.HasNegativeTrim()) {
+    if (clipRect && !params.HasNegativeInset()) {
       clipRestore.Clip(*clipRect);
     }
     PaintDecorationLine(params);
@@ -8100,33 +8232,56 @@ bool nsTextFrame::CombineSelectionUnderlineRect(nsPresContext* aPresContext,
         sd->mSelectionType == SelectionType::eURLStrikeout) {
       continue;
     }
+    float relativeSize = 1.f;
+    RefPtr<ComputedStyle> style = Style();
 
-    float relativeSize;
-    auto index = nsTextPaintStyle::GetUnderlineStyleIndexForSelectionType(
-        sd->mSelectionType);
-    if (sd->mSelectionType == SelectionType::eSpellCheck) {
-      if (!nsTextPaintStyle::GetSelectionUnderline(
-              this, index, nullptr, &relativeSize, &params.style)) {
+    if (sd->mSelectionType == SelectionType::eNormal ||
+        sd->mSelectionType == SelectionType::eTargetText ||
+        sd->mSelectionType == SelectionType::eHighlight) {
+      style = [&]() {
+        if (sd->mSelectionType == SelectionType::eHighlight) {
+          return ComputeHighlightSelectionStyle(
+              sd->mHighlightData.mHighlightName);
+        }
+        if (sd->mSelectionType == SelectionType::eTargetText) {
+          return ComputeTargetTextStyle();
+        }
+        int16_t unusedFlags = 0;
+        const int16_t selectionStatus = GetSelectionStatus(&unusedFlags);
+        return ComputeSelectionStyle(selectionStatus);
+      }();
+      if (!style || !style->HasTextDecorationLines()) {
         continue;
       }
+      params.style = style->StyleTextReset()->mTextDecorationStyle;
     } else {
-      // IME selections
-      TextRangeStyle& rangeStyle = sd->mTextRangeStyle;
-      if (rangeStyle.IsDefined()) {
-        if (!rangeStyle.IsLineStyleDefined() ||
-            rangeStyle.mLineStyle == TextRangeStyle::LineStyle::None) {
+      auto index = nsTextPaintStyle::GetUnderlineStyleIndexForSelectionType(
+          sd->mSelectionType);
+      if (sd->mSelectionType == SelectionType::eSpellCheck) {
+        if (!nsTextPaintStyle::GetSelectionUnderline(
+                this, index, nullptr, &relativeSize, &params.style)) {
           continue;
         }
-        params.style = ToStyleLineStyle(rangeStyle);
-        relativeSize = rangeStyle.mIsBoldLine ? 2.0f : 1.0f;
-      } else if (!nsTextPaintStyle::GetSelectionUnderline(
-                     this, index, nullptr, &relativeSize, &params.style)) {
-        continue;
+      } else {
+        // IME selections
+        TextRangeStyle& rangeStyle = sd->mTextRangeStyle;
+        if (rangeStyle.IsDefined()) {
+          if (!rangeStyle.IsLineStyleDefined() ||
+              rangeStyle.mLineStyle == TextRangeStyle::LineStyle::None) {
+            continue;
+          }
+          params.style = ToStyleLineStyle(rangeStyle);
+          relativeSize = rangeStyle.mIsBoldLine ? 2.0f : 1.0f;
+        } else if (!nsTextPaintStyle::GetSelectionUnderline(
+                       this, index, nullptr, &relativeSize, &params.style)) {
+          continue;
+        }
       }
     }
     nsRect decorationArea;
 
-    const auto& decThickness = StyleTextReset()->mTextDecorationThickness;
+    const auto& decThickness =
+        style->StyleTextReset()->mTextDecorationThickness;
     params.lineSize.width = aPresContext->AppUnitsToGfxUnits(aRect.width);
     params.defaultLineThickness = ComputeSelectionUnderlineHeight(
         aPresContext, metrics, sd->mSelectionType);
@@ -8135,8 +8290,8 @@ bool nsTextFrame::CombineSelectionUnderlineRect(nsPresContext* aPresContext,
         decThickness, params.defaultLineThickness, metrics,
         aPresContext->AppUnitsPerDevPixel(), this);
 
-    bool swapUnderline = wm.IsCentralBaseline() && IsUnderlineRight(*Style());
-    const auto* styleText = StyleText();
+    bool swapUnderline = wm.IsCentralBaseline() && IsUnderlineRight(*style);
+    const auto* styleText = style->StyleText();
     params.offset = ComputeDecorationLineOffset(
         textDecs.HasUnderline() ? StyleTextDecorationLine::UNDERLINE
                                 : StyleTextDecorationLine::OVERLINE,

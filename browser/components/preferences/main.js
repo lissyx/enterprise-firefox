@@ -123,7 +123,7 @@ Preferences.addAll([
   { id: "browser.display.document_color_use", type: "int" },
 
   // Fonts
-  { id: "font.language.group", type: "wstring" },
+  { id: "font.language.group", type: "string" },
 
   // Languages
   { id: "intl.regional_prefs.use_os_locales", type: "bool" },
@@ -1516,6 +1516,45 @@ let SETTINGS_CONFIG = {
                 control: "moz-box-button",
               },
             ],
+          },
+        ],
+      },
+      {
+        id: "ipProtectionAutoStart",
+        l10nId: "ip-protection-autostart",
+        control: "moz-fieldset",
+        items: [
+          {
+            id: "ipProtectionAutoStartCheckbox",
+            l10nId: "ip-protection-autostart-checkbox",
+            control: "moz-checkbox",
+          },
+          {
+            id: "ipProtectionAutoStartPrivateCheckbox",
+            l10nId: "ip-protection-autostart-private-checkbox",
+            control: "moz-checkbox",
+          },
+        ],
+      },
+      {
+        id: "ipProtectionAdditionalLinks",
+        control: "moz-box-group",
+        options: [
+          {
+            id: "ipProtectionSupportLink",
+            l10nId: "ip-protection-contact-support-link",
+            control: "moz-box-link",
+            controlAttrs: {
+              href: "https://support.mozilla.org/questions/new/mozilla-vpn/form",
+            },
+          },
+          {
+            id: "ipProtectionUpgradeLink",
+            l10nId: "ip-protection-upgrade-link",
+            control: "moz-box-link",
+            controlAttrs: {
+              href: "https://www.mozilla.org/products/vpn/",
+            },
           },
         ],
       },
@@ -3340,10 +3379,9 @@ var gMainPane = {
    * Populates the default font list in UI.
    */
   _rebuildFonts() {
-    var langGroupPref = Preferences.get("font.language.group");
-    var isSerif =
-      this._readDefaultFontTypeForLanguage(langGroupPref.value) == "serif";
-    this._selectDefaultLanguageGroup(langGroupPref.value, isSerif);
+    var langGroup = Services.locale.fontLanguageGroup;
+    var isSerif = this._readDefaultFontTypeForLanguage(langGroup) == "serif";
+    this._selectDefaultLanguageGroup(langGroup, isSerif);
   },
 
   /**

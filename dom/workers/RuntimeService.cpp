@@ -24,7 +24,6 @@
 #include "mozilla/Attributes.h"
 #include "mozilla/CycleCollectedJSContext.h"
 #include "mozilla/CycleCollectedJSRuntime.h"
-#include "mozilla/DebugOnly.h"
 #include "mozilla/FlowMarkers.h"
 #include "mozilla/Monitor.h"
 #include "mozilla/Preferences.h"
@@ -1118,7 +1117,7 @@ void PrefLanguagesChanged(const char* /* aPrefName */, void* /* aClosure */) {
   AssertIsOnMainThread();
 
   nsTArray<nsString> languages;
-  Navigator::GetAcceptLanguages(languages);
+  Navigator::GetAcceptLanguages(languages, nullptr);
 
   RuntimeService* runtime = RuntimeService::GetService();
   if (runtime) {
@@ -1309,7 +1308,7 @@ bool RuntimeService::RegisterWorker(WorkerPrivate& aWorkerPrivate) {
 
       // The navigator overridden properties should have already been read.
 
-      Navigator::GetAcceptLanguages(mNavigatorProperties.mLanguages);
+      Navigator::GetAcceptLanguages(mNavigatorProperties.mLanguages, nullptr);
       mNavigatorPropertiesLoaded = true;
     }
 

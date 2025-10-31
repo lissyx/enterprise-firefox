@@ -18,7 +18,6 @@
 #include "SFNTData.h"
 
 #include "mozilla/dom/CanvasRenderingContextHelper.h"
-#include "mozilla/IntegerRange.h"
 #include "mozilla/layers/BuildConstants.h"
 #include "mozilla/layers/LayersSurfaces.h"
 #include "mozilla/ipc/SerializeToBytesUtil.h"
@@ -1884,8 +1883,6 @@ static std::string NameFromBackend(BackendType aType) {
   switch (aType) {
     case BackendType::NONE:
       return "None";
-    case BackendType::DIRECT2D:
-      return "Direct2D";
     default:
       return "Unknown";
   }

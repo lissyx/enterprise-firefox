@@ -5,7 +5,6 @@
 
 #include "gfxFontEntry.h"
 
-#include "mozilla/DebugOnly.h"
 #include "mozilla/FontPropertyTypes.h"
 #include "mozilla/MathAlgorithms.h"
 
@@ -31,7 +30,6 @@
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/ProfilerLabels.h"
-#include "mozilla/ScopeExit.h"
 #include "mozilla/Services.h"
 #include "mozilla/StaticPrefs_layout.h"
 #include "gfxSVGGlyphs.h"

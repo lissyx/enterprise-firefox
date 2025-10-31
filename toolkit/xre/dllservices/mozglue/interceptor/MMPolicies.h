@@ -13,8 +13,6 @@
 #include "mozilla/MathAlgorithms.h"
 #include "mozilla/Maybe.h"
 #include "mozilla/Span.h"
-#include "mozilla/TypedEnumBits.h"
-#include "mozilla/Types.h"
 #include "mozilla/WindowsMapRemoteView.h"
 #include "mozilla/WindowsUnwindInfo.h"
 

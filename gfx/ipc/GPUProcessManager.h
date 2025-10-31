@@ -9,7 +9,6 @@
 #include "base/basictypes.h"
 #include "base/process.h"
 #include "Units.h"
-#include "mozilla/UniquePtr.h"
 #include "mozilla/dom/ipc/IdType.h"
 #include "mozilla/gfx/GPUProcessHost.h"
 #include "mozilla/gfx/PGPUChild.h"
@@ -93,7 +92,7 @@ class GPUProcessManager final : public GPUProcessHost::Listener {
   ~GPUProcessManager();
 
   // If not using a GPU process, launch a new GPU process asynchronously.
-  bool LaunchGPUProcess();
+  nsresult LaunchGPUProcess();
   bool IsGPUProcessLaunching();
 
   // Ensure that GPU-bound methods can be used. If no GPU process is being
@@ -118,6 +117,9 @@ class GPUProcessManager final : public GPUProcessHost::Listener {
       bool aUseExternalSurfaceSize, const gfx::IntSize& aSurfaceSize,
       uint64_t aInnerWindowId, bool* aRetry);
 
+  // It is asserted that IsGPUReady() is true for this method. If not on a path
+  // which guarantees that, then the caller must call EnsureGPUReady() and check
+  // its return code first.
   bool CreateContentBridges(
       mozilla::ipc::EndpointProcInfo aOtherProcess,
       mozilla::ipc::Endpoint<PCompositorManagerChild>* aOutCompositor,
@@ -132,10 +134,6 @@ class GPUProcessManager final : public GPUProcessHost::Listener {
       mozilla::ipc::UtilityMediaServiceChild* aChild,
       mozilla::ipc::EndpointProcInfo aOtherProcess);
 #endif
-
-  // Maps the layer tree and process together so that aOwningPID is allowed
-  // to access aLayersId across process.
-  void MapLayerTreeId(LayersId aLayersId, base::ProcessId aOwningId);
 
   // Release compositor-thread resources referred to by |aID|.
   //
@@ -159,6 +157,9 @@ class GPUProcessManager final : public GPUProcessHost::Listener {
   // Allocate a layers ID and connect it to a compositor. If the compositor is
   // null, the connect operation will not be performed, but an ID will still be
   // allocated. This must be called from the browser main thread.
+  //
+  // It also maps the layer tree and process together so that aOwningPID is
+  // allowed to access aLayersId across process.
   //
   // Note that a layer tree id is always allocated, even if this returns false.
   bool AllocateAndConnectLayerTreeId(PCompositorBridgeChild* aCompositorBridge,

@@ -183,6 +183,7 @@ def taskgraph_decision(options, parameters=None):
         parameters=parameters,
         decision_task_id=decision_task_id,
         write_artifacts=True,
+        enable_verifications=options.get("verify", True),
     )
 
     if not create.testing:
@@ -322,7 +323,7 @@ def get_decision_parameters(graph_config, options):
     elif parameters["repository_type"] == "git":
         parameters["hg_branch"] = None
         parameters["files_changed"] = repo.get_changed_files(
-            rev=parameters["head_rev"], base_rev=parameters["base_rev"]
+            rev=parameters["head_rev"], base=parameters["base_rev"]
         )
 
     # Define default filter list, as most configurations shouldn't need

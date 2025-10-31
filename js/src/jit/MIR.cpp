@@ -10,7 +10,6 @@
 #include "mozilla/FloatingPoint.h"
 #include "mozilla/MathAlgorithms.h"
 #include "mozilla/Maybe.h"
-#include "mozilla/ScopeExit.h"
 
 #include <array>
 #include <utility>
@@ -4250,6 +4249,7 @@ static void AssertKnownClass(TempAllocator& alloc, MInstruction* ins,
 
 MDefinition* MBoxNonStrictThis::foldsTo(TempAllocator& alloc) {
   MDefinition* in = input();
+
   if (!in->isBox()) {
     return this;
   }
@@ -4257,6 +4257,10 @@ MDefinition* MBoxNonStrictThis::foldsTo(TempAllocator& alloc) {
   MDefinition* unboxed = in->toBox()->input();
   if (unboxed->type() == MIRType::Object) {
     return unboxed;
+  }
+
+  if (unboxed->typeIsOneOf({MIRType::Undefined, MIRType::Null})) {
+    return MConstant::NewObject(alloc, this->globalThis());
   }
 
   return this;

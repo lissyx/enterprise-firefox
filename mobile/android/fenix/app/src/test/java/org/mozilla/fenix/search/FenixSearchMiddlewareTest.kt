@@ -23,9 +23,9 @@ import mozilla.components.browser.state.state.BrowserState
 import mozilla.components.browser.state.state.SearchState
 import mozilla.components.browser.state.state.selectedOrDefaultSearchEngine
 import mozilla.components.browser.state.store.BrowserStore
-import mozilla.components.compose.browser.toolbar.store.BrowserEditToolbarAction.PrivateModeUpdated
-import mozilla.components.compose.browser.toolbar.store.BrowserEditToolbarAction.SearchQueryUpdated
+import mozilla.components.compose.browser.toolbar.store.BrowserEditToolbarAction
 import mozilla.components.compose.browser.toolbar.store.BrowserToolbarStore
+import mozilla.components.compose.browser.toolbar.ui.BrowserToolbarQuery
 import mozilla.components.concept.awesomebar.AwesomeBar.Suggestion
 import mozilla.components.concept.awesomebar.AwesomeBar.SuggestionProvider
 import mozilla.components.concept.engine.Engine
@@ -94,9 +94,7 @@ class FenixSearchMiddlewareTest {
         every { speculativeCreateSession(any(), any()) } just Runs
     }
     private val fenixBrowserUseCasesMock: FenixBrowserUseCases = mockk(relaxed = true)
-    private val browsingModeManager: BrowsingModeManager = mockk(relaxed = true) {
-        every { mode } returns BrowsingMode.Normal
-    }
+    private val browsingModeManager: BrowsingModeManager = mockk(relaxed = true)
     private val useCases: UseCases = mockk {
         every { fenixBrowserUseCases } returns fenixBrowserUseCasesMock
         every { tabsUseCases } returns mockk()
@@ -127,8 +125,7 @@ class FenixSearchMiddlewareTest {
     }
 
     @Test
-    fun `WHEN search is started THEN update private mode, warmup http engine and configure search providers`() {
-        every { browsingModeManager.mode } returns BrowsingMode.Private
+    fun `WHEN search is started THEN warmup http engine and configure search providers`() {
         val defaultSearchEngine = fakeSearchEnginesState().selectedOrDefaultSearchEngine
         val preselectedSearchEngine = SearchEngine("engine-a", "Engine A", mockk(), type = SearchEngine.Type.BUNDLED)
         val wasEngineSelectedByUser = false
@@ -142,7 +139,6 @@ class FenixSearchMiddlewareTest {
 
         store.dispatch(SearchStarted(preselectedSearchEngine, wasEngineSelectedByUser, isSearchInPrivateMode, false))
 
-        verify { toolbarStore.dispatch(PrivateModeUpdated(true)) }
         verify { engine.speculativeCreateSession(isSearchInPrivateMode) }
         assertEquals(expectedSearchSuggestionsProvider, middleware.suggestionsProvidersBuilder)
         assertEquals(expectedSuggestionProviders.toList(), store.state.searchSuggestionsProviders.toList())
@@ -257,7 +253,6 @@ class FenixSearchMiddlewareTest {
     fun `GIVEN trending searches are enabled WHEN search starts starts for the current webpage THEN show new search suggestions`() {
         val (_, store) = buildMiddlewareAndAddToSearchStore()
         every { settings.trendingSearchSuggestionsEnabled } returns true
-        every { settings.isTrendingSearchesVisible } returns true
         every { settings.shouldShowSearchSuggestions } returns true
         val defaultSearchEngine = fakeSearchEnginesState().selectedOrDefaultSearchEngine
 
@@ -454,7 +449,7 @@ class FenixSearchMiddlewareTest {
         store.dispatch(SuggestionClicked(clickedSuggestion))
 
         assertTrue(wasSuggestionClickHandled)
-        verify { toolbarStore.dispatch(SearchQueryUpdated("")) }
+        verify { toolbarStore.dispatch(BrowserEditToolbarAction.SearchQueryUpdated(BrowserToolbarQuery(""))) }
         browserActionsCaptor.assertLastAction(AwesomeBarAction.SuggestionClicked::class) {
             assertEquals(clickedSuggestion, it.suggestion)
         }
@@ -491,7 +486,7 @@ class FenixSearchMiddlewareTest {
 
         store.dispatch(SuggestionSelected(selectedSuggestion))
 
-        verify { toolbarStore.dispatch(SearchQueryUpdated("test")) }
+        verify { toolbarStore.dispatch(BrowserEditToolbarAction.SearchQueryUpdated(BrowserToolbarQuery("test"))) }
     }
 
     @Test

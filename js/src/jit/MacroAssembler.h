@@ -8,7 +8,6 @@
 #define jit_MacroAssembler_h
 
 #include "mozilla/MacroForEach.h"
-#include "mozilla/MathAlgorithms.h"
 #include "mozilla/Maybe.h"
 #include "mozilla/Variant.h"
 
@@ -1088,12 +1087,9 @@ class MacroAssembler : public MacroAssemblerSpecific {
   inline void xorPtr(Imm32 imm, Register dest) PER_ARCH;
   inline void xorPtr(Imm32 imm, Register src, Register dest) PER_ARCH;
 
-  inline void and64(const Operand& src, Register64 dest)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
-  inline void or64(const Operand& src, Register64 dest)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
-  inline void xor64(const Operand& src, Register64 dest)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
+  inline void and64(const Operand& src, Register64 dest) DEFINED_ON(x64);
+  inline void or64(const Operand& src, Register64 dest) DEFINED_ON(x64);
+  inline void xor64(const Operand& src, Register64 dest) DEFINED_ON(x64);
 
   // ===============================================================
   // Swap instructions
@@ -1140,8 +1136,7 @@ class MacroAssembler : public MacroAssemblerSpecific {
   inline void add64(Register64 src, Register64 dest) PER_ARCH;
   inline void add64(Imm32 imm, Register64 dest) PER_ARCH;
   inline void add64(Imm64 imm, Register64 dest) PER_ARCH;
-  inline void add64(const Operand& src, Register64 dest)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
+  inline void add64(const Operand& src, Register64 dest) DEFINED_ON(x64);
 
   inline void addFloat32(FloatRegister src, FloatRegister dest) PER_SHARED_ARCH;
 
@@ -1166,8 +1161,7 @@ class MacroAssembler : public MacroAssemblerSpecific {
 
   inline void sub64(Register64 src, Register64 dest) PER_ARCH;
   inline void sub64(Imm64 imm, Register64 dest) PER_ARCH;
-  inline void sub64(const Operand& src, Register64 dest)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
+  inline void sub64(const Operand& src, Register64 dest) DEFINED_ON(x64);
 
   inline void subFloat32(FloatRegister src, FloatRegister dest) PER_SHARED_ARCH;
 
@@ -1188,8 +1182,7 @@ class MacroAssembler : public MacroAssemblerSpecific {
 
   inline void mul64(const Operand& src, const Register64& dest) DEFINED_ON(x64);
   inline void mul64(const Operand& src, const Register64& dest,
-                    const Register temp)
-      DEFINED_ON(x64, mips64, loong64, riscv64);
+                    const Register temp) DEFINED_ON(x64);
   inline void mul64(Imm64 imm, const Register64& dest) PER_ARCH;
   inline void mul64(Imm64 imm, const Register64& dest, const Register temp)
       DEFINED_ON(x86, x64, arm, mips64, loong64, riscv64);
@@ -2071,9 +2064,9 @@ class MacroAssembler : public MacroAssemblerSpecific {
                                             Imm32 imm) PER_SHARED_ARCH;
 
  private:
-  template <typename T, typename S, typename L>
-  inline void branchPtrImpl(Condition cond, const T& lhs, const S& rhs, L label)
-      DEFINED_ON(x86_shared);
+  template <typename T, typename S>
+  inline void branchPtrImpl(Condition cond, const T& lhs, const S& rhs,
+                            Label* label) DEFINED_ON(x86_shared);
 
   void branchPtrInNurseryChunkImpl(Condition cond, Register ptr, Label* label)
       DEFINED_ON(x86);
@@ -2118,8 +2111,8 @@ class MacroAssembler : public MacroAssemblerSpecific {
   template <typename T>
   inline void branchTestPrimitiveImpl(Condition cond, const T& t, Label* label)
       DEFINED_ON(arm, arm64, x86_shared);
-  template <typename T, class L>
-  inline void branchTestMagicImpl(Condition cond, const T& t, L label)
+  template <typename T>
+  inline void branchTestMagicImpl(Condition cond, const T& t, Label* label)
       DEFINED_ON(arm, arm64, x86_shared);
 
  public:

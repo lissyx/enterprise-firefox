@@ -8,6 +8,8 @@ run-if = [
   "os != 'linux'",
 ] # This seems to mess up focus on Linux for some reason.
 
+["browser_appmenu.js"]
+
 ["browser_appmenu_menuitem_updates.js"]
 head = "../unit/head.js head.js"
 
@@ -69,6 +71,7 @@ skip-if = [
   "os == 'mac' && os_version == '15.30' && arch == 'aarch64' && opt", # Bug 1948374
   "os == 'mac' && os_version == '10.15' && processor == 'x86_64' && opt", # Bug 1948374
   "os == 'linux' && os_version == '18.04' && processor == 'x86_64' && opt", # Bug 1948374
+  "os == 'linux' && os_version == '24.04' && processor == 'x86_64' && opt", # Bug 1948374
 ]
 
 ["browser_window_title_test.js"]

@@ -20,7 +20,6 @@
 #include "mozilla/Span.h"
 #include "mozilla/Sprintf.h"
 #include "mozilla/StringBuffer.h"
-#include "mozilla/TextUtils.h"
 #include "mozilla/ThreadLocal.h"
 
 #include <algorithm>
@@ -527,15 +526,6 @@ static bool GetBuildConfiguration(JSContext* cx, unsigned argc, Value* vp) {
   value = BooleanValue(false);
 #endif
   if (!JS_SetProperty(cx, info, "profiling", value)) {
-    return false;
-  }
-
-#ifdef INCLUDE_MOZILLA_DTRACE
-  value = BooleanValue(true);
-#else
-  value = BooleanValue(false);
-#endif
-  if (!JS_SetProperty(cx, info, "dtrace", value)) {
     return false;
   }
 
@@ -3262,6 +3252,12 @@ static bool NondeterministicGetWeakMapKeys(JSContext* cx, unsigned argc,
 
   MOZ_ASSERT(arr);
   args.rval().setObject(*arr);
+  return true;
+}
+
+static bool GrayBitsValid(JSContext* cx, unsigned argc, Value* vp) {
+  CallArgs args = CallArgsFromVp(argc, vp);
+  args.rval().setBoolean(cx->runtime()->gc.areGrayBitsValid());
   return true;
 }
 
@@ -9597,7 +9593,8 @@ static bool SetBaselineHint(JSContext* cx, unsigned argc, Value* vp) {
     return false;
   }
 
-  if (!cx->runtime()->jitRuntime()->hasJitHintsMap()) {
+  if (!cx->runtime()->jitRuntime() ||
+      !cx->runtime()->jitRuntime()->hasJitHintsMap()) {
     args.rval().setUndefined();
     return true;
   }
@@ -9623,7 +9620,8 @@ static bool HasBaselineHint(JSContext* cx, unsigned argc, Value* vp) {
     return false;
   }
 
-  if (!cx->runtime()->jitRuntime()->hasJitHintsMap()) {
+  if (!cx->runtime()->jitRuntime() ||
+      !cx->runtime()->jitRuntime()->hasJitHintsMap()) {
     args.rval().setBoolean(false);
     return true;
   }
@@ -10405,6 +10403,10 @@ gc::ZealModeHelpText),
     JS_FN_HELP("nondeterministicGetWeakMapKeys", NondeterministicGetWeakMapKeys, 1, 0,
 "nondeterministicGetWeakMapKeys(weakmap)",
 "  Return an array of the keys in the given WeakMap."),
+
+    JS_FN_HELP("grayBitsValid", GrayBitsValid, 0, 0,
+"grayBitsValid()",
+"  Return whether the gray bits state is valid."),
 
     JS_FN_HELP("setGrayBitsInvalid", SetGrayBitsInvalid, 0, 0,
 "setGrayBitsInvalid()",

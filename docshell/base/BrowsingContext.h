@@ -48,6 +48,8 @@ namespace IPC {
 class Message;
 class MessageReader;
 class MessageWriter;
+template <typename T>
+struct ParamTraits;
 }  // namespace IPC
 
 namespace mozilla {
@@ -58,9 +60,6 @@ class LogModule;
 namespace ipc {
 class IProtocol;
 class IPCResult;
-
-template <typename T>
-struct IPDLParamTraits;
 }  // namespace ipc
 
 namespace dom {
@@ -150,6 +149,9 @@ struct EmbedderColorSchemes {
   /* Hold the pinned/app-tab state and should be used on top level browsing   \
    * contexts only */                                                         \
   FIELD(IsAppTab, bool)                                                       \
+  /* Whether this is a captive portal tab. Should be used on top level        \
+   * browsing contexts only */                                                \
+  FIELD(IsCaptivePortalTab, bool)                                             \
   /* Whether there's more than 1 tab / toplevel browsing context in this      \
    * parent window. Used to determine if a given BC is allowed to resize      \
    * and/or move the window or not. */                                        \
@@ -1290,6 +1292,11 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   bool CanSet(FieldIndex<IDX_IsAppTab>, const bool& aValue,
               ContentParent* aSource);
 
+  bool CanSet(FieldIndex<IDX_IsCaptivePortalTab>, const bool& aValue,
+              ContentParent* aSource) {
+    return true;
+  }
+
   bool CanSet(FieldIndex<IDX_HasSiblings>, const bool& aValue,
               ContentParent* aSource);
 
@@ -1631,26 +1638,24 @@ using MaybeDiscardedBrowsingContext = MaybeDiscarded<BrowsingContext>;
 extern template class syncedcontext::Transaction<BrowsingContext>;
 
 }  // namespace dom
+}  // namespace mozilla
 
 // Allow sending BrowsingContext objects over IPC.
-namespace ipc {
+namespace IPC {
 template <>
-struct IPDLParamTraits<dom::MaybeDiscarded<dom::BrowsingContext>> {
-  static void Write(IPC::MessageWriter* aWriter, IProtocol* aActor,
-                    const dom::MaybeDiscarded<dom::BrowsingContext>& aParam);
-  static bool Read(IPC::MessageReader* aReader, IProtocol* aActor,
-                   dom::MaybeDiscarded<dom::BrowsingContext>* aResult);
+struct ParamTraits<
+    mozilla::dom::MaybeDiscarded<mozilla::dom::BrowsingContext>> {
+  using paramType = mozilla::dom::MaybeDiscarded<mozilla::dom::BrowsingContext>;
+  static void Write(IPC::MessageWriter* aWriter, const paramType& aParam);
+  static bool Read(IPC::MessageReader* aReader, paramType* aResult);
 };
 
 template <>
-struct IPDLParamTraits<dom::BrowsingContext::IPCInitializer> {
-  static void Write(IPC::MessageWriter* aWriter, IProtocol* aActor,
-                    const dom::BrowsingContext::IPCInitializer& aInitializer);
-
-  static bool Read(IPC::MessageReader* aReader, IProtocol* aActor,
-                   dom::BrowsingContext::IPCInitializer* aInitializer);
+struct ParamTraits<mozilla::dom::BrowsingContext::IPCInitializer> {
+  using paramType = mozilla::dom::BrowsingContext::IPCInitializer;
+  static void Write(IPC::MessageWriter* aWriter, const paramType& aInitializer);
+  static bool Read(IPC::MessageReader* aReader, paramType* aInitializer);
 };
-}  // namespace ipc
-}  // namespace mozilla
+}  // namespace IPC
 
 #endif  // !defined(mozilla_dom_BrowsingContext_h)

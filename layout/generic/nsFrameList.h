@@ -11,7 +11,6 @@
 
 #include "mozilla/EnumSet.h"
 #include "mozilla/FunctionTypeTraits.h"
-#include "mozilla/RefPtr.h"
 #include "nsDebug.h"
 #include "nsTArray.h"
 
@@ -43,7 +42,7 @@ enum class FrameChildListID {
   ExcessOverflowContainers,
   OverflowOutOfFlow,
   Float,
-  Bullet,
+  Marker,
   PushedFloats,
   Backdrop,
   // A special alias for FrameChildListID::Principal that suppress the reflow
