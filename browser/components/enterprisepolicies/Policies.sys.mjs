@@ -1260,7 +1260,7 @@ export var Policies = {
         ContentBlockingPrefs.matchCBCategory();
         // We don't want to lock the new exceptions UI unless
         // that policy was explicitly set.
-        if (param.Category == "strict") {
+        if (param.Category == "strict" && !param.Locked) {
           Services.prefs.unlockPref(
             "privacy.trackingprotection.allow_list.baseline.enabled"
           );
@@ -1274,8 +1274,23 @@ export var Policies = {
       if ("Exceptions" in param) {
         addAllowDenyPermissions("trackingprotection", param.Exceptions);
       }
+      if ("BaselineExceptions" in param) {
+        PoliciesUtils.setDefaultPref(
+          "privacy.trackingprotection.allow_list.baseline.enabled",
+          param.BaselineExceptions,
+          param.Locked
+        );
+      }
+      if ("ConvenienceExceptions" in param) {
+        PoliciesUtils.setDefaultPref(
+          "privacy.trackingprotection.allow_list.convenience.enabled",
+          param.ConvenienceExceptions,
+          param.Locked
+        );
+      }
       if (param.Category) {
-        // If a category is set, we ignore everything except exceptions.
+        // If a category is set, we ignore everything except exceptions
+        // and the allow lists.
         return;
       }
       if (param.Value) {
@@ -1328,21 +1343,6 @@ export var Policies = {
         PoliciesUtils.setDefaultPref(
           "privacy.fingerprintingProtection.pbmode",
           param.SuspectedFingerprinting,
-          param.Locked
-        );
-      }
-      if ("BaselineExceptions" in param) {
-        PoliciesUtils.setDefaultPref(
-          "privacy.trackingprotection.allow_list.baseline.enabled",
-          param.BaselineExceptions,
-          param.Locked
-        );
-      }
-
-      if ("ConvenienceExceptions" in param) {
-        PoliciesUtils.setDefaultPref(
-          "privacy.trackingprotection.allow_list.convenience.enabled",
-          param.ConvenienceExceptions,
           param.Locked
         );
       }
@@ -1631,7 +1631,7 @@ export var Policies = {
         await lazy.QuickSuggest.initPromise;
         if ("WebSuggestions" in param) {
           PoliciesUtils.setDefaultPref(
-            "browser.urlbar.suggest.quicksuggest.nonsponsored",
+            "browser.urlbar.suggest.quicksuggest.all",
             param.WebSuggestions,
             param.Locked
           );
@@ -2894,9 +2894,9 @@ export var Policies = {
         // translations panel intro. Setting a language value simulates a
         // first translation, which skips the intro panel for users with
         // FeatureRecommendations disabled.
-        const topWebPreferredLanguage = Services.prefs
-          .getComplexValue("intl.accept_languages", Ci.nsIPrefLocalizedString)
-          .data.split(/\s*,\s*/g)[0];
+        const topWebPreferredLanguage = Services.locale.acceptLanguages
+          .split(",")[0]
+          .trim();
 
         const preferredLanguage = topWebPreferredLanguage.length
           ? topWebPreferredLanguage

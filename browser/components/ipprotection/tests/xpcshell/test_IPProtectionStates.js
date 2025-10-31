@@ -12,6 +12,9 @@ const { IPPNimbusHelper } = ChromeUtils.importESModule(
 const { IPPSignInWatcher } = ChromeUtils.importESModule(
   "resource:///modules/ipprotection/IPPSignInWatcher.sys.mjs"
 );
+const { IPPEnrollAndEntitleManager } = ChromeUtils.importESModule(
+  "resource:///modules/ipprotection/IPPEnrollAndEntitleManager.sys.mjs"
+);
 
 do_get_profile();
 
@@ -71,7 +74,7 @@ add_task(async function test_IPProtectionStates_uninitialized() {
 
   sandbox.stub(IPPNimbusHelper, "isEligible").get(() => true);
 
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   Assert.notStrictEqual(
     IPProtectionService.state,
@@ -92,6 +95,8 @@ add_task(async function test_IPProtectionStates_unauthenticated() {
   sandbox
     .stub(IPProtectionService.guardian, "isLinkedToGuardian")
     .resolves(false);
+  sandbox.stub(IPProtectionService.guardian, "enroll").resolves({ ok: true });
+  sandbox.stub(IPPNimbusHelper, "isEligible").get(() => false);
 
   await IPProtectionService.init();
 
@@ -103,17 +108,17 @@ add_task(async function test_IPProtectionStates_unauthenticated() {
 
   sandbox.stub(IPPNimbusHelper, "isEligible").get(() => true);
 
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   Assert.equal(
     IPProtectionService.state,
-    IPProtectionStates.ENROLLING,
+    IPProtectionStates.READY,
     "IP Protection service should no longer be unauthenticated"
   );
 
   sandbox.stub(IPPSignInWatcher, "isSignedIn").get(() => false);
 
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   Assert.equal(
     IPProtectionService.state,
@@ -146,13 +151,14 @@ add_task(async function test_IPProtectionStates_enrolling() {
 
   Assert.equal(
     IPProtectionService.state,
-    IPProtectionStates.ENROLLING,
-    "IP Protection service should be enrolling"
+    IPProtectionStates.READY,
+    "IP Protection service should be ready"
   );
 
   IPProtectionService.guardian.isLinkedToGuardian.resolves(true);
 
-  await IPProtectionService.maybeEnroll();
+  const enrollData = await IPPEnrollAndEntitleManager.maybeEnrollAndEntitle();
+  Assert.ok(enrollData.isEnrolledAndEntitled, "Fully enrolled and entitled");
 
   Assert.equal(
     IPProtectionService.state,
@@ -189,7 +195,7 @@ add_task(async function test_IPProtectionStates_ready() {
 
   sandbox.stub(IPPSignInWatcher, "isSignedIn").get(() => false);
 
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   Assert.notStrictEqual(
     IPProtectionService.state,
@@ -224,7 +230,15 @@ add_task(async function test_IPProtectionStates_active() {
     },
   });
 
-  await IPProtectionService.init();
+  const waitForReady = waitForEvent(
+    IPProtectionService,
+    "IPProtectionService:StateChanged",
+    () => IPProtectionService.state === IPProtectionStates.READY
+  );
+
+  IPProtectionService.init();
+
+  await waitForReady;
 
   Assert.equal(
     IPProtectionService.state,

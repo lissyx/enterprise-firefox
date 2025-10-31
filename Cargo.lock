@@ -1336,8 +1336,8 @@ dependencies = [
 
 [[package]]
 name = "cssparser"
-version = "0.34.1"
-source = "git+https://github.com/servo/rust-cssparser?rev=958a3f098acb92ddacdce18a7ef2c4a87ac3326f#958a3f098acb92ddacdce18a7ef2c4a87ac3326f"
+version = "0.35.0"
+source = "git+https://github.com/servo/rust-cssparser?rev=03f982ed70ce1de67bef02de63b2e11e08a9e111#71b7cfe6f1cd85427ca905a41be31ca9f6af29a5"
 dependencies = [
  "cssparser-macros",
  "dtoa-short",
@@ -1349,7 +1349,7 @@ dependencies = [
 [[package]]
 name = "cssparser-macros"
 version = "0.6.1"
-source = "git+https://github.com/servo/rust-cssparser?rev=958a3f098acb92ddacdce18a7ef2c4a87ac3326f#958a3f098acb92ddacdce18a7ef2c4a87ac3326f"
+source = "git+https://github.com/servo/rust-cssparser?rev=03f982ed70ce1de67bef02de63b2e11e08a9e111#71b7cfe6f1cd85427ca905a41be31ca9f6af29a5"
 dependencies = [
  "quote",
  "syn",
@@ -2632,6 +2632,7 @@ dependencies = [
  "l10nregistry",
  "l10nregistry-ffi",
  "libz-rs-sys",
+ "locale_service_glue",
  "localization-ffi",
  "log",
  "mapped_hyph",
@@ -2733,9 +2734,9 @@ dependencies = [
 
 [[package]]
 name = "glean"
-version = "65.2.2"
+version = "66.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "895946f5a54f9d54c24175af3a064c9ecf8b4f9374afb26132b583f179fc6be2"
+checksum = "3acc348bbf540abeedf7c271daf952b1e24311e2ea1c1f8ac172a5cedf37ac91"
 dependencies = [
  "crossbeam-channel",
  "glean-core",
@@ -2748,9 +2749,9 @@ dependencies = [
 
 [[package]]
 name = "glean-core"
-version = "65.2.2"
+version = "66.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b22a5ae2c3fd542fb8388da0de68542748f466c8df9a815c8b9cc274894ab919"
+checksum = "540e40007a01e43b73904d1ee8f7efd4782f1a7f4a20ef1dd6d2c00fc18d54b6"
 dependencies = [
  "android_logger",
  "bincode",
@@ -3924,6 +3925,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
+name = "locale_service_glue"
+version = "0.1.0"
+dependencies = [
+ "icu_locale",
+ "nsstring",
+]
+
+[[package]]
 name = "localization-ffi"
 version = "0.1.0"
 dependencies = [
@@ -4753,7 +4762,7 @@ dependencies = [
 [[package]]
 name = "mtu"
 version = "0.2.9"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "bindgen 0.69.999",
  "cfg_aliases",
@@ -4772,7 +4781,7 @@ checksum = "a2983372caf4480544083767bf2d27defafe32af49ab4df3a0b7fc90793a3664"
 [[package]]
 name = "naga"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -4797,8 +4806,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-bin"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "clap",
  "clap-verbosity-flag",
@@ -4821,8 +4830,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-common"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "enum-map",
  "env_logger",
@@ -4835,8 +4844,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-crypto"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "bindgen 0.69.999",
  "enum-map",
@@ -4853,8 +4862,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-http3"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "enumset",
  "log",
@@ -4872,8 +4881,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-qpack"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "log",
  "neqo-common",
@@ -4886,8 +4895,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-transport"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "enum-map",
  "enumset",
@@ -4906,8 +4915,8 @@ dependencies = [
 
 [[package]]
 name = "neqo-udp"
-version = "0.16.1"
-source = "git+https://github.com/mozilla/neqo?tag=v0.16.1#b3d8f0d21db5657ebafb14f9b60c8892d2eb3aa9"
+version = "0.18.0"
+source = "git+https://github.com/mozilla/neqo?tag=v0.18.0#57ef3bd8f67023a168734a154e0ef273e9ddc7f1"
 dependencies = [
  "cfg_aliases",
  "libc",
@@ -5365,19 +5374,20 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phf"
-version = "0.11.2"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
+checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
 dependencies = [
  "phf_macros",
  "phf_shared",
+ "serde",
 ]
 
 [[package]]
 name = "phf_codegen"
-version = "0.11.2"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8d39688d359e6b34654d328e262234662d16cc0f60ec8dcbe5e718709342a5a"
+checksum = "49aa7f9d80421bca176ca8dbfebe668cc7a2684708594ec9f3c0db0805d5d6e1"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -5385,19 +5395,19 @@ dependencies = [
 
 [[package]]
 name = "phf_generator"
-version = "0.11.2"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
+checksum = "135ace3a761e564ec88c03a77317a7c6b80bb7f7135ef2544dbe054243b89737"
 dependencies = [
+ "fastrand",
  "phf_shared",
- "rand",
 ]
 
 [[package]]
 name = "phf_macros"
-version = "0.11.2"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
+checksum = "812f032b54b1e759ccd5f8b6677695d5268c588701effba24601f6932f8269ef"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -5408,11 +5418,11 @@ dependencies = [
 
 [[package]]
 name = "phf_shared"
-version = "0.11.2"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
+checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
- "siphasher",
+ "siphasher 1.0.1",
 ]
 
 [[package]]
@@ -6471,9 +6481,16 @@ checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 
 [[package]]
 name = "siphasher"
-version = "0.3.10"
+version = "0.3.999"
+dependencies = [
+ "siphasher 1.0.1",
+]
+
+[[package]]
+name = "siphasher"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd3e3206899af3f8b12af284fafc038cc1dc2b41d1b89dd17297221c5d225de"
+checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "slab"
@@ -7471,7 +7488,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d226fc167754ce548c5ece9828c8a06f03bf1eea525d2659ba6bd648bd8e2f3"
 dependencies = [
  "anyhow",
- "siphasher",
+ "siphasher 0.3.999",
  "uniffi_internal_macros",
  "uniffi_pipeline",
 ]
@@ -7923,7 +7940,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -7953,7 +7970,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-apple"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "wgpu-hal",
 ]
@@ -7961,7 +7978,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-windows-linux-android"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "wgpu-hal",
 ]
@@ -7969,7 +7986,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -8007,14 +8024,13 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "27.0.0"
-source = "git+https://github.com/gfx-rs/wgpu?rev=a70b8336c01b0869e0459baae5a30fdfe365e5ad#a70b8336c01b0869e0459baae5a30fdfe365e5ad"
+source = "git+https://github.com/gfx-rs/wgpu?rev=d8f97261d23e436be75884f792b5931b383c4041#d8f97261d23e436be75884f792b5931b383c4041"
 dependencies = [
  "bitflags 2.9.0",
  "bytemuck",
  "js-sys",
  "log",
  "serde",
- "thiserror 2.0.12",
  "web-sys",
 ]
 
@@ -8350,9 +8366,9 @@ dependencies = [
 
 [[package]]
 name = "zeitstempel"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94652f036694517fa67509942c3b60a51a19e1cd9cfd0f456eeb830ae8798d3d"
+checksum = "f523a0d9326c4f3242ad3a9d306baa7fe4572fd532cc891cabecfb714c786c1e"
 dependencies = [
  "cfg-if",
  "libc",

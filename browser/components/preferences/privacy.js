@@ -202,6 +202,8 @@ Preferences.addAll([
   // Firefox VPN
   { id: "browser.ipProtection.variant", type: "string" },
   { id: "browser.ipProtection.exceptionsMode", type: "string" },
+  { id: "browser.ipProtection.autoStartEnabled", type: "bool" },
+  { id: "browser.ipProtection.autoStartPrivateEnabled", type: "bool" },
 
   // Media
   { id: "media.autoplay.default", type: "int" },
@@ -1263,9 +1265,19 @@ Preferences.addSetting({
   visible: ({ ipProtectionVisible, ipProtectionExceptionsMode }) =>
     ipProtectionVisible.value && ipProtectionExceptionsMode.value == "all",
   onUserClick() {
-    // TODO: show UI based on current exception mode selected (Bug 1993334)
-    // We can read the target id to verify the button type and open a dialog
-    // with gSubDialog.open
+    let params = {
+      blockVisible: true,
+      hideStatusColumn: true,
+      prefilledHost: "",
+      permissionType: "ipp-vpn",
+      capabilityFilter: Ci.nsIPermissionManager.DENY_ACTION,
+    };
+
+    gSubDialog.open(
+      "chrome://browser/content/preferences/dialogs/permissions.xhtml",
+      { features: "resizable=yes" },
+      params
+    );
   },
 });
 Preferences.addSetting({
@@ -1274,10 +1286,42 @@ Preferences.addSetting({
   visible: ({ ipProtectionVisible, ipProtectionExceptionsMode }) =>
     ipProtectionVisible.value && ipProtectionExceptionsMode.value == "select",
   onUserClick() {
-    // TODO: show UI based on current exception mode selected (Bug 1993334)
-    // We can read the target id to verify the button type and open a dialog
-    // with gSubDialog.open
+    let params = {
+      allowVisible: true,
+      hideStatusColumn: true,
+      prefilledHost: "",
+      permissionType: "ipp-vpn",
+      capabilityFilter: Ci.nsIPermissionManager.ALLOW_ACTION,
+    };
+
+    gSubDialog.open(
+      "chrome://browser/content/preferences/dialogs/permissions.xhtml",
+      { features: "resizable=yes" },
+      params
+    );
   },
+});
+Preferences.addSetting({
+  id: "ipProtectionAutoStart",
+  deps: ["ipProtectionVisible"],
+  visible: ({ ipProtectionVisible }) => ipProtectionVisible.value,
+});
+Preferences.addSetting({
+  id: "ipProtectionAutoStartCheckbox",
+  pref: "browser.ipProtection.autoStartEnabled",
+  deps: ["ipProtectionVisible", "ipProtectionAutoStart"],
+  visible: ({ ipProtectionVisible }) => ipProtectionVisible.value,
+});
+Preferences.addSetting({
+  id: "ipProtectionAutoStartPrivateCheckbox",
+  pref: "browser.ipProtection.autoStartPrivateEnabled",
+  deps: ["ipProtectionVisible", "ipProtectionAutoStart"],
+  visible: ({ ipProtectionVisible }) => ipProtectionVisible.value,
+});
+Preferences.addSetting({
+  id: "ipProtectionAdditionalLinks",
+  deps: ["ipProtectionVisible"],
+  visible: ({ ipProtectionVisible }) => ipProtectionVisible.value,
 });
 
 // Study opt out

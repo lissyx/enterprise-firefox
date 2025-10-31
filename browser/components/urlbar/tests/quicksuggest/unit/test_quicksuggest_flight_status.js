@@ -46,7 +46,7 @@ add_setup(async function init() {
     prefs: [
       ["flightStatus.featureGate", true],
       ["suggest.flightStatus", true],
-      ["suggest.quicksuggest.nonsponsored", true],
+      ["suggest.quicksuggest.all", true],
     ],
   });
 });
@@ -56,9 +56,44 @@ add_task(async function telemetry_type() {
     QuickSuggest.getFeature(
       "FlightStatusSuggestions"
     ).getSuggestionTelemetryType({}),
-    "flightStatus",
-    "Telemetry type should be 'flightStatus'"
+    "flights",
+    "Telemetry type should be 'flights'"
   );
+});
+
+add_task(async function disabledPrefs() {
+  let prefs = [
+    "quicksuggest.enabled",
+    "suggest.flightStatus",
+    "suggest.quicksuggest.all",
+  ];
+
+  for (let pref of prefs) {
+    info("Testing pref: " + pref);
+
+    // First make sure the suggestion is added.
+    await check_results({
+      context: createContext("test", {
+        providers: [UrlbarProviderQuickSuggest.name],
+        isPrivate: false,
+      }),
+      matches: [merinoResult()],
+    });
+
+    // Now disable them.
+    UrlbarPrefs.set(pref, false);
+    await check_results({
+      context: createContext("test", {
+        providers: [UrlbarProviderQuickSuggest.name],
+        isPrivate: false,
+      }),
+      matches: [],
+    });
+
+    // Revert.
+    UrlbarPrefs.set(pref, true);
+    await QuickSuggestTestUtils.forceSync();
+  }
 });
 
 add_task(async function not_interested_on_realtime() {
@@ -187,7 +222,7 @@ function merinoResult() {
       source: "merino",
       provider: "flightaware",
       dynamicType: "flightStatus",
-      telemetryType: "flightStatus",
+      telemetryType: "flights",
       isSponsored: false,
       flightaware: {
         values: [

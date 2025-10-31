@@ -69,6 +69,8 @@ extern crate aa_stroke;
 extern crate qcms;
 extern crate wpf_gpu_raster;
 
+extern crate locale_service_glue;
+
 extern crate unic_langid;
 extern crate unic_langid_ffi;
 

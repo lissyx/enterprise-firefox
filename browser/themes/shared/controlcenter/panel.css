@@ -871,7 +871,7 @@
 }
 
 .trustpanel-header {
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--heading-font-weight);
   margin-block-end: var(--space-medium);
 
   #trustpanel-blockerDetailsView &,
@@ -968,7 +968,7 @@
   }
 }
 
-#trustpanel-blockerView moz-button {
+.moz-button-subviewbutton-nav {
   --button-font-weight: normal;
   --button-alignment: inline-start;
   --button-border-radius: var(--border-radius-small);

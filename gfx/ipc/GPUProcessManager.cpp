@@ -260,13 +260,13 @@ bool GPUProcessManager::IsProcessStable(const TimeStamp& aNow) {
   return mProcessStable;
 }
 
-bool GPUProcessManager::LaunchGPUProcess() {
+nsresult GPUProcessManager::LaunchGPUProcess() {
   if (mProcess) {
-    return true;
+    return NS_OK;
   }
 
   if (AppShutdown::IsInOrBeyond(ShutdownPhase::XPCOMShutdown)) {
-    return false;
+    return NS_ERROR_ILLEGAL_DURING_SHUTDOWN;
   }
 
   // Start listening for pref changes so we can
@@ -291,9 +291,10 @@ bool GPUProcessManager::LaunchGPUProcess() {
   mProcess = new GPUProcessHost(this);
   if (!mProcess->Launch(std::move(extraArgs))) {
     DisableGPUProcess("Failed to launch GPU process");
+    return NS_ERROR_FAILURE;
   }
 
-  return true;
+  return NS_OK;
 }
 
 bool GPUProcessManager::IsGPUProcessLaunching() {
@@ -402,74 +403,42 @@ bool GPUProcessManager::IsGPUReady() const {
 nsresult GPUProcessManager::EnsureGPUReady() {
   MOZ_ASSERT(NS_IsMainThread());
 
-  // We only wait to fail with NS_ERROR_ILLEGAL_DURING_SHUTDOWN if we would
-  // cause a state change or if we are in the middle of relaunching the GPU
-  // process.
-  bool inShutdown = AppShutdown::IsInOrBeyond(ShutdownPhase::XPCOMShutdown);
+  // Common case is we already have a GPU process.
+  if (mProcess && mProcess->IsConnected() && mGPUChild) {
+    MOZ_DIAGNOSTIC_ASSERT(mGPUChild->IsGPUReady());
+    return NS_OK;
+  }
 
-  while (true) {
+  // Next most common case is that we are compositing in the parent process.
+  if (!gfxConfig::IsEnabled(Feature::GPU_PROCESS)) {
+    MOZ_DIAGNOSTIC_ASSERT(!mProcess);
+    MOZ_DIAGNOSTIC_ASSERT(!mGPUChild);
+    return NS_OK;
+  }
+
+  // We aren't ready and in shutdown, we should just abort.
+  if (AppShutdown::IsInOrBeyond(ShutdownPhase::XPCOMShutdown)) {
+    return NS_ERROR_ILLEGAL_DURING_SHUTDOWN;
+  }
+
+  do {
     // Launch the GPU process if it is enabled but hasn't been (re-)launched
-    // yet.
-    if (!mProcess && gfxConfig::IsEnabled(Feature::GPU_PROCESS)) {
-      if (NS_WARN_IF(inShutdown)) {
-        return NS_ERROR_ILLEGAL_DURING_SHUTDOWN;
-      }
-
-      if (!LaunchGPUProcess()) {
-        MOZ_DIAGNOSTIC_ASSERT(!gfxConfig::IsEnabled(Feature::GPU_PROCESS));
-        return NS_OK;
-      }
-    }
-
-    if (mProcess && !mProcess->IsConnected()) {
-      if (NS_WARN_IF(inShutdown)) {
-        return NS_ERROR_ILLEGAL_DURING_SHUTDOWN;
-      }
-
-      if (!mProcess->WaitForLaunch()) {
-        // If this fails, we should have fired OnProcessLaunchComplete and
-        // removed the process. The algorithm either allows us another attempt
-        // or it will have disabled the GPU process.
-        MOZ_ASSERT(!mProcess);
-        MOZ_ASSERT(!mGPUChild);
-        continue;
-      }
-    }
-
-    // If we don't have a connected process by this stage, we must have
-    // explicitly disabled the GPU process.
-    if (!mGPUChild) {
-      break;
-    }
-
-    // We already call this in OnProcessLaunchComplete that is called during
-    // WaitForLaunch, but there could be more gfxVar/gfxConfig updates that need
-    // to be sent over, if we are calling this well after the process has
-    // launched. This is because changes can occur due to device resets without
-    // a process crash.
-    if (mGPUChild->EnsureGPUReady()) {
+    // yet, and wait for it to complete the handshake. As part of WaitForLaunch,
+    // we know that OnProcessLaunchComplete has been called. If it succeeds,
+    // we know that mGPUChild has been set and we already waited for it to be
+    // ready. If it fails, then we know that the GPU process must have been
+    // destroyed and/or disabled.
+    nsresult rv = LaunchGPUProcess();
+    if (NS_SUCCEEDED(rv) && mProcess->WaitForLaunch() && mGPUChild) {
+      MOZ_DIAGNOSTIC_ASSERT(mGPUChild->IsGPUReady());
       return NS_OK;
     }
 
-    // If the initialization above fails, we likely have a GPU process teardown
-    // waiting in our message queue (or will soon). OnProcessUnexpectedShutdown
-    // will explicitly teardown the process and prevent any pending events from
-    // triggering our fallback logic again. It will allow a number of attempts
-    // in the same configuration in case we are failing for intermittent
-    // reasons, before first falling back from acceleration, and eventually
-    // disabling the GPU process altogether.
-    OnProcessUnexpectedShutdown(mProcess);
-  }
+    MOZ_RELEASE_ASSERT(rv != NS_ERROR_ILLEGAL_DURING_SHUTDOWN);
+    MOZ_RELEASE_ASSERT(!mProcess);
+    MOZ_RELEASE_ASSERT(!mGPUChild);
+  } while (gfxConfig::IsEnabled(Feature::GPU_PROCESS));
 
-  MOZ_DIAGNOSTIC_ASSERT(!gfxConfig::IsEnabled(Feature::GPU_PROCESS));
-
-  // This is the first time we are trying to use the in-process compositor.
-  if (mTotalProcessAttempts == 0) {
-    if (NS_WARN_IF(inShutdown)) {
-      return NS_ERROR_ILLEGAL_DURING_SHUTDOWN;
-    }
-    ResetProcessStable();
-  }
   return NS_OK;
 }
 
@@ -779,12 +748,12 @@ bool GPUProcessManager::DisableWebRenderConfig(wr::WebRenderError aError,
 
   // If we still have the GPU process, and we fallback to a new configuration
   // that prefers to have the GPU process, reset the counter. Because we
-  // updated the gfxVars, we want to flag the GPUChild to wait for the update
-  // to be processed before creating new compositor sessions, otherwise we risk
-  // them being out of sync with the content/parent processes.
+  // updated the gfxVars, we call GPUChild::EnsureGPUReady to force us to wait
+  // for the update to be processed before creating new compositor sessions.
+  // Otherwise we risk them being out of sync with the content/parent processes.
   if (wantRestart && mProcess && mGPUChild) {
     mUnstableProcessAttempts = 1;
-    mGPUChild->MarkWaitForVarUpdate();
+    mGPUChild->EnsureGPUReady(/* aForceSync */ true);
   }
 
   return true;
@@ -1361,10 +1330,6 @@ bool GPUProcessManager::CreateContentBridges(
     ipc::Endpoint<PVRManagerChild>* aOutVRBridge,
     ipc::Endpoint<PRemoteMediaManagerChild>* aOutVideoManager,
     dom::ContentParentId aChildId, nsTArray<uint32_t>* aNamespaces) {
-  if (NS_WARN_IF(NS_FAILED(EnsureGPUReady()))) {
-    return false;
-  }
-
   const uint32_t cmNamespace = AllocateNamespace();
   if (!CreateContentCompositorManager(aOtherProcess, aChildId, cmNamespace,
                                       aOutCompositor) ||
@@ -1372,7 +1337,7 @@ bool GPUProcessManager::CreateContentBridges(
       !CreateContentVRManager(aOtherProcess, aChildId, aOutVRBridge)) {
     return false;
   }
-  // VideoDeocderManager is only supported in the GPU process, so we allow this
+  // RemoteMediaManager is only supported in the GPU process, so we allow this
   // to be fallible.
   CreateContentRemoteMediaManager(aOtherProcess, aChildId, aOutVideoManager);
   // Allocates 3 namespaces(for CompositorManagerChild, CompositorBridgeChild
@@ -1592,23 +1557,6 @@ nsresult GPUProcessManager::EnsureVideoBridge(
   return NS_OK;
 }
 
-void GPUProcessManager::MapLayerTreeId(LayersId aLayersId,
-                                       base::ProcessId aOwningId) {
-  if (NS_WARN_IF(NS_FAILED(EnsureGPUReady()))) {
-    return;
-  }
-
-  if (mGPUChild) {
-    mGPUChild->SendAddLayerTreeIdMapping(
-        LayerTreeIdMapping(aLayersId, aOwningId));
-  }
-
-  // Must do this *after* the call to EnsureGPUReady, so that if the
-  // process is launched as a result then it is initialized without this
-  // LayersId, meaning it can be successfully mapped.
-  LayerTreeOwnerTracker::Get()->Map(aLayersId, aOwningId);
-}
-
 void GPUProcessManager::UnmapLayerTreeId(LayersId aLayersId,
                                          base::ProcessId aOwningId) {
   // If the GPU process is down, but not disabled, there is no need to relaunch
@@ -1673,26 +1621,40 @@ uint32_t GPUProcessManager::AllocateNamespace() {
 bool GPUProcessManager::AllocateAndConnectLayerTreeId(
     PCompositorBridgeChild* aCompositorBridge, base::ProcessId aOtherPid,
     LayersId* aOutLayersId, CompositorOptions* aOutCompositorOptions) {
+  MOZ_ASSERT(aOutLayersId);
+
   LayersId layersId = AllocateLayerTreeId();
   *aOutLayersId = layersId;
 
-  if (!mGPUChild || !aCompositorBridge) {
-    // If we're not remoting to another process, or there is no compositor,
-    // then we'll send at most one message. In this case we can just keep
-    // the old behavior of making sure the mapping occurs, and maybe sending
-    // a creation notification.
-    MapLayerTreeId(layersId, aOtherPid);
-    if (!aCompositorBridge) {
-      return false;
+  // We always map the layer ID in the parent process so that we can recover
+  // from GPU process crashes. In that case, the tree will be shared with the
+  // new GPU process at initialization.
+  LayerTreeOwnerTracker::Get()->Map(layersId, aOtherPid);
+
+  if (NS_WARN_IF(NS_FAILED(EnsureGPUReady()))) {
+    return false;
+  }
+
+  // If we have a CompositorBridgeChild, then we need to call
+  // CompositorBridgeParent::NotifyChildCreated. If this is in the GPU process,
+  // we can combine it with LayerTreeOwnerTracker::Map to minimize IPC.
+  // messages.
+  if (aCompositorBridge) {
+    if (mGPUChild) {
+      return aCompositorBridge->SendMapAndNotifyChildCreated(
+          layersId, aOtherPid, aOutCompositorOptions);
     }
     return aCompositorBridge->SendNotifyChildCreated(layersId,
                                                      aOutCompositorOptions);
   }
 
-  // Use the combined message path.
-  LayerTreeOwnerTracker::Get()->Map(layersId, aOtherPid);
-  return aCompositorBridge->SendMapAndNotifyChildCreated(layersId, aOtherPid,
-                                                         aOutCompositorOptions);
+  // If we don't have a CompositorBridgeChild, we just need to call
+  // LayerTreeOwnerTracker::Map in the compositing process.
+  if (mGPUChild) {
+    mGPUChild->SendAddLayerTreeIdMapping(
+        LayerTreeIdMapping(layersId, aOtherPid));
+  }
+  return false;
 }
 
 void GPUProcessManager::EnsureVsyncIOThread() {

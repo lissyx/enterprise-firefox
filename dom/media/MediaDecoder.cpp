@@ -23,7 +23,6 @@
 #include "VideoUtils.h"
 #include "WindowRenderer.h"
 #include "mozilla/AbstractThread.h"
-#include "mozilla/MathAlgorithms.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/StaticPrefs_media.h"
 #include "mozilla/StaticPtr.h"
@@ -381,7 +380,7 @@ void MediaDecoder::OnPlaybackErrorEvent(const MediaResult& aError) {
 #ifdef MOZ_WMF_MEDIA_ENGINE
   if (aError == NS_ERROR_DOM_MEDIA_EXTERNAL_ENGINE_NOT_SUPPORTED_ERR ||
       aError == NS_ERROR_DOM_MEDIA_CDM_PROXY_NOT_SUPPORTED_ERR) {
-    SwitchStateMachine(aError);
+    (void)SwitchStateMachine(aError);
     return;
   }
 #endif
@@ -389,12 +388,12 @@ void MediaDecoder::OnPlaybackErrorEvent(const MediaResult& aError) {
 }
 
 #ifdef MOZ_WMF_MEDIA_ENGINE
-void MediaDecoder::SwitchStateMachine(const MediaResult& aError) {
+bool MediaDecoder::SwitchStateMachine(const MediaResult& aError) {
   MOZ_ASSERT(aError == NS_ERROR_DOM_MEDIA_EXTERNAL_ENGINE_NOT_SUPPORTED_ERR ||
              aError == NS_ERROR_DOM_MEDIA_CDM_PROXY_NOT_SUPPORTED_ERR);
   // Already in shutting down decoder, no need to create another state machine.
   if (mPlayState == PLAY_STATE_SHUTDOWN) {
-    return;
+    return false;
   }
 
   // External engine can't play the resource or we intentionally disable it, try
@@ -473,6 +472,7 @@ void MediaDecoder::SwitchStateMachine(const MediaResult& aError) {
 
   discardStateMachine->BeginShutdown()->Then(
       AbstractThread::MainThread(), __func__, [discardStateMachine] {});
+  return true;
 }
 #endif
 
@@ -1513,12 +1513,13 @@ RefPtr<SetCDMPromise> MediaDecoder::SetCDMProxy(CDMProxy* aProxy) {
       // given CDM proxy.
       LOG("CDM proxy %s not supported! Switch to another state machine.",
           NS_ConvertUTF16toUTF8(aProxy->KeySystem()).get());
-      SwitchStateMachine(
+      [[maybe_unused]] bool switched = SwitchStateMachine(
           MediaResult{NS_ERROR_DOM_MEDIA_CDM_PROXY_NOT_SUPPORTED_ERR, aProxy});
       rv = GetStateMachine()->IsCDMProxySupported(aProxy);
       if (NS_FAILED(rv)) {
-        MOZ_DIAGNOSTIC_CRASH("CDM proxy not supported after switch!");
-        LOG("CDM proxy not supported after switch!");
+        MOZ_DIAGNOSTIC_ASSERT(
+            !switched, "We should only reach here if we failed to switch");
+        LOG("CDM proxy is still not supported!");
         return SetCDMPromise::CreateAndReject(rv, __func__);
       }
     }

@@ -12,6 +12,9 @@ const { IPProtectionService, IPProtectionStates } = ChromeUtils.importESModule(
 const { IPPSignInWatcher } = ChromeUtils.importESModule(
   "resource:///modules/ipprotection/IPPSignInWatcher.sys.mjs"
 );
+const { IPPEnrollAndEntitleManager } = ChromeUtils.importESModule(
+  "resource:///modules/ipprotection/IPPEnrollAndEntitleManager.sys.mjs"
+);
 
 /**
  * A class that mocks the IP Protection panel.
@@ -133,6 +136,9 @@ add_task(async function test_IPProtectionPanel_signedIn() {
   let sandbox = sinon.createSandbox();
   sandbox.stub(IPPSignInWatcher, "isSignedIn").get(() => true);
   sandbox
+    .stub(IPPEnrollAndEntitleManager, "isEnrolledAndEntitled")
+    .get(() => true);
+  sandbox
     .stub(IPProtectionService.guardian, "isLinkedToGuardian")
     .resolves(true);
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
@@ -153,10 +159,9 @@ add_task(async function test_IPProtectionPanel_signedIn() {
   let signedInEventPromise = waitForEvent(
     IPProtectionService,
     "IPProtectionService:StateChanged",
-    false,
     () => IPProtectionService.state === IPProtectionStates.READY
   );
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   await signedInEventPromise;
 
@@ -191,10 +196,9 @@ add_task(async function test_IPProtectionPanel_signedOut() {
   let signedOutEventPromise = waitForEvent(
     IPProtectionService,
     "IPProtectionService:StateChanged",
-    false,
     () => IPProtectionService.state === IPProtectionStates.UNAVAILABLE
   );
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   await signedOutEventPromise;
 
@@ -225,6 +229,9 @@ add_task(async function test_IPProtectionPanel_started_stopped() {
   let sandbox = sinon.createSandbox();
   sandbox.stub(IPPSignInWatcher, "isSignedIn").get(() => true);
   sandbox
+    .stub(IPPEnrollAndEntitleManager, "isEnrolledAndEntitled")
+    .get(() => true);
+  sandbox
     .stub(IPProtectionService.guardian, "isLinkedToGuardian")
     .resolves(true);
   sandbox.stub(IPProtectionService.guardian, "fetchUserInfo").resolves({
@@ -245,12 +252,11 @@ add_task(async function test_IPProtectionPanel_started_stopped() {
     },
   });
 
-  await IPProtectionService.updateState();
+  IPProtectionService.updateState();
 
   let startedEventPromise = waitForEvent(
     IPProtectionService,
     "IPProtectionService:StateChanged",
-    false,
     () => IPProtectionService.state === IPProtectionStates.ACTIVE
   );
 
@@ -273,7 +279,6 @@ add_task(async function test_IPProtectionPanel_started_stopped() {
   let stoppedEventPromise = waitForEvent(
     IPProtectionService,
     "IPProtectionService:StateChanged",
-    false,
     () => IPProtectionService.state !== IPProtectionStates.ACTIVE
   );
 

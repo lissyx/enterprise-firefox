@@ -22,7 +22,6 @@
 #include "mozilla/Casting.h"
 #include "mozilla/CheckedInt.h"
 #include "mozilla/Components.h"
-#include "mozilla/DebugOnly.h"
 #include "mozilla/Encoding.h"
 #include "mozilla/EventStateManager.h"
 #include "mozilla/HTMLEditor.h"
@@ -3204,6 +3203,11 @@ nsresult nsDocShell::LoadURI(nsIURI* aURI,
     return NS_ERROR_FAILURE;
   }
 
+  // Set the captive portal tab flag on the browsing context if requested
+  if (loadState->GetIsCaptivePortalTab()) {
+    (void)mBrowsingContext->SetIsCaptivePortalTab(true);
+  }
+
   return LoadURI(loadState, true);
 }
 
@@ -3265,6 +3269,11 @@ nsresult nsDocShell::FixupAndLoadURIString(
 
   if (NS_FAILED(rv) || !loadState) {
     return NS_ERROR_FAILURE;
+  }
+
+  // Set the captive portal tab flag on the browsing context if requested
+  if (loadState->GetIsCaptivePortalTab()) {
+    (void)mBrowsingContext->SetIsCaptivePortalTab(true);
   }
 
   return LoadURI(loadState, true);
@@ -5628,40 +5637,10 @@ static bool IsFollowupPartOfMultipart(nsIRequest* aRequest) {
          !firstPart;
 }
 
-static void GetPreviousContiguousEntries(
-    nsIDocumentViewer* aDocumentViewer,
-    nsTArray<SessionHistoryInfo>& aContiguousEntries) {
-  if (!aDocumentViewer || !aDocumentViewer->GetDocument() ||
-      !aDocumentViewer->GetDocument()->GetWindow() ||
-      !aDocumentViewer->GetDocument()->GetWindow()->GetCurrentInnerWindow() ||
-      !aDocumentViewer->GetDocument()
-           ->GetWindow()
-           ->GetCurrentInnerWindow()
-           ->Navigation()) {
-    return;
-  }
-
-  nsTArray<RefPtr<NavigationHistoryEntry>> entries;
-  RefPtr navigation = aDocumentViewer->GetDocument()
-                          ->GetWindow()
-                          ->GetCurrentInnerWindow()
-                          ->Navigation();
-  navigation->Entries(entries);
-  for (const auto& entry : entries) {
-    aContiguousEntries.AppendElement(*entry->SessionHistoryInfo());
-  }
-}
-
 nsresult nsDocShell::Embed(nsIDocumentViewer* aDocumentViewer,
                            WindowGlobalChild* aWindowActor,
                            bool aIsTransientAboutBlank, nsIRequest* aRequest,
                            nsIURI* aPreviousURI) {
-  nsTArray<SessionHistoryInfo> oldContiguousEntries;
-  if (mozilla::SessionHistoryInParent() &&
-      IsFollowupPartOfMultipart(aRequest)) {
-    GetPreviousContiguousEntries(mDocumentViewer, oldContiguousEntries);
-  }
-
   // Save the LayoutHistoryState of the previous document, before
   // setting up new document
   PersistLayoutHistoryState();
@@ -5713,13 +5692,6 @@ nsresult nsDocShell::Embed(nsIDocumentViewer* aDocumentViewer,
 
     MOZ_LOG(gSHLog, LogLevel::Debug, ("document %p Embed", this));
     MoveLoadingToActiveEntry(expired, cacheKey, aPreviousURI);
-  } else if (mozilla::SessionHistoryInParent() &&
-             IsFollowupPartOfMultipart(aRequest)) {
-    if (RefPtr navigation =
-            GetWindow()->GetCurrentInnerWindow()->Navigation()) {
-      navigation->InitializeHistoryEntries(oldContiguousEntries,
-                                           mActiveEntry.get());
-    }
   }
 
   bool updateHistory = true;

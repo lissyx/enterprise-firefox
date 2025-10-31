@@ -72,7 +72,7 @@
     <!-- Label for enabling the Homepage Search Bar -->
     <string name="preferences_debug_settings_homepage_searchbar" translatable="false">Enable Homepage Search Bar</string>
     <!-- Label for overriding user specified homepage sections -->
-    <string name="preferences_debug_settings_override_user_specified_homepage_sections" translatable="false">Override user specified homepage sections</string>
+    <string name="preferences_debug_settings_override_user_specified_homepage_sections"  tools:ignore="UnusedResources" moz:removedIn="146" translatable="false">Override user specified homepage sections</string>
     <!-- Label for enabling the Compose Logins -->
     <string name="preferences_debug_settings_compose_logins" translatable="false">Enable Compose Logins</string>
     <!-- Label for enabling Homepage as a New Tab -->
@@ -109,12 +109,8 @@
     <string name="preferences_debug_settings_microsurvey_feature" translatable="false">Enable Microsurvey Feature</string>
     <!-- Label for enabling Unified Trust Panel -->
     <string name="preferences_debug_settings_unified_trust_panel" translatable="false">Enable Unified Trust Panel</string>
-    <!-- Label for enabling Trending Searches -->
-    <string name="preferences_debug_settings_trending_searches" translatable="false">Enable Trending Searches</string>
     <!-- Label for enabling remote search configuration -->
     <string name="preferences_debug_settings_remote_search_configuration" translatable="false">Enable Remote Search Configuration (requires restart)</string>
-    <!-- Label for enabling Recent Searches -->
-    <string name="preferences_debug_settings_recent_searches" translatable="false">Enable Recent Searches</string>
     <!-- Label for enabling Address Sync -->
     <string name="preferences_debug_settings_address_sync" translatable="false">Enable Address Sync for supported regions</string>
     <!-- Label for enabling Settings Search-->
@@ -256,10 +252,16 @@
     <string name="crash_debug_crash_app_warning">This will crash the app to start crash reporting flow. Please also ensure that the crash report option is set to "Ask before sending" in the data collections settings if you want the dialog to pop up.</string>
     <!-- Timer text for deferral period %s is the timer string -->
     <string name="crash_debug_deferral_timer">Current deferral period: %s</string>
+
+    <!-- Button text for enabling screen capture on private screens -->
+    <string name="autofill_debug_enable_screen_capture">Enable screen capture on secure screens</string>
     <!-- Button text to show startup crash screen -->
     <string name="crash_debug_show_startup_crash_screen">Show startup crash screen</string>
     <!-- Subtitle warning text for crash button -->
     <string name="crash_debug_startup_crash_warning">This will start the startup crash activity in a new process and terminate the current process.</string>
+
+    <!-- Label for enabling Relay email masks -->
+    <string name="preferences_enable_relay_email_masks">Enable Relay email masks</string>
 
     <!-- Settings Search Strings -->
     <!-- Title of Settings Search -->

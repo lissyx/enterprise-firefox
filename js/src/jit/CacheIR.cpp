@@ -21,6 +21,7 @@
 #include "builtin/Object.h"
 #include "builtin/WeakMapObject.h"
 #include "builtin/WeakSetObject.h"
+#include "gc/GC.h"
 #include "jit/BaselineIC.h"
 #include "jit/CacheIRCloner.h"
 #include "jit/CacheIRCompiler.h"
@@ -2453,6 +2454,11 @@ AttachDecision GetPropIRGenerator::tryAttachObjectLength(HandleObject obj,
 AttachDecision GetPropIRGenerator::tryAttachInlinableNativeGetter(
     Handle<NativeObject*> holder, PropertyInfo prop, ValOperandId receiverId) {
   MOZ_ASSERT(mode_ == ICState::Mode::Specialized);
+
+  // Suppress GC because |CacheIRWriter::trace()| doesn't yet support stub
+  // field tracing and stub fields were already added for shape and prototype
+  // guards.
+  gc::AutoSuppressGC suppressGC(cx_);
 
   Rooted<JSFunction*> target(cx_, &holder->getGetter(prop)->as<JSFunction>());
   MOZ_ASSERT(target->isNativeWithoutJitEntry());
@@ -13757,13 +13763,6 @@ AttachDecision CallIRGenerator::tryAttachCallScripted(
 
   if (!CanOptimizeScriptedCall(calleeFunc, isConstructing)) {
     return AttachDecision::NoAction;
-  }
-
-  if (isConstructing && !calleeFunc->hasJitScript()) {
-    // If we're constructing, require the callee to have a JitScript. This isn't
-    // required for correctness but avoids allocating a template object below
-    // for constructors that aren't hot. See bug 1419758.
-    return AttachDecision::TemporarilyUnoptimizable;
   }
 
   // Verify that spread calls have a reasonable number of arguments.

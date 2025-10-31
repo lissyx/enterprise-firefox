@@ -8,11 +8,11 @@
 
 #include "js/GCAPI.h"
 #include "mozilla/ErrorResult.h"
-#include "mozilla/Fuzzing.h"
 #include "mozilla/SpinEventLoopUntil.h"
 #include "mozilla/Sprintf.h"
 #include "mozilla/TextEvents.h"
 #include "mozilla/TextInputProcessor.h"
+#include "mozilla/dom/ContentChild.h"
 #include "mozilla/dom/KeyboardEvent.h"
 #include "nsFocusManager.h"
 #include "nsIAccessibilityService.h"
@@ -20,10 +20,6 @@
 #include "nsJSEnvironment.h"
 #include "nsPIDOMWindow.h"
 #include "xpcAccessibilityService.h"
-
-#ifdef FUZZING_SNAPSHOT
-#  include "mozilla/dom/ContentChild.h"
-#endif
 
 namespace mozilla::dom {
 
@@ -50,6 +46,11 @@ void FuzzingFunctions::Crash(const GlobalObject& aGlobalObject,
     strcpy(&msgbuf[sizeof(msgbuf) - 4], "...");
   }
   MOZ_CRASH_UNSAFE_PRINTF("%s", msgbuf);
+}
+
+/* static */
+void FuzzingFunctions::KillGPUProcess(const GlobalObject&) {
+  ContentChild::GetSingleton()->SendKillGPUProcess();
 }
 
 /* static */

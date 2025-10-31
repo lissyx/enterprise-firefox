@@ -8,7 +8,6 @@
 
 #include "chrome/common/ipc_message.h"  // for IPC::Message
 #include "MaybeLeakRefPtr.h"
-#include "mozilla/Attributes.h"
 #include "mozilla/Likely.h"
 #include "mozilla/TaskQueue.h"
 #include "mozilla/TimeStamp.h"
@@ -653,6 +652,7 @@ LogTaskBase<T>::Run::~Run() {
 
 template class LogTaskBase<nsIRunnable>;
 template class LogTaskBase<MicroTaskRunnable>;
+template class LogTaskBase<MustConsumeMicroTask>;
 template class LogTaskBase<IPC::Message>;
 template class LogTaskBase<nsTimerImpl>;
 template class LogTaskBase<Task>;

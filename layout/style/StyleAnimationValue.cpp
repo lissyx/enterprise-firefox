@@ -14,13 +14,11 @@
 #include "mozilla/ComputedStyle.h"
 #include "mozilla/ComputedStyleInlines.h"
 #include "mozilla/Likely.h"
-#include "mozilla/MathAlgorithms.h"
 #include "mozilla/PresShell.h"
 #include "mozilla/PresShellInlines.h"
 #include "mozilla/ServoBindings.h"  // StyleLockedDeclarationBlock
 #include "mozilla/ServoCSSParser.h"
 #include "mozilla/ServoStyleSet.h"
-#include "mozilla/UniquePtr.h"
 #include "mozilla/dom/Document.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/layers/LayersMessages.h"

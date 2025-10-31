@@ -40,12 +40,14 @@ import org.mozilla.fenix.Config
 import org.mozilla.fenix.FeatureFlags
 import org.mozilla.fenix.GleanMetrics.TopSites
 import org.mozilla.fenix.R
+import org.mozilla.fenix.autofill.address.RegionAddressFeatureGate
 import org.mozilla.fenix.browser.browsingmode.BrowsingMode
 import org.mozilla.fenix.components.settings.counterPreference
 import org.mozilla.fenix.components.settings.featureFlagPreference
 import org.mozilla.fenix.components.settings.lazyFeatureFlagPreference
 import org.mozilla.fenix.components.toolbar.ToolbarPosition
-import org.mozilla.fenix.debugsettings.addresses.SharedPrefsAddressesDebugLocalesRepository
+import org.mozilla.fenix.debugsettings.addresses.EmptyAddressesDebugRegionRepository
+import org.mozilla.fenix.debugsettings.addresses.SharedPrefsAddressesDebugRegionRepository
 import org.mozilla.fenix.ext.TALL_SCREEN_HEIGHT_DP
 import org.mozilla.fenix.ext.WIDE_SCREEN_WIDTH_DP
 import org.mozilla.fenix.ext.components
@@ -177,33 +179,20 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     /**
      * Indicates if the recent saved bookmarks functionality should be visible.
      */
-    val showBookmarksHomeFeature: Boolean
-        get() = if (overrideUserSpecifiedHomepageSections) {
-            homescreenSections[HomeScreenSection.BOOKMARKS] == true
-        } else {
-            preferences.getBoolean(
-                appContext.getPreferenceKey(R.string.pref_key_customization_bookmarks),
-                homescreenSections[HomeScreenSection.BOOKMARKS] == true,
-            )
-        }
+    var showBookmarksHomeFeature by lazyFeatureFlagPreference(
+        appContext.getPreferenceKey(R.string.pref_key_customization_bookmarks),
+        default = { homescreenSections[HomeScreenSection.BOOKMARKS] == true },
+        featureFlag = true,
+    )
 
     /**
      * Indicates if the recent tabs functionality should be visible.
      */
-    var showRecentTabsFeature: Boolean
-        get() = if (overrideUserSpecifiedHomepageSections) {
-            homescreenSections[HomeScreenSection.JUMP_BACK_IN] == true
-        } else {
-            preferences.getBoolean(
-                appContext.getPreferenceKey(R.string.pref_key_recent_tabs),
-                homescreenSections[HomeScreenSection.JUMP_BACK_IN] == true,
-            )
-        }
-        set(value) {
-            preferences.edit {
-                putBoolean(appContext.getPreferenceKey(R.string.pref_key_recent_tabs), value)
-            }
-        }
+    var showRecentTabsFeature by lazyFeatureFlagPreference(
+        appContext.getPreferenceKey(R.string.pref_key_recent_tabs),
+        featureFlag = true,
+        default = { homescreenSections[HomeScreenSection.JUMP_BACK_IN] == true },
+    )
 
     /**
      * Indicates if the stories homescreen section should be shown.
@@ -235,20 +224,11 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     /**
      * Indicates whether or not the "Recently Visited" section should be shown on the home screen.
      */
-    var historyMetadataUIFeature: Boolean
-        get() = if (overrideUserSpecifiedHomepageSections) {
-            homescreenSections[HomeScreenSection.RECENT_EXPLORATIONS] == true
-        } else {
-            preferences.getBoolean(
-                appContext.getPreferenceKey(R.string.pref_key_history_metadata_feature),
-                homescreenSections[HomeScreenSection.RECENT_EXPLORATIONS] == true,
-            )
-        }
-        set(value) {
-            preferences.edit {
-                putBoolean(appContext.getPreferenceKey(R.string.pref_key_history_metadata_feature), value)
-            }
-        }
+    var historyMetadataUIFeature by lazyFeatureFlagPreference(
+        appContext.getPreferenceKey(R.string.pref_key_history_metadata_feature),
+        default = { homescreenSections[HomeScreenSection.RECENT_EXPLORATIONS] == true },
+        featureFlag = true,
+    )
 
     /**
      * Indicates whether or not the "Synced Tabs" section should be shown on the home screen.
@@ -274,51 +254,32 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     /**
      * Indicates whether or not top sites should be shown on the home screen.
      */
-    val showTopSitesFeature: Boolean
-        get() = if (overrideUserSpecifiedHomepageSections) {
-            homescreenSections[HomeScreenSection.TOP_SITES] == true
-        } else {
-            preferences.getBoolean(
-                appContext.getPreferenceKey(R.string.pref_key_show_top_sites),
-                homescreenSections[HomeScreenSection.TOP_SITES] == true,
-            )
-        }
+    var showTopSitesFeature by lazyFeatureFlagPreference(
+        appContext.getPreferenceKey(R.string.pref_key_show_top_sites),
+        featureFlag = true,
+        default = { homescreenSections[HomeScreenSection.TOP_SITES] == true },
+    )
 
     private val homescreenSections: Map<HomeScreenSection, Boolean>
         get() = FxNimbus.features.homescreen.value().sectionsEnabled
 
     /**
-     * Indicates if the top sites homepage section settings should be visible
-     */
-    val showHomepageTopSitesSectionToggle: Boolean
-        get() = !overrideUserSpecifiedHomepageSections || enableHomepageSearchBar
-
-    /**
      * Indicates if the recent tabs homepage section settings should be visible
      */
     val showHomepageRecentTabsSectionToggle: Boolean
-        get() = !overrideUserSpecifiedHomepageSections && !enableHomepageSearchBar
+        get() = !enableHomepageSearchBar
 
     /**
      * Indicates if the bookmarks homepage section settings should be visible
      */
     val showHomepageBookmarksSectionToggle: Boolean
-        get() = !overrideUserSpecifiedHomepageSections && !enableHomepageSearchBar
+        get() = !enableHomepageSearchBar
 
     /**
      * Indicates if the recently visited homepage section settings should be visible
      */
     val showHomepageRecentlyVisitedSectionToggle: Boolean
-        get() = !overrideUserSpecifiedHomepageSections && !enableHomepageSearchBar
-
-    /**
-     * Indicates if the user specified homepage section visibility should be ignored.
-     */
-    val overrideUserSpecifiedHomepageSections by lazyFeatureFlagPreference(
-        appContext.getPreferenceKey(R.string.pref_key_override_user_specified_homepage_sections),
-        featureFlag = true,
-        default = { FxNimbus.features.overrideUserSpecifiedHomepageSections.value().enabled },
-    )
+        get() = !enableHomepageSearchBar
 
     var numberOfAppLaunches by intPreference(
         appContext.getPreferenceKey(R.string.pref_key_times_app_opened),
@@ -502,14 +463,21 @@ class Settings(private val appContext: Context) : PreferencesHolder {
         default = false,
     )
 
+    val shouldSecureModeBeOverridden
+        get() = allowScreenshotsInPrivateMode || allowScreenCaptureInSecureScreens
     var allowScreenshotsInPrivateMode by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_allow_screenshots_in_private_mode),
         default = false,
     )
 
+    var allowScreenCaptureInSecureScreens by booleanPreference(
+        appContext.getPreferenceKey(R.string.pref_key_dev_debug_allow_capture_of_secure_screens),
+        default = false,
+    )
+
     val appIconSelection by lazyFeatureFlagPreference(
         key = appContext.getPreferenceKey(R.string.pref_key_app_icon_selection_enabled),
-        featureFlag = true,
+        featureFlag = FeatureFlags.APP_ICON_SELECTION,
         default = { FxNimbus.features.appIconSelection.value().enabled },
     )
 
@@ -1499,17 +1467,10 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     /**
      * Indicates if the user have enabled recent search in the search suggestions setting preference.
      */
-    @VisibleForTesting
-    internal var recentSearchSuggestionsEnabled by booleanPreference(
+    internal var shouldShowRecentSearchSuggestions by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_show_recent_search_suggestions),
         default = true,
     )
-
-    /**
-     * Returns true if recent searches should be shown to the user.
-     */
-    val shouldShowRecentSearchSuggestions: Boolean
-        get() = recentSearchSuggestionsEnabled && isRecentSearchesVisible
 
     var showSearchSuggestionsInPrivateOnboardingFinished by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_show_search_suggestions_in_private_onboarding),
@@ -1966,7 +1927,7 @@ class Settings(private val appContext: Context) : PreferencesHolder {
      */
     var isAddressSyncEnabled by featureFlagPreference(
         key = appContext.getPreferenceKey(R.string.pref_key_enable_address_sync),
-        default = FxNimbus.features.addressSync.value().enabled,
+        default = true,
         featureFlag = isAddressFeatureEnabled(appContext),
     )
 
@@ -1992,21 +1953,15 @@ class Settings(private val appContext: Context) : PreferencesHolder {
      * Show the Addresses autofill feature.
      */
     private fun isAddressFeatureEnabled(context: Context): Boolean {
-        val releaseEnabledLanguages = listOf(
-            "en-US",
-            "en-CA",
-            "fr-CA",
-        )
-        val currentlyEnabledLanguages = if (Config.channel.isNightlyOrDebug) {
-            releaseEnabledLanguages + SharedPrefsAddressesDebugLocalesRepository(context)
-                .getAllEnabledLocales().map { it.langTag }
+        val locale = LocaleManager.getCurrentLocale(context) ?: LocaleManager.getSystemDefault()
+        val debugRepository = if (Config.channel.isNightlyOrDebug) {
+            SharedPrefsAddressesDebugRegionRepository(context)
         } else {
-            releaseEnabledLanguages
+            EmptyAddressesDebugRegionRepository()
         }
 
-        val userLangTag = LocaleManager.getCurrentLocale(context)
-            ?.toLanguageTag() ?: LocaleManager.getSystemDefault().toLanguageTag()
-        return currentlyEnabledLanguages.contains(userLangTag)
+        val featureGate = RegionAddressFeatureGate(locale, debugRepository)
+        return featureGate.isAddressFeatureEnabled()
     }
 
     private val mr2022Sections: Map<Mr2022Section, Boolean>
@@ -2331,24 +2286,6 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     )
 
     /**
-     * Indicates if Trending Search Suggestions are enabled.
-     */
-    var isTrendingSearchesVisible by lazyFeatureFlagPreference(
-        key = appContext.getPreferenceKey(R.string.pref_key_enable_trending_searches),
-        default = { FxNimbus.features.trendingSearches.value().enabled },
-        featureFlag = true,
-    )
-
-    /**
-     * Indicates if Recent Search Suggestions are enabled.
-     */
-    var isRecentSearchesVisible by lazyFeatureFlagPreference(
-        key = appContext.getPreferenceKey(R.string.pref_key_enable_recent_searches),
-        default = { FxNimbus.features.recentSearches.value().enabled },
-        featureFlag = true,
-    )
-
-    /**
      * Adjust Activated User sent
      */
     var growthUserActivatedSent by booleanPreference(
@@ -2451,6 +2388,15 @@ class Settings(private val appContext: Context) : PreferencesHolder {
     var ignoreTranslationsDataSaverWarning by booleanPreference(
         appContext.getPreferenceKey(R.string.pref_key_ignore_translations_data_saver_warning),
         default = false,
+    )
+
+    /**
+     * Indicates whether Relay enabled or not.
+     */
+    var isRelayFeatureEnabled by lazyFeatureFlagPreference(
+        key = appContext.getPreferenceKey(R.string.pref_key_enable_relay_email_masks),
+        featureFlag = true,
+        default = { FxNimbus.features.relayEmailMasks.value().enabled },
     )
 
     /**

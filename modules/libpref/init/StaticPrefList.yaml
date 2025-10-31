@@ -1917,6 +1917,13 @@
   value: false
   mirror: always
 
+# Whether to restore windows to the virtual desktop (aka workspace)
+# they were on when they were closed.
+- name: browser.sessionstore.restore_windows_to_virtual_desktop
+  type: RelaxedAtomicBool
+  value: true
+  mirror: always
+
 # If set, when a link is opened to a new tab, do not switch to the new tab.
 #
 # This pref is used when the link is opened with "Open Link in New Tab",
@@ -6781,38 +6788,11 @@
   value: 0x7fff
   mirror: always
 
-- name: gfx.canvas.remote
-  type: bool
-#if defined(XP_WIN)
-  value: true
-#else
-  value: false
-#endif
-  mirror: once
-
-- name: gfx.canvas.remote.allow-in-parent
-  type: bool
-  value: false
-  mirror: once
-
 # Whether OffscreenCanvas can use remote canvas
 - name: gfx.canvas.remote.allow-offscreen
   type: RelaxedAtomicBool
   value: true
   mirror: always
-
-# How many worker threads spawned for remote canvas
-#  -1 - Calculate based on processor cores
-#   0 - No worker threads spawned, will do work on CanvasRenderThread
-#  >0 - Create worker thread pool with given size
-- name: gfx.canvas.remote.worker-threads
-  type: int32_t
-#if defined(XP_WIN)
-  value: -1
-#else
-  value: 0
-#endif
-  mirror: once
 
 # Default size of the shmem buffers used for recording
 - name: gfx.canvas.remote.default-buffer-size
@@ -7707,6 +7687,11 @@
 
 #ifdef XP_WIN
 - name: gfx.webrender.layer-compositor-force-composition-surface
+  type: bool
+  value: false
+  mirror: once
+
+- name: gfx.webrender.layer-compositor-use-dcomp-texture
   type: bool
   value: false
   mirror: once
@@ -8998,6 +8983,13 @@
     mirror: always
     set_spidermonkey_pref: startup
 
+  # Experimental support for import bytes in JavaScript.
+- name: javascript.options.experimental.import_bytes
+  type: bool
+  value: false
+  mirror: always
+  set_spidermonkey_pref: startup
+
 #endif  // NIGHTLY_BUILD
 
 # Whether to Baseline-compile self-hosted functions the first time they are
@@ -9145,7 +9137,7 @@
 -   name: javascript.options.wasm_relaxed_simd
     type: bool
 #if defined(ENABLE_WASM_RELAXED_SIMD)
-    value: @IS_NIGHTLY_BUILD@
+    value: true
 #else
     value: false
 #endif
@@ -9989,6 +9981,13 @@
   mirror: always
   rust: true
 
+# Is support for the contrast-color() function enabled?
+- name: layout.css.contrast-color.enabled
+  type: RelaxedAtomicBool
+  value: true
+  mirror: always
+  rust: true
+
 # Whether alt text in content is enabled.
 - name: layout.css.content.alt-text.enabled
   type: RelaxedAtomicBool
@@ -10448,7 +10447,7 @@
   value: true
   mirror: always
 
-- name: layout.css.text-decoration-trim.enabled
+- name: layout.css.text-decoration-inset.enabled
   type: RelaxedAtomicBool
   value: false
   mirror: always
@@ -11906,6 +11905,11 @@
     value: true
     mirror: always
 
+-   name: media.wmf.encoder.realtime.wait-for-output
+    type: RelaxedAtomicBool
+    value: @IS_NIGHTLY_BUILD@
+    mirror: always
+
 # Using Windows Media Foundation Media Engine for encrypted playback
 # 0 : disable, 1 : enable for encrypted and clear,
 # 2 : enable for encrypted only, 3 : enable for clear only
@@ -12136,7 +12140,7 @@
 # When modifying this pref, please update the test_peerConnection_glean.html tests as well.
 - name: media.webrtc.send_mlkem_keyshare
   type: RelaxedAtomicBool
-  value: @IS_EARLY_BETA_OR_EARLIER@
+  value: true
   mirror: always
 
 # This pref controls whether dispatch testing-only events.
@@ -14430,6 +14434,8 @@
   mirror: always
 
 # This preference controls if we need to fail transactions for Local Network Access (LNA) failures.
+# Currently it is enabled only for nightly builds.
+# For beta and release users we will be enabling it only for ETP strict users using network.lna.etp.enabled
 - name: network.lna.blocking
   type: RelaxedAtomicBool
   value: @IS_NIGHTLY_BUILD@
@@ -15726,7 +15732,7 @@
 # Enable HTTP Compression Dictionary support
 - name: network.http.dictionaries.enable
   type: RelaxedAtomicBool
-  value: true
+  value: @IS_NIGHTLY_BUILD@
   mirror: always
 
 #---------------------------------------------------------------------------
@@ -17017,6 +17023,15 @@
 -   name: security.sandbox.windows.log.stackTraceDepth
     type: RelaxedAtomicUint32
     value: 0
+    mirror: always
+
+  # Whether \\??\\pipe\\chrome.* rule is added to the sandbox configurations.
+  # We are removing this using a pref because we know that in the past some
+  # injected DLLs have relied on this rule existing for their own pipes.
+  # This gives users a work-around if they have issues.
+-   name: security.sandbox.chrome-pipe-rule.enabled
+    type: RelaxedAtomicBool
+    value: false
     mirror: always
 #endif
 
