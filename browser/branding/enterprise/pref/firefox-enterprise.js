@@ -5,4 +5,4 @@
 /* global pref */
 
 // This file contains felt-specific prefs.
-pref("enterprise.console.address", "https://console.enterfox.eu/");
+pref("enterprise.console.address", "https://console.enterfox.eu");

@@ -2,8 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-export const FeltCommon = {
-  PRIVATE_BROWSING_ID: 1,
-  ENTERPRISE_PROFILE: "enterprise-profile",
-  POLICY_POLLING_FREQUENCY: 60_000,
+const IS_TESTING_ENVIRONMENT = "enterprise.is_testing";
+
+export const isTesting = () => {
+  return Services.prefs.getBoolPref(IS_TESTING_ENVIRONMENT, false);
 };
+
+export const EnterpriseCommon = {};
