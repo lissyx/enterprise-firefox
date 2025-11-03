@@ -219,6 +219,7 @@ export const ConsoleClient = {
       REMOTE_POLICIES: "/api/browser/policies",
       TOKEN: "/sso/token",
       DEVICE_POSTURE: "/sso/device_posture",
+      WHOAMI: "api/browser/whoami",
     };
   },
 
@@ -316,6 +317,16 @@ export const ConsoleClient = {
 
     const text = await res.text().catch(() => "");
     throw new Error(`Post failed (${res.status}): ${text}`);
+  },
+
+  /**
+   * Fetches user information from the current session.
+   *
+   * @returns {Promise<object>}
+   */
+  async getLoggedInUserInfo() {
+    const payload = await this._get(this._paths.WHOAMI);
+    return payload;
   },
 
   /**
