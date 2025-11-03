@@ -231,17 +231,20 @@ export const ConsoleClient = {
    * Constructs the SSO login URL for the provided email.
    *
    * @param {string} email - Email address to prefill for SSO initiation.
-   * @returns {string}
+   * @returns {nsIURI}
    */
   constructSsoLoginURI(email) {
     const url = this.consoleBaseURI;
     url.pathname = this._paths.SSO;
     url.search = `target=browser&email=${email}`;
-    return url.href;
+
+    // Consumer expects uri as nsIURI
+    const uri = Services.io.newURI(url.href);
+    return uri;
   },
 
   /**
-   * SSO callback URL that we match to create Felt actors on
+   * SSO callback uri that we match to create Felt actors on
    *
    * @returns {string}
    */
@@ -457,9 +460,9 @@ export const ConsoleClient = {
   observe(_, topic) {
     switch (topic) {
       case "xpcom-shutdown": {
+        Services.obs.removeObserver(this, "xpcom-shutdown");
         this.clearTokenData();
         this._refreshPromise = null;
-        Services.obs.removeObserver(this, "xpcom-shutdown");
       }
     }
   },
