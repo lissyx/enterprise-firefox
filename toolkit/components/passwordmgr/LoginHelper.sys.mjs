@@ -15,6 +15,7 @@ import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
+  AppConstants: "resource://gre/modules/AppConstants.sys.mjs",
   OSKeyStore: "resource://gre/modules/OSKeyStore.sys.mjs",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
   NewPasswordModel: "resource://gre/modules/shared/NewPasswordModel.sys.mjs",
@@ -1693,6 +1694,7 @@ export const LoginHelper = {
     // bail out without prompting so callers can retry after the enterprise secret
     // (which the user does not know) becomes available.
     if (
+      lazy.AppConstants.MOZ_ENTERPRISE &&
       !token.isLoggedIn() &&
       Services.prefs.getBoolPref("security.storage.encryption.enabled", false) &&
       Services.prefs.getStringPref("browser.policies.access_token", "")
