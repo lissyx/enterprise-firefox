@@ -10,6 +10,9 @@ const { EnterprisePolicyTesting, PoliciesPrefTracker } =
   );
 
 PoliciesPrefTracker.start();
+registerCleanupFunction(() => {
+  PoliciesPrefTracker.stop();
+});
 
 async function setupPolicyEngineWithJson(json, customSchema) {
   PoliciesPrefTracker.restoreDefaultValues();
@@ -56,7 +59,7 @@ function assert_policy_cleanup() {
   );
 }
 
-add_task(async function test_simple_policies() {
+async function test_simple_policies() {
   let { Policies } = ChromeUtils.importESModule(
     "resource:///modules/policies/Policies.sys.mjs"
   );
@@ -176,4 +179,4 @@ add_task(async function test_simple_policies() {
   delete Policies.simple_policy1;
   delete Policies.simple_policy2;
   delete Policies.simple_policy3;
-});
+}

@@ -102,6 +102,11 @@ export var Policies = {
         console.log("_cleanup from onAllWindowsRestored");
       }
     },
+    onRemove() {
+      if (Cu.isInAutomation || isXpcshell) {
+        console.log("_cleanup from onRemove");
+      }
+    },
   },
 
   "3rdparty": {
@@ -359,8 +364,13 @@ export var Policies = {
       if (param) {
         blockAboutPage(manager, "about:config");
         setAndLockPref("devtools.chrome.enabled", false);
-      } else {
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        // if it was block, just unblock
         unblockAboutPage(manager, "about:config");
+        unsetAndUnlockPref("devtools.chrome.enabled");
       }
     },
   },
@@ -2982,6 +2992,19 @@ export function setAndLockPref(prefName, prefValue) {
 }
 
 /**
+ * unsetAndUnlockPref
+ *
+ * Unsets the _default_ value of a pref, and unlocks it (meaning that
+ * the user value can be returned instead of the default).
+ *
+ * @param {string} prefName
+ *        The pref to be changed
+ */
+export function unsetAndUnlockPref(prefName) {
+  PoliciesUtils.unsetDefaultPref(prefName);
+}
+
+/**
  *
  * setPrefIfPresentAndLock
  *
@@ -3003,26 +3026,91 @@ function setPrefIfPresentAndLock(param, paramKey, prefName) {
   }
 }
 
-/**
- * setDefaultPref
- *
- * Sets the _default_ value of a pref and optionally locks it.
- * The value is only changed in memory, and not stored to disk.
- *
- * @param {string} prefName
- *        The pref to be changed
- * @param {boolean|number|string} prefValue
- *        The value to set
- * @param {boolean} locked
- *        Optionally lock the pref
- */
-
 export var PoliciesUtils = {
+  /**
+   * Object storing pref when we change them
+   *  {
+   *    "prefName": {
+   *      "defaultValue": ...,
+   *      "userValue": ...,
+   *    }
+   *  }
+   *
+   */
+  _savedPrefs: {},
+
+  saveDefaultPref(prefName) {
+    let values = {
+      defaultValue: undefined,
+      userValue: undefined,
+    };
+
+    // This was already changed, do not overwrite.
+    if (prefName in this._savedPrefs) {
+      return;
+    }
+
+    let defaults = Services.prefs.getDefaultBranch("");
+    switch (Services.prefs.getPrefType(prefName)) {
+      case Ci.nsIPrefBranch.PREF_INT:
+        values.defaultValue = defaults.getIntPref(prefName);
+        values.userValue = Services.prefs.getIntPref(prefName);
+        break;
+      case Ci.nsIPrefBranch.PREF_BOOL:
+        values.defaultValue = defaults.getBoolPref(prefName);
+        values.userValue = Services.prefs.getBoolPref(prefName);
+        break;
+      case Ci.nsIPrefBranch.PREF_STRING:
+        values.defaultValue = defaults.getStringPref(prefName);
+        values.userValue = Services.prefs.getStringPref(prefName);
+        break;
+    }
+
+    this._savedPrefs[prefName] = values;
+  },
+
+  restoreDefaultPref(prefName) {
+    const values = this._savedPrefs[prefName];
+
+    let defaults = Services.prefs.getDefaultBranch("");
+    switch (typeof values.defaultValue) {
+      case "number":
+        defaults.setIntPref(prefName, values.defaultValue);
+        Services.prefs.setIntPref(prefName, values.userValue);
+        break;
+      case "boolean":
+        defaults.setBoolPref(prefName, values.defaultValue);
+        Services.prefs.setBoolPref(prefName, values.userValue);
+        break;
+      case "string":
+        defaults.setStringPref(prefName, values.defaultValue);
+        Services.prefs.setStringPref(prefName, values.userValue);
+        break;
+    }
+
+    delete this._savedPrefs[prefName];
+  },
+
+  /**
+   * setDefaultPref
+   *
+   * Sets the _default_ value of a pref and optionally locks it.
+   * The value is only changed in memory, and not stored to disk.
+   *
+   * @param {string} prefName
+   *        The pref to be changed
+   * @param {boolean|number|string} prefValue
+   *        The value to set
+   * @param {boolean} locked
+   *        Optionally lock the pref
+   */
   setDefaultPref(prefName, prefValue, locked) {
     let prefWasLocked = Services.prefs.prefIsLocked(prefName);
     if (prefWasLocked) {
       Services.prefs.unlockPref(prefName);
     }
+
+    this.saveDefaultPref(prefName);
 
     let defaults = Services.prefs.getDefaultBranch("");
 
@@ -3062,6 +3150,23 @@ export var PoliciesUtils = {
     if (locked || (prefWasLocked && locked !== false)) {
       Services.prefs.lockPref(prefName);
     }
+  },
+
+  /**
+   * unsetDefaultPref
+   *
+   * Unsets the _default_ value of a pref and unlock it if it was locked.
+   *
+   * @param {string} prefName
+   *        The pref to be changed
+   */
+  unsetDefaultPref(prefName) {
+    let prefWasLocked = Services.prefs.prefIsLocked(prefName);
+    if (prefWasLocked) {
+      Services.prefs.unlockPref(prefName);
+    }
+
+    this.restoreDefaultPref(prefName);
   },
 };
 

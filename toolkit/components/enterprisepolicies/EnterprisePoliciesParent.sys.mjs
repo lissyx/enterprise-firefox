@@ -9,12 +9,14 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   JsonSchemaValidator:
     "resource://gre/modules/components-utils/JsonSchemaValidator.sys.mjs",
+  // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
   Policies: "resource:///modules/policies/Policies.sys.mjs",
   WindowsGPOParser: "resource://gre/modules/policies/WindowsGPOParser.sys.mjs",
   macOSPoliciesParser:
     "resource://gre/modules/policies/macOSPoliciesParser.sys.mjs",
   clearInterval: "resource://gre/modules/Timer.sys.mjs",
   setInterval: "resource://gre/modules/Timer.sys.mjs",
+  // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
 });
 
@@ -90,6 +92,7 @@ EnterprisePoliciesManager.prototype = {
   ]),
 
   _cleanupPolicies() {
+    this._previousPolicies = {};
     if (Services.prefs.getBoolPref(PREF_POLICIES_APPLIED, false)) {
       if ("_cleanup" in lazy.Policies) {
         let policyImpl = lazy.Policies._cleanup;
@@ -112,6 +115,7 @@ EnterprisePoliciesManager.prototype = {
       // Because security.enterprise_roots.enabled is true by default, we can
       // ignore attempts by Antivirus to try to set it via policy.
       if (
+        provider.policies &&
         Object.keys(provider.policies).length === 1 &&
         provider.policies.Certificates &&
         Object.keys(provider.policies.Certificates).length === 1 &&
@@ -122,7 +126,6 @@ EnterprisePoliciesManager.prototype = {
       }
 
       this._status = Ci.nsIEnterprisePolicies.ACTIVE;
-      this._parsedPolicies = {};
       this._activatePolicies(provider.policies);
       Services.prefs.setBoolPref(PREF_POLICIES_APPLIED, true);
     };
@@ -156,7 +159,7 @@ EnterprisePoliciesManager.prototype = {
 
     let jsonProvider = new JSONPoliciesProvider();
     jsonProvider.onPoliciesChanges(handler);
-    let remoteProvider = new RemotePoliciesProvider();
+    let remoteProvider = RemotePoliciesProvider.createInstance();
     remoteProvider.onPoliciesChanges(handler);
     if (platformProvider && platformProvider.hasPolicies) {
       if (jsonProvider.hasPolicies) {
@@ -174,11 +177,19 @@ EnterprisePoliciesManager.prototype = {
   },
 
   _activatePolicies(unparsedPolicies) {
-    let { schema } = ChromeUtils.importESModule(
+    const { schema } = ChromeUtils.importESModule(
+      // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
       "resource:///modules/policies/schema.sys.mjs"
     );
 
-    for (let policyName of Object.keys(unparsedPolicies)) {
+    // Make a deep copy that will be trimmed later
+    const previousPolicies = structuredClone(this._parsedPolicies || {});
+
+    this._parsedPolicies = {};
+
+    const policyNames = Object.keys(unparsedPolicies || {});
+
+    for (let policyName of policyNames) {
       let policySchema = schema.properties[policyName];
       let policyParameters = unparsedPolicies[policyName];
 
@@ -198,7 +209,6 @@ EnterprisePoliciesManager.prototype = {
       }
 
       let policyImpl = lazy.Policies[policyName];
-
       if (!policyImpl) {
         // This means there is an entry in the schema, but no implementaton.
         // We only do this when we deprecate policies.
@@ -214,13 +224,63 @@ EnterprisePoliciesManager.prototype = {
       }
 
       this._parsedPolicies[policyName] = parsedParameters;
+
+      // verify the previous values
+      if (policyName in previousPolicies) {
+        const previousParameters = JSON.stringify(previousPolicies[policyName]);
+        if (previousParameters == JSON.stringify(parsedParameters)) {
+          continue;
+        }
+      }
+
       this._maybeCallbackPolicy(policyImpl, parsedParameters);
+    }
+
+    // Only keep in this._previousPolicies the policies that are not part of the
+    // policies that were just received
+    this._previousPolicies = Object.fromEntries(
+      Object.keys(previousPolicies)
+        .filter(previousPolicyName => !policyNames.includes(previousPolicyName))
+        .map(name => [name, previousPolicies[name]])
+    );
+
+    const previousNames = Object.keys(this._previousPolicies).filter(
+      policyName => {
+        let policyImpl = lazy.Policies[policyName];
+        if (!policyImpl) {
+          // This means there is an entry in the schema, but no implementaton.
+          // We only do this when we deprecate policies.
+          lazy.log.info(`${policyName} has been deprecated.`);
+          return false;
+        }
+        return true;
+      }
+    );
+
+    for (let policyName of previousNames) {
+      let policyImpl = lazy.Policies[policyName];
+
+      const onRemove = "onRemove" in policyImpl && policyImpl.onRemove;
+      if (!onRemove) {
+        continue;
+      }
+
+      this._schedulePolicyCallback("onRemove", [
+        policyImpl.onRemove,
+        policyImpl,
+        this /* the EnterprisePoliciesManager */,
+        this._previousPolicies[policyName],
+      ]);
     }
   },
 
   // Schedule a policy callback if there is one to schedule
   _maybeCallbackPolicy(policyImpl, parsedParameters = undefined) {
     for (let timing of Object.keys(this._callbacks)) {
+      if (timing === "onRemove") {
+        continue;
+      }
+
       let policyCallback = policyImpl[timing];
       if (policyCallback) {
         this._schedulePolicyCallback(timing, [
@@ -252,6 +312,9 @@ EnterprisePoliciesManager.prototype = {
     // The content of the tabs themselves have not necessarily
     // finished loading.
     onAllWindowsRestored: [],
+
+    // Called when the policy gets removed
+    onRemove: [],
   },
 
   _schedulePolicyCallback(timing, callback) {
@@ -268,6 +331,7 @@ EnterprisePoliciesManager.prototype = {
     // And we manually check for pre-existence of all. The parsedParameters
     // may differ at the object level so we force the comparison with
     // JSON.stringify()
+
     const exists = this._callbacks[timing].filter(
       e =>
         e[0] == callback[0] &&
@@ -363,22 +427,20 @@ EnterprisePoliciesManager.prototype = {
 
       case "EnterprisePolicies:Activate": {
         const parsed = JSON.parse(data);
-        this._parsedPolicies = {};
         this._activatePolicies(parsed.policies);
-
-        const callbacksToRun = Object.keys(parsed.policies)
-          .flatMap(name => {
-            return Object.keys(lazy.Policies[name]).flatMap(cb => {
-              return cb;
-            });
-          })
-          .filter(cbName =>
-            this.observersReceived.includes(policiesCallbackMapping[cbName])
-          );
 
         // Only run callbacks that are ready right now. The rest is handled by
         // this._activatePolicies()
-        callbacksToRun.map(cb => this._runPoliciesCallbacks(cb));
+        Object.keys(this._callbacks)
+          .filter(
+            cbName =>
+              cbName !== "onRemove" &&
+              this.observersReceived.includes(policiesCallbackMapping[cbName])
+          )
+          .map(cb => this._runPoliciesCallbacks(cb));
+
+        this._runPoliciesCallbacks("onRemove");
+
         break;
       }
 
@@ -714,6 +776,14 @@ class RemotePoliciesProvider {
   POLLING_FREQUENCY_FALLBACK = 60_000;
   POLLING_ENABLED_PREF = "browser.policies.live_polling.enabled";
 
+  static #instance = null;
+  static createInstance() {
+    if (!RemotePoliciesProvider.#instance) {
+      RemotePoliciesProvider.#instance = new RemotePoliciesProvider();
+    }
+    return RemotePoliciesProvider.#instance;
+  }
+
   constructor() {
     this._changesHandlers = [];
     this._policies = null;
@@ -855,6 +925,7 @@ class RemotePoliciesProvider {
       );
     } else {
       // TODO, this is haha. meh. Maybe restart should be done by activate.
+      this._policies = {};
       Services.obs.notifyObservers(null, "EnterprisePolicies:Restart");
       // Make sure that handler is triggered even when payload is empty as
       // in "_cleanup"
