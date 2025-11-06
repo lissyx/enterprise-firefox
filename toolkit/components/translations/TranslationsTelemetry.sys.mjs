@@ -17,7 +17,7 @@ const lazy = /** @type {any} */ ({});
 /**
  * @typedef {{ flowId: string, randomRoll: number }} FlowContext
  * @typedef {"default" | "nightly" | "beta" | "esr" | "release" | "unofficial"} UpdateChannel
- * @typedef {Partial<Record<UpdateChannel, number>>} SampleRates
+ * @typedef {Partial<Record<UpdateChannel, number>> & { applyInAutomation?: boolean }} SampleRates
  */
 
 ChromeUtils.defineLazyGetter(lazy, "console", () => {
@@ -131,6 +131,11 @@ export class TranslationsTelemetry {
     flowContext,
     channel = AppConstants.MOZ_UPDATE_CHANNEL
   ) {
+    if (Cu.isInAutomation && !sampleRates.applyInAutomation) {
+      // Do no skip any samples in automation, unless it is explicitly requested.
+      return false;
+    }
+
     if (channel !== AppConstants.MOZ_UPDATE_CHANNEL && !Cu.isInAutomation) {
       throw new Error(
         `Channel "${AppConstants.MOZ_UPDATE_CHANNEL}" was overridden as "${channel}" outside of testing.`
@@ -138,7 +143,6 @@ export class TranslationsTelemetry {
     }
 
     const sampleRate = sampleRates[channel];
-
     let randomRoll;
 
     if (lazy.console?.shouldLog("Debug")) {

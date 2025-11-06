@@ -10,6 +10,7 @@ const { TranslationsTelemetry } = ChromeUtils.importESModule(
 add_task(function test_sampling_across_channels() {
   // prettier-ignore
   const sampleRates = {
+    applyInAutomation: true,
     default: 1 /      10,
     nightly: 1 /     100,
        beta: 1 /   1_000,
