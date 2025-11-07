@@ -150,6 +150,7 @@ impl FeltClientThread {
         // Define an observer
         #[xpcom(implement(nsIObserver), nonatomic)]
         struct Observer {
+            profile_ready: Arc<AtomicBool>,
             thread_stop: Arc<AtomicBool>,
             notify_restart: Arc<AtomicBool>,
         }
@@ -163,6 +164,10 @@ impl FeltClientThread {
                 data: *const u16,
             ) -> nsresult {
                 match unsafe { CStr::from_ptr(topic).to_str() } {
+                    Ok("profile-after-change") => {
+                        trace!("FeltClientThread::start_thread::observe() profile-after-change");
+                        self.profile_ready.store(true, Ordering::Relaxed);
+                    }
                     Ok("xpcom-shutdown-threads") => {
                         trace!("FeltClientThread::start_thread::observe() xpcom-shutdown-threads");
                         self.thread_stop.store(true, Ordering::Relaxed);
@@ -213,16 +218,28 @@ impl FeltClientThread {
         trace!("FeltClientThread::start_thread(): get observer service");
         let obssvc: RefPtr<nsIObserverService> = xpcom::components::Observer::service().unwrap();
 
+        let profile_after_change = CString::new("profile-after-change").unwrap();
         let xpcom_shutdown = CString::new("xpcom-shutdown-threads").unwrap();
         let quit_application = CString::new("quit-application").unwrap();
 
+        let profile_ready = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::new(AtomicBool::new(false));
         let notify_restart = Arc::new(AtomicBool::new(false));
         let observer = Observer::allocate(InitObserver {
+            profile_ready: profile_ready.clone(),
             thread_stop: thread_stop.clone(),
             notify_restart: notify_restart.clone(),
         });
         let mut rv = unsafe {
+            obssvc.AddObserver(
+                observer.coerce::<nsIObserver>(),
+                profile_after_change.as_ptr(),
+                false,
+            )
+        };
+        assert!(rv.succeeded());
+
+        rv = unsafe {
             obssvc.AddObserver(
                 observer.coerce::<nsIObserver>(),
                 xpcom_shutdown.as_ptr(),
@@ -230,7 +247,6 @@ impl FeltClientThread {
             )
         };
         assert!(rv.succeeded());
-        trace!("FeltClientThread::start_thread(): added observers");
 
         rv = unsafe {
             obssvc.AddObserver(
@@ -240,8 +256,10 @@ impl FeltClientThread {
             )
         };
         assert!(rv.succeeded());
+        trace!("FeltClientThread::start_thread(): added observers");
 
         let barrier = self.startup_ready.clone();
+        let profile_ready_internal = profile_ready.clone();
         let thread_stop_internal = thread_stop.clone();
         let notify_restart_internal = notify_restart.clone();
         let mut felt_client = self.ipc_client.take();
@@ -250,6 +268,8 @@ impl FeltClientThread {
             trace!("FeltClientThread::start_thread(): felt_client thread runnable");
                 trace!("FeltClientThread::start_thread(): felt_client version OK");
                 if let Some(rx) = felt_client.rx.take() {
+                    let mut pending_cookies: Vec<String> = Vec::new();
+
                     loop {
                         if notify_restart_internal.load(Ordering::Relaxed) {
                             notify_restart_internal.store(false, Ordering::Relaxed);
@@ -257,10 +277,22 @@ impl FeltClientThread {
                             felt_client.notify_restart();
                         }
 
+                        if pending_cookies.len() > 0 && profile_ready_internal.load(Ordering::Relaxed) {
+                            trace!("FeltClientThread::felt_client::ipc_loop(): Profile ready! Start cookies injection!");
+                            while let Some(one_cookie) = pending_cookies.pop() {
+                                utils::inject_one_cookie(one_cookie);
+                            }
+                            trace!("FeltClientThread::felt_client::ipc_loop(): Profile ready! Finished cookies injection!");
+                        }
+
                         match rx.try_recv_timeout(Duration::from_millis(250)) {
                             Ok(FeltMessage::Cookie(felt_cookie)) => {
                                 trace!("FeltClientThread::felt_client::ipc_loop(): received cookie: {}", felt_cookie.clone());
-                                utils::inject_one_cookie(felt_cookie);
+                                if profile_ready_internal.load(Ordering::Relaxed) {
+                                    utils::inject_one_cookie(felt_cookie);
+                                } else {
+                                    pending_cookies.push(felt_cookie);
+                                }
                             },
                             Ok(FeltMessage::BoolPreference((name, value))) => {
                                 trace!("FeltClientThread::felt_client::ipc_loop(): BoolPreference({}, {})", name, value);

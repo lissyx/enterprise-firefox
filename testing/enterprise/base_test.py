@@ -179,9 +179,25 @@ class EnterpriseTestsBase:
         self._logger.info(f"Exiting with {ec}")
         self._logger.suite_end()
 
+        ec = self.check_for_crashes(ec)
+
         shutil.rmtree(profile_path, ignore_errors=True)
 
         sys.exit(ec)
+
+    def check_for_crashes(self, exit_code):
+        for log_file in ["geckodriver.log", "geckodriver_child.log"]:
+            if log_file != "geckodriver.log" and not os.path.isfile(log_file):
+                # Only geckodriver.log is really required others can be missing
+                continue
+
+            with open(log_file) as log_content:
+                for line in log_content:
+                    if "MOZ_CRASH()" in line:
+                        print("Crash reported at =>", line)
+                        return 1
+
+        return exit_code
 
     def get_screenshot_destination(self, name):
         final_name = name
