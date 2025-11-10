@@ -2238,6 +2238,7 @@ export var Policies = {
         "security.pki.certificate_transparency.disable_for_hosts",
         "security.pki.certificate_transparency.disable_for_spki_hashes",
         "security.pki.certificate_transparency.mode",
+        "security.storage.encryption.enabled",
         "security.ssl.enable_ocsp_stapling",
         "security.ssl.errorReporting.enabled",
         "security.ssl.require_safe_negotiation",
