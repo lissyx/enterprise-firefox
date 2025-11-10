@@ -61,7 +61,7 @@ export var EnterprisePolicyTesting = {
       await this._httpd.start(-1);
       const serverAddr = `http://localhost:${this._httpd.identity.primaryPort}`;
       Services.prefs.setStringPref("browser.policies.server", serverAddr);
-      Services.prefs.setStringPref("browser.policies.access_token", "token");
+      Services.prefs.setStringPref("enterprise.console.refresh_token", "token");
       registerCleanupFunction(async () => {
         await new Promise(resolve => this._httpd.stop(resolve));
         this._httpd = undefined;

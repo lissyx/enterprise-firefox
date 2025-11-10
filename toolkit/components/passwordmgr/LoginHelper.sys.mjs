@@ -21,6 +21,12 @@ ChromeUtils.defineESModuleGetters(lazy, {
   NewPasswordModel: "resource://gre/modules/shared/NewPasswordModel.sys.mjs",
 });
 
+if (lazy.AppConstants.MOZ_ENTERPRISE) {
+  ChromeUtils.defineESModuleGetters(lazy, {
+    ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
+  });
+}
+
 export class ParentAutocompleteOption {
   image;
   label;
@@ -1600,6 +1606,22 @@ export const LoginHelper = {
     return false;
   },
 
+  _isEnterpriseManagedPrimaryPassword() {
+    if (
+      !lazy.AppConstants.MOZ_ENTERPRISE ||
+      !Services.prefs.getBoolPref("security.storage.encryption.enabled", false)
+    ) {
+      return false;
+    }
+    const consoleClient = lazy.ConsoleClient;
+    if (!consoleClient) {
+      return false;
+    }
+    return Boolean(
+      consoleClient.tokenData?.accessToken || consoleClient.refreshTokenBackup
+    );
+  },
+
   /**
    * Shows OS auth dialog if enabled.
    * @param {Element} browser
@@ -1690,15 +1712,12 @@ export const LoginHelper = {
       };
     }
 
+    const enterpriseManagedPrimaryPassword =
+      this._isEnterpriseManagedPrimaryPassword();
     // If enterprise storage management is enabled but the token is still locked,
     // bail out without prompting so callers can retry after the enterprise secret
     // (which the user does not know) becomes available.
-    if (
-      lazy.AppConstants.MOZ_ENTERPRISE &&
-      !token.isLoggedIn() &&
-      Services.prefs.getBoolPref("security.storage.encryption.enabled", false) &&
-      Services.prefs.getStringPref("browser.policies.access_token", "")
-    ) {
+    if (enterpriseManagedPrimaryPassword && !token.isLoggedIn()) {
       console.warn(
         "LoginHelper.requestReauth: Enterprise-managed primary password is locked and OS auth is unavailable; deferring reauth."
       );
@@ -1723,8 +1742,14 @@ export const LoginHelper = {
     }
 
     try {
-      // Login and ask for the primary password if the token is locked.
-      token.login();
+      if (enterpriseManagedPrimaryPassword) {
+        // Enterprise builds rely on the backend-provided secret rather than forcing a logout.
+        token.login();
+      } else {
+        // Force a logout and prompt even if the token had been unlocked earlier.
+        token.checkPassword("");
+        token.login(true);
+      }
       // clicking 'Cancel' or entering the correct password.
     } catch (e) {
       // An exception will be thrown if the user cancels the login prompt dialog.
