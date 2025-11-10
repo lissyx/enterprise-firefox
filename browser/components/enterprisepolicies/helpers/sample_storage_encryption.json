@@ -1,6 +1,5 @@
 {
   "policies": {
-    "EnterpriseEncryption": true
+    "EnterpriseStorageEncryption": true
   }
 }
-
