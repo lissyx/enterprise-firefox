@@ -228,6 +228,7 @@ win64-enterprise/debug:
         platform: windows2012-64/debug
         symbol: Bent
         tier: 1
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 7200
         env:
@@ -480,10 +481,13 @@ win64-enterprise/opt:
     attributes:
         enable-build-signing: true
         enable-full-crashsymbols: true
+    shipping-phase: build
+    shipping-product: firefox
     treeherder:
         platform: windows2012-64/opt
         symbol: Bent
         tier: 1
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 7200
         env:

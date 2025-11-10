@@ -59,10 +59,13 @@ linux64-enterprise/opt:
     attributes:
         enable-build-signing: true
         enable-full-crashsymbols: true
+    shipping-phase: build
+    shipping-product: firefox
     treeherder:
         platform: linux64/opt
         symbol: Bent
         tier: 1
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 7200
         env:
@@ -454,6 +457,7 @@ linux64-enterprise/debug:
     treeherder:
         platform: linux64/debug
         symbol: Bent
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 5400
         env:

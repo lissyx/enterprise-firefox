@@ -346,6 +346,9 @@ def get_partner_config_by_url(manifest_url, kind, token, partner_subset=None):
 
 
 def check_if_partners_enabled(config, tasks):
+    if config.kind.startswith("enterprise-repack"):
+        yield from tasks
+
     if (
         (
             config.params["release_enable_partner_repack"]
@@ -484,6 +487,12 @@ def get_partner_url_config(parameters, graph_config):
         partner_url_config,
         "release-partner-attribution",
         "partner attribution url",
+        **substitutions,
+    )
+    resolve_keyed_by(
+        partner_url_config,
+        "enterprise-repack",
+        "enterprise repacks manifest url",
         **substitutions,
     )
     return partner_url_config

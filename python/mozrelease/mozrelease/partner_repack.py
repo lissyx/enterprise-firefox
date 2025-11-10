@@ -119,7 +119,7 @@ def isWin32(platform: str):
 
 
 def isWin64(platform: str):
-    return platform == "win64"
+    return platform.startswith("win64") and not "aarch64" in platform
 
 
 def isWin64Aarch64(platform: str):

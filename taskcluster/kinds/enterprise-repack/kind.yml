@@ -1,0 +1,72 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+---
+loader: taskgraph.loader.transform:loader
+
+transforms:
+    - gecko_taskgraph.transforms.release_deps:transforms
+    - gecko_taskgraph.transforms.partner_repack:transforms
+    - gecko_taskgraph.transforms.job:transforms
+    - gecko_taskgraph.transforms.task:transforms
+
+kind-dependencies:
+    - build
+    - toolchain
+
+# Those are failing on chain of trust because of github-push:
+# scriptworker.exceptions.CoTError: 'Error while rebuilding scriptworker:parent AV-ahp-DQjm3f5-0nD5ndg task definition!\nscriptworker:parent AV-ahp-DQjm3f5-0nD5ndg: Unknown tasks_for: github-push'
+#    - build-signing
+#    - build-mac-signing
+#    - build-mac-notarization
+#    - shippable-l10n-signing
+#    - shippable-l10n-mac-signing
+#    - shippable-l10n-mac-notarization
+
+task-defaults:
+    run-on-repo-type: [git]
+    run-on-projects: ["enterprise-firefox"]
+    name: ent-repack
+    description: Enterprise repacks
+    worker-type: b-linux-gcp
+    worker:
+        docker-image:
+            in-tree: "partner-repack"
+        chain-of-trust: true
+        max-run-time: 7200
+    shipping-product: firefox
+    shipping-phase: build
+    run:
+        using: mozharness
+        config:
+            - partner_repacks/enterprise.py
+        script: mozharness/scripts/desktop_partner_repacks.py
+        job-script: taskcluster/scripts/builder/repackage.sh
+        tooltool-downloads: false
+    extra:
+        limit-locales:
+            by-release-level:
+                staging: true
+                production: false
+
+only-for-build-platforms:
+    - linux64-enterprise/opt
+    - macosx64-enterprise/opt
+    - win64-enterprise/opt
+
+tasks:
+    linux64-enterprise:
+        attributes:
+            build_platform: linux64-enterprise
+            build_type: opt
+            artifact_prefix: releng/partner
+    macosx64-enterprise:
+        attributes:
+            build_platform: macosx64-enterprise
+            build_type: opt
+            artifact_prefix: releng/partner
+    win64-enterprise:
+        attributes:
+            build_platform: win64-enterprise
+            build_type: opt
+            artifact_prefix: releng/partner
