@@ -6215,18 +6215,6 @@
   value: false
   mirror: always
 
-# In products with multi-mode pan-and-zoom and non-pan-and-zoom UIs,
-# this pref disables font inflation in master-process contexts where
-# existing heuristics can't be used determine enabled-ness.
-#
-# This pref has no effect if font inflation is not enabled through
-# either of the prefs above.  The "forceEnabled" pref above overrides
-# this pref.
-- name: font.size.inflation.disabledInMasterProcess
-  type: bool
-  value: false
-  mirror: always
-
 # Defines the font size inflation mapping intercept parameter.
 #
 # Font size inflation computes a minimum font size, m, based on
@@ -11117,6 +11105,12 @@
   value: true
   mirror: always
 
+# Whether to remove the accent property from the operator dictionary.
+- name: mathml.operator_dictionary_accent.disabled
+  type: bool
+  value: false
+  mirror: always
+
 # Whether to disable the MathML3 support for the mathvariant attribute. For
 # MathML Core, support is restricted to the <mi> element and to value "normal".
 # Corresponding automatic italicization on single-char <mi> element is also
@@ -15228,11 +15222,6 @@
   #
   # See https://bugzilla.mozilla.org/show_bug.cgi?id=1979279 for details.
   value: 1
-#elif defined(ANDROID)
-  # Disable GSO on Android.
-  #
-  # See <https://bugzilla.mozilla.org/show_bug.cgi?id=1987256> for details.
-  value: 1
 #else
   # Current industry standard. Likely worth tuning.
   value: 10
@@ -15900,20 +15889,77 @@
   value: 2 * 60
   mirror: once
 
-# Minimum time required to upgrade a visit score.
+# Minimum view time required to upgrade a visit score.
 - name: places.frecency.pages.alternative.interactions.viewTimeSeconds
   type: uint32_t
   value: 60
   mirror: once
 
-# Minimum time required to upgrade a visit score of a visit
+# Minimum view time required to upgrade a visit score of a visit
 # provided there is a minimum threshold of keypresses.
 - name: places.frecency.pages.alternative.interactions.viewTimeIfManyKeypressesSeconds
   type: uint32_t
   value: 20
   mirror: once
 
+# Minimum keypresses of a visit required to upgrade a visit score.
 - name: places.frecency.pages.alternative.interactions.manyKeypresses
+  type: uint32_t
+  value: 50
+  mirror: once
+
+# Preferences related to interaction based frecency.
+- name: places.frecency.pages.veryHighWeight
+  type: uint32_t
+  value: 200
+  mirror: once
+
+- name: places.frecency.pages.highWeight
+  type: uint32_t
+  value: 100
+  mirror: once
+
+- name: places.frecency.pages.mediumWeight
+  type: uint32_t
+  value: 50
+  mirror: once
+
+- name: places.frecency.pages.lowWeight
+  type: uint32_t
+  value: 20
+  mirror: once
+
+- name: places.frecency.pages.halfLifeDays
+  type: uint32_t
+  value: 30
+  mirror: once
+
+- name: places.frecency.pages.numSampledVisits
+  type: uint32_t
+  value: 10
+  mirror: once
+
+# Max difference allowed between a visit and an interaction.
+- name: places.frecency.pages.interactions.maxVisitGapSeconds
+  type: uint32_t
+  value: 2 * 60
+  mirror: once
+
+# Minimum view time required to upgrade a visit score.
+- name: places.frecency.pages.interactions.viewTimeSeconds
+  type: uint32_t
+  value: 60
+  mirror: once
+
+# Minimum view time required to upgrade a visit score of a visit
+# provided there is a minimum threshold of keypresses.
+- name: places.frecency.pages.interactions.viewTimeIfManyKeypressesSeconds
+  type: uint32_t
+  value: 20
+  mirror: once
+
+# Minimum keypresses of a visit required to upgrade a visit score.
+- name: places.frecency.pages.interactions.manyKeypresses
   type: uint32_t
   value: 50
   mirror: once
@@ -17067,6 +17113,13 @@
 -   name: security.sandbox.chrome-pipe-rule.enabled
     type: RelaxedAtomicBool
     value: false
+    mirror: always
+
+  # Whether \Device\KsecDD is closed in content process. We are closing this
+  # using a pref to give users a work-around if they have issues.
+-   name: security.sandbox.content.close-ksecdd-handle
+    type: RelaxedAtomicBool
+    value: true
     mirror: always
 #endif
 

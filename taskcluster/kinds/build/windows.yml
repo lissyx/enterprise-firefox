@@ -3,7 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ---
 task-defaults:
-    worker-type: b-linux-amd
+    worker-type: b-linux-docker-amd
     run:
         using: mozharness
     fetches:
@@ -652,7 +652,7 @@ win64-shippable/opt:
         symbol: Bpgo(B)
         tier: 1
     run-on-projects: ['release']
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 10800
         env:
@@ -702,7 +702,7 @@ win64-nightlyasrelease/opt:
     treeherder:
         platform: win64-nightlyasrelease/opt
         symbol: Bpgo(Bnar)
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 10800
         env:
@@ -1324,7 +1324,7 @@ win64-asan-reporter-shippable/opt:
     treeherder:
         platform: win64-asan-reporter/opt
         symbol: BoR
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 7200
         env:
@@ -1502,7 +1502,7 @@ win64-devedition/opt:
         platform: windows2012-64-devedition/opt
         symbol: B
         tier: 1
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 10800
         env:
@@ -1665,7 +1665,7 @@ win64-aarch64-shippable/opt:
         symbol: Bpgo(B)
         tier: 1
     run-on-projects: ['release']
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 10800
         env:
@@ -1719,7 +1719,7 @@ win64-aarch64-devedition/opt:
         platform: windows2012-aarch64-devedition/opt
         symbol: Bpgo(B)
         tier: 1
-    worker-type: b-linux-xlarge-amd
+    worker-type: b-linux-docker-xlarge-amd
     worker:
         max-run-time: 10800
         env:
