@@ -463,6 +463,7 @@ class PresShell final : public nsStubDocumentObserver,
 
   // Get the current frame of our embedder, if it's in our same process.
   nsSubDocumentFrame* GetInProcessEmbedderFrame() const;
+  void SetInProcessEmbedderFrame(nsSubDocumentFrame*);
 
   /**
    * Get root scroll container frame from the frame constructor.
@@ -1127,10 +1128,6 @@ class PresShell final : public nsStubDocumentObserver,
 
   bool FontSizeInflationForceEnabled() const {
     return mFontSizeInflationForceEnabled;
-  }
-
-  bool FontSizeInflationDisabledInMasterProcess() const {
-    return mFontSizeInflationDisabledInMasterProcess;
   }
 
   bool FontSizeInflationEnabled() const { return mFontSizeInflationEnabled; }
@@ -1858,8 +1855,8 @@ class PresShell final : public nsStubDocumentObserver,
  private:
   ~PresShell();
 
-  template <bool AreWeMerging>
-  void AddAnchorPosAnchorImpl(const nsAtom* aName, nsIFrame* aFrame);
+  void AddAnchorPosAnchorImpl(const nsAtom* aName, nsIFrame* aFrame,
+                              bool aForMerge);
 
   void SetIsActive(bool aIsActive);
   bool ComputeActiveness() const;
@@ -3161,8 +3158,7 @@ class PresShell final : public nsStubDocumentObserver,
 
   void ClearApproximatelyVisibleFramesList(
       const Maybe<OnNonvisible>& aNonvisibleAction = Nothing());
-  static void ClearApproximateFrameVisibilityVisited(nsView* aView,
-                                                     bool aClear);
+  void ClearApproximateFrameVisibilityVisited();
   static void MarkFramesInListApproximatelyVisible(const nsDisplayList& aList);
   void MarkFramesInSubtreeApproximatelyVisible(nsIFrame* aFrame,
                                                const nsRect& aRect,
@@ -3363,6 +3359,9 @@ class PresShell final : public nsStubDocumentObserver,
   // The focus sequence number of the last processed input event
   uint64_t mAPZFocusSequenceNumber;
 
+  // The nsSubDocumentFrame* that is embedding us.
+  WeakFrame mEmbedderFrame;
+
   nscoord mLastAnchorScrollPositionY = 0;
 
   // Most recent canvas background color.
@@ -3444,7 +3443,6 @@ class PresShell final : public nsStubDocumentObserver,
   bool mVisualViewportResizeEventPending : 1;
 
   bool mFontSizeInflationForceEnabled : 1;
-  bool mFontSizeInflationDisabledInMasterProcess : 1;
   bool mFontSizeInflationEnabled : 1;
 
   // If a document belongs to an invisible DocShell, this flag must be set

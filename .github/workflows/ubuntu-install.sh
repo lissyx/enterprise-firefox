@@ -5,6 +5,7 @@ apt -y install \
         build-essential \
         curl \
         git \
+        libc6-i386 \
         libasound2-dev \
         libdbus-glib-1-dev \
         libgtk2.0-dev \
