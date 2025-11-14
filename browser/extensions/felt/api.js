@@ -72,15 +72,18 @@ this.felt = class extends ExtensionAPI {
       // If no window and sessionstore hasn't restored yet, wait for it
       if (!win && !this._sessionStoreRestored) {
         const self = this;
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
           const observer = {
             observe(subject, topic) {
               if (topic === "sessionstore-windows-restored") {
-                Services.obs.removeObserver(observer, "sessionstore-windows-restored");
+                Services.obs.removeObserver(
+                  observer,
+                  "sessionstore-windows-restored"
+                );
                 self._sessionStoreRestored = true;
                 resolve();
               }
-            }
+            },
           };
           Services.obs.addObserver(observer, "sessionstore-windows-restored");
         });

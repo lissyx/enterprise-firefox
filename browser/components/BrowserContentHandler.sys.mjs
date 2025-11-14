@@ -1607,19 +1607,28 @@ nsDefaultCommandLineHandler.prototype = {
         var curarg = cmdLine.getArgument(i);
         if (curarg.match(/^-/)) {
           // Log unrecognized flags, we don't expect any at this point
-          console.error("Felt: Warning: unrecognized command line flag", curarg);
+          console.error(
+            "Felt: Warning: unrecognized command line flag",
+            curarg
+          );
+          // To emulate the pre-nsICommandLine behavior, we ignore
+          // the argument after an unrecognized flag.
+          ++i;
         } else {
           try {
             let { uri } = resolveURIInternal(cmdLine, curarg);
             urilist.push(uri);
           } catch (e) {
-            console.error(`Felt: Error opening URI ${curarg} from the command line:`, e);
+            console.error(
+              `Felt: Error opening URI ${curarg} from the command line:`,
+              e
+            );
           }
         }
       }
 
       // Forward any URLs from the command line to the real Firefox
-      if (urilist.length > 0) {
+      if (urilist.length) {
         const urlSpecs = urilist.filter(shouldLoadURI).map(u => u.spec);
         if (urlSpecs.length) {
           // Try to import FeltProcessParent and call queueURL()
@@ -1643,22 +1652,19 @@ nsDefaultCommandLineHandler.prototype = {
     }
 
     for (let i = 0; i < cmdLine.length; ++i) {
-      var curarg = cmdLine.getArgument(i);
-      if (curarg.match(/^-/)) {
-        console.error("Warning: unrecognized command line flag", curarg);
+      let arg = cmdLine.getArgument(i);
+      if (arg.match(/^-/)) {
+        console.error("Warning: unrecognized command line flag", arg);
         // To emulate the pre-nsICommandLine behavior, we ignore
         // the argument after an unrecognized flag.
         ++i;
       } else {
         try {
-          let { uri, principal } = resolveURIInternal(cmdLine, curarg);
+          let { uri, principal } = resolveURIInternal(cmdLine, arg);
           urilist.push(uri);
           principalList.push(principal);
         } catch (e) {
-          console.error(
-            `Error opening URI ${curarg} from the command line:`,
-            e
-          );
+          console.error(`Error opening URI ${arg} from the command line:`, e);
         }
       }
     }

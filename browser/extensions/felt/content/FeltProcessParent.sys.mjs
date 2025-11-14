@@ -17,14 +17,14 @@ console.debug(`FeltExtension: FeltParentProcess.sys.mjs`);
 // Import the shared pending URLs queue from BrowserContentHandler
 // This queue is shared between BrowserContentHandler (which fills it early during command-line
 // processing) and FeltProcessParent (which forwards URLs after Firefox is ready)
-const { gFeltPendingURLs } = ChromeUtils.importESModule(
-  "resource:///modules/BrowserContentHandler.sys.mjs"
-);
+import { gFeltPendingURLs } from "resource:///modules/BrowserContentHandler.sys.mjs";
 
 export function queueURL(url) {
   // If Firefox AND extension are both ready, forward immediately
-  if (gFeltProcessParentInstance?.firefoxReady &&
-      gFeltProcessParentInstance?.extensionReady) {
+  if (
+    gFeltProcessParentInstance?.firefoxReady &&
+    gFeltProcessParentInstance?.extensionReady
+  ) {
     gFeltProcessParentInstance.sendURLToFirefox(url);
     // Ensure Felt launcher stays hidden when forwarding to running Firefox
     Services.felt.makeBackgroundProcess();
@@ -309,6 +309,8 @@ export class FeltProcessParent extends JSProcessActorParent {
 
   /**
    * Send a URL to Firefox via IPC (Firefox must be ready)
+   *
+   * @param {string} url
    */
   sendURLToFirefox(url) {
     if (!this.firefoxReady || !Services.felt) {
@@ -333,12 +335,16 @@ export class FeltProcessParent extends JSProcessActorParent {
 
     // Wait for both Firefox (prefs/cookies) AND extension (observer) to be ready
     if (!this.firefoxReady || !this.extensionReady) {
-      console.debug(`FeltExtension: Not ready to forward URLs (firefoxReady=${this.firefoxReady}, extensionReady=${this.extensionReady})`);
+      console.debug(
+        `FeltExtension: Not ready to forward URLs (firefoxReady=${this.firefoxReady}, extensionReady=${this.extensionReady})`
+      );
       return;
     }
 
     if (!Services.felt) {
-      console.error(`FeltExtension: Services.felt not available, cannot forward URLs`);
+      console.error(
+        `FeltExtension: Services.felt not available, cannot forward URLs`
+      );
       return;
     }
 
