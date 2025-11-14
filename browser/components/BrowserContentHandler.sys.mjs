@@ -1208,6 +1208,11 @@ nsBrowserContentHandler.prototype = {
 };
 var gBrowserContentHandler = new nsBrowserContentHandler();
 
+// Module-level queue for Felt external link handling
+// URLs are stored here when they arrive via command line (before Felt extension loads)
+// FeltProcessParent imports this module and manages forwarding from this queue
+export let gFeltPendingURLs = [];
+
 function handURIToExistingBrowser(
   uri,
   location,
@@ -1587,10 +1592,53 @@ nsDefaultCommandLineHandler.prototype = {
     }
 
     // Make sure that when FeltUI is requested, we do not try to open another
-    // window.
+    // window. Instead, forward any URLs to be opened in the real Firefox.
     if (Services.felt.isFeltUI()) {
       console.debug(`Felt: Found FeltUI in BrowserContentHandler.`);
       cmdLine.preventDefault = true;
+
+      // Consume Felt-specific flags that don't take parameters
+      cmdLine.handleFlag("feltUI", false);
+
+      // The URLs from -url flags have already been collected into urilist by the
+      // normal Firefox command line processing above (via handleFlagWithParam("url", false)).
+      // Now collect any positional URLs (URLs without -url flag).
+      for (let i = 0; i < cmdLine.length; ++i) {
+        var curarg = cmdLine.getArgument(i);
+        if (curarg.match(/^-/)) {
+          // Log unrecognized flags, we don't expect any at this point
+          console.error("Felt: Warning: unrecognized command line flag", curarg);
+        } else {
+          try {
+            let { uri } = resolveURIInternal(cmdLine, curarg);
+            urilist.push(uri);
+          } catch (e) {
+            console.error(`Felt: Error opening URI ${curarg} from the command line:`, e);
+          }
+        }
+      }
+
+      // Forward any URLs from the command line to the real Firefox
+      if (urilist.length > 0) {
+        const urlSpecs = urilist.filter(shouldLoadURI).map(u => u.spec);
+        if (urlSpecs.length) {
+          // Try to import FeltProcessParent and call queueURL()
+          // This will work if the extension has loaded (chrome:// URLs registered)
+          // If not, URLs stay in gFeltPendingURLs for later retrieval
+          try {
+            const { queueURL } = ChromeUtils.importESModule(
+              "chrome://felt/content/FeltProcessParent.sys.mjs"
+            );
+            for (let urlSpec of urlSpecs) {
+              queueURL(urlSpec);
+            }
+          } catch (err) {
+            // Chrome:// URLs not registered yet (early startup)
+            // Add to queue for FeltProcessParent to retrieve later
+            gFeltPendingURLs.push(...urlSpecs);
+          }
+        }
+      }
       return;
     }
 
