@@ -90,6 +90,17 @@ impl FeltIpcClient {
         }
     }
 
+    pub fn notify_signout(&self) {
+        trace!("FeltIpcClient::notify_signout()");
+        let msg = FeltMessage::LogoutShutdown;
+        if let Some(tx) = &self.tx {
+            match tx.send(msg) {
+                Ok(()) => trace!("FeltIpcClient::notify_signout() SENT"),
+                Err(err) => trace!("FeltIpcClient::notify_signout() TX ERROR: {}", err),
+            }
+        }
+    }
+
     pub fn report_version(&self) -> bool {
         trace!("FeltIpcClient::report_version()");
         let msg = FeltMessage::VersionProbe(FELT_IPC_VERSION);
@@ -390,5 +401,11 @@ impl FeltClientThread {
         trace!("FeltClientThread::send_extension_ready()");
         let client = self.ipc_client.borrow();
         client.send_extension_ready();
+    }
+
+    pub fn notify_signout(&self) {
+        trace!("FeltClientThread::notify_signout()");
+        let client = self.ipc_client.borrow();
+        client.notify_signout();
     }
 }

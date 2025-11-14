@@ -213,11 +213,13 @@ export const ConsoleClient = {
   get _paths() {
     return {
       SSO: "/sso/login",
+      SIGNOUT: "/sso/logout",
       SSO_CALLBACK: "/sso/callback",
       STARTUP_PREFS: "/api/browser/hacks/startup",
       DEFAULT_PREFS: "/api/browser/hacks/default",
       REMOTE_POLICIES: "/api/browser/policies",
       KEY: "/api/browser/key",
+      WHOAMI: "/api/browser/whoami",
       TOKEN: "/sso/token",
       DEVICE_POSTURE: "/sso/device_posture",
       WHOAMI: "api/browser/whoami",
@@ -537,6 +539,48 @@ export const ConsoleClient = {
   clearTokenData() {
     this.tokenData = null;
     Services.prefs.clearUserPref(PREFS.REFRESH_TOKEN);
+  },
+
+  /**
+   * Perform signout against the console and share the information down to
+   * XPCOM to make FELT aware.
+   *
+   * This is expected to be executed from the browser side.
+   */
+  async signout() {
+    if (!Services.felt.isFeltBrowser()) {
+      throw new Error(
+        "Performing signout from something else than browser is wrong"
+      );
+    }
+
+    // TODO: Assert or force-enable session restore?
+
+    // Notify FELT that we are logging out so the shutdown is a normal one
+    // that should not be followed by restarting the process.
+    Services.felt.performSignout();
+
+    const headers = new Headers({});
+    const { tokenType, accessToken } = this.tokenData;
+    headers.set("Authorization", `${tokenType} ${accessToken}`);
+    headers.set("Content-Type", "application/json");
+    headers.set("Accept", "application/json");
+
+    this.clearTokenData();
+
+    const url = this.constructURI(this._paths.SIGNOUT);
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+    });
+
+    if (res.ok) {
+      Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
+      return;
+    }
+
+    const text = await res.text().catch(() => "");
+    throw new Error(`Post failed (${res.status}): ${text}`);
   },
 
   /**

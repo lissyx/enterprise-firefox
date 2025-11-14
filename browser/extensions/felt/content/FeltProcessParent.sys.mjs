@@ -82,6 +82,10 @@ export class FeltProcessParent extends JSProcessActorParent {
             }
             break;
           }
+          case "felt-firefox-logout":
+            Services.ppmm.broadcastAsyncMessage("FeltParent:LogoutFirefox", {});
+            break;
+
           default:
             console.debug(`FeltExtension: ParentProcess: Unhandled ${aTopic}`);
             break;
@@ -90,8 +94,11 @@ export class FeltProcessParent extends JSProcessActorParent {
     };
 
     Services.cpmm.addMessageListener("FeltParent:RestartFirefox", this);
+    Services.cpmm.addMessageListener("FeltParent:LogoutFirefox", this);
+
     Services.obs.addObserver(this.restartObserver, "felt-firefox-restarting");
     Services.obs.addObserver(this.restartObserver, "felt-extension-ready");
+    Services.obs.addObserver(this.restartObserver, "felt-firefox-logout");
   }
 
   sanitizePrefs(prefs) {
@@ -150,6 +157,7 @@ export class FeltProcessParent extends JSProcessActorParent {
 
   async startFirefox(ssoCollectedCookies = []) {
     this.restartReported = false;
+    this.logoutReported = false;
     this.firefoxReady = false;
     this.extensionReady = false;
     Services.cpmm.sendAsyncMessage("FeltParent:FirefoxStarting", {});
@@ -195,10 +203,9 @@ export class FeltProcessParent extends JSProcessActorParent {
         this.proc.exitPromise.then(ev => {
           console.debug(`firefox exit: ev`, JSON.stringify(ev));
           console.debug(
-            `firefox exit: exitCode`,
-            JSON.stringify(this.proc.exitCode)
+            `firefox exit: PID:${this.proc.pid} exitCode:${JSON.stringify(this.proc.exitCode)}`
           );
-          if (!this.restartReported) {
+          if (!this.restartReported && !this.logoutReported) {
             if (this.proc.exitCode === 0) {
               Services.cpmm.sendAsyncMessage(
                 "FeltParent:FirefoxNormalExit",
@@ -400,6 +407,27 @@ export class FeltProcessParent extends JSProcessActorParent {
             );
           });
         break;
+
+      case "FeltParent:LogoutFirefox": {
+        if (!Services.felt.isFeltUI()) {
+          throw new Error("Logout handling should only happen on FELT side.");
+        }
+
+        console.debug(`FeltExtension: Logout, waiting on ${this.proc.pid}`);
+        this.logoutReported = true;
+        lazy.ConsoleClient.clearTokenData();
+
+        // Ensure that things are cleared
+        const ssoCollectedCookies = this.getAllCookies();
+        if (ssoCollectedCookies.length) {
+          throw new Error("Too many cookies!!");
+        }
+
+        this.proc.exitPromise.then(_ => {
+          Services.cpmm.sendAsyncMessage("FeltParent:FirefoxLogoutExit", {});
+        });
+        break;
+      }
 
       default:
         break;
