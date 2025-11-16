@@ -113,6 +113,9 @@
 #ifdef XP_MACOSX
     <command id="zoomWindow" data-l10n-id="window-zoom-command" />
 #endif
+#ifdef MOZ_ENTERPRISE
+    <command id="cmd_signoutEnterpriseUser" />
+#endif
   </commandset>
 #include ../../components/places/content/placesCommands.inc.xhtml
 
@@ -405,4 +408,6 @@
          modifiers="accel,alt"
          internal="true"/>
 #endif
+#ifdef MOZ_ENTERPRISE
+
   </keyset>

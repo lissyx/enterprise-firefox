@@ -124,6 +124,14 @@ ChromeUtils.defineLazyGetter(this, "fxAccounts", () => {
   ).getFxAccountsSingleton();
 });
 
+if (AppConstants.MOZ_ENTERPRISE) {
+  XPCOMUtils.defineLazyScriptGetter(
+    this,
+    "gEnterpriseHandler",
+    "chrome://browser/content/enterprise/EnterpriseHandler.js"
+  );
+}
+
 XPCOMUtils.defineLazyScriptGetter(
   this,
   ["BrowserCommands", "kSkipCacheFlags"],

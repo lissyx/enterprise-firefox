@@ -35,6 +35,7 @@
     --arrowpanel-menuitem-padding-block: 4px;
     --panel-separator-padding-horizontal: 4px;
     --panel-subview-body-padding-block: 4px;
+
     :is(panel, menupopup):not([touchmode]) {
       --arrowpanel-header-back-icon-padding: 4px;
     }
@@ -341,7 +342,8 @@ panelview {
     }
 
     &::before {
-      content: none; /* Reset's macOS' checkmark spacing */
+      content: none;
+      /* Reset's macOS' checkmark spacing */
     }
   }
 
@@ -452,6 +454,7 @@ menupopup[emptyplacesresult] > .hide-if-empty-places-result {
   from {
     transform: translateX(0);
   }
+
   to {
     transform: translateX(-288px);
   }
@@ -461,6 +464,7 @@ menupopup[emptyplacesresult] > .hide-if-empty-places-result {
   from {
     transform: translateX(288px);
   }
+
   to {
     transform: translateX(0);
   }
@@ -539,6 +543,7 @@ menupopup[emptyplacesresult] > .hide-if-empty-places-result {
     opacity: 1;
     transform: scale(1);
   }
+
   100% {
     opacity: 0;
     transform: scale(0.5);
@@ -628,6 +633,7 @@ toolbarbutton[constrain-size="true"][cui-areatype="panel"] > .toolbarbutton-badg
   from {
     transform: rotate(0);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -1149,11 +1155,13 @@ panelmultiview[mainViewId="PanelUI-fxa"] #PanelUI-remotetabs-syncnow {
   #PanelUI-remotetabs-unverified,
   #PanelUI-remotetabs-nodevicespane,
   #PanelUI-remotetabs-tabsdisabledpane {
-    min-height: calc(var(--panel-ui-sync-illustration-height) +
-                15px + /* margin of .fxaSyncIllustration */
-                30px + /* margin of .PanelUI-remotetabs-button */
-                8px + /* padding of .PanelUI-remotetabs-button */
-                1em);
+    min-height: calc(var(--panel-ui-sync-illustration-height) + 15px +
+        /* margin of .fxaSyncIllustration */
+        30px +
+        /* margin of .PanelUI-remotetabs-button */
+        8px +
+        /* padding of .PanelUI-remotetabs-button */
+        1em);
   }
 }
 
@@ -1641,10 +1649,8 @@ toolbarbutton[itemtype="showinactivebutton"] {
 #PanelUI-panic-timeframe-icon {
   background-color: transparent;
   margin-inline-end: 10px;
-  list-style-image: image-set(
-    url(chrome://browser/skin/panic-panel/header.png),
-    url(chrome://browser/skin/panic-panel/header@2x.png) 2x
-  );
+  list-style-image: image-set(url(chrome://browser/skin/panic-panel/header.png),
+      url(chrome://browser/skin/panic-panel/header@2x.png) 2x);
   max-height: var(--size-item-xlarge);
   width: var(--size-item-xlarge);
 }
@@ -1717,10 +1723,8 @@ radiogroup:focus-visible > .subviewradio[focused="true"] {
     width: 16px;
     height: 16px;
     margin-inline-end: 4px;
-    background-image: image-set(
-      url(chrome://browser/skin/panic-panel/icons.png),
-      url(chrome://browser/skin/panic-panel/icons@2x.png) 2x
-    );
+    background-image: image-set(url(chrome://browser/skin/panic-panel/icons.png),
+        url(chrome://browser/skin/panic-panel/icons@2x.png) 2x);
     vertical-align: bottom;
   }
 }
@@ -1789,6 +1793,7 @@ radiogroup:focus-visible > .subviewradio[focused="true"] {
 
   &:hover {
     background-color: var(--button-background-color-hover);
+
     &:active {
       background-color: var(--button-background-color-active);
     }
@@ -2059,6 +2064,7 @@ radiogroup:focus-visible > .subviewradio[focused="true"] {
 
   &:hover {
     background-color: var(--button-background-color-hover);
+
     &:active {
       background-color: var(--button-background-color-active);
     }
@@ -2076,6 +2082,7 @@ radiogroup:focus-visible > .subviewradio[focused="true"] {
 
   &:hover {
     background-color: var(--color-accent-primary-hover);
+
     &:active {
       background-color: var(--color-accent-primary-active);
     }
@@ -2332,4 +2339,33 @@ radiogroup:focus-visible > .subviewradio[focused="true"] {
 #PanelUI-ipprotection .panel-header,
 #PanelUI-ipprotection .panel-header + toolbarseparator {
   display: none;
+}
+
+/* ----- Enterprise panel ----- */
+.panelUI-enterprise__main-frame {
+  gap: 8px;
+}
+
+.panelUI-enterprise__email {
+  padding: 8px 0 0 16px;
+}
+
+.panelUI-enterprise__info-frame {
+  padding: 8px 8px 8px 16px;
+  gap: 8px;
+  width: 270px;
+}
+
+.panelUI-enterprise__alert {
+  gap: 8px;
+  list-style-image: url(chrome://browser/content/enterprise/alert.svg);
+}
+
+.panelUI-enterprise__alert__icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.panelUI-enterprise__alert__message {
+  font-weight: var(--font-weight-semibold);
 }
