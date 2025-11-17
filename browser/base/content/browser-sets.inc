@@ -408,6 +408,5 @@
          modifiers="accel,alt"
          internal="true"/>
 #endif
-#ifdef MOZ_ENTERPRISE
 
   </keyset>
