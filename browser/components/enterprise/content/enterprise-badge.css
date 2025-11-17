@@ -27,7 +27,7 @@
 #enterprise-company-logo {
   height: var(--icon-size-medium);
   max-width: 75px;
-  list-style-image: url(chrome://browser/content/enterprise/mozilla-badge.svg);
+  list-style-image: url(chrome://browser/content/enterprise/badge-logo.svg);
 }
 
 #enterprise-user-icon {
