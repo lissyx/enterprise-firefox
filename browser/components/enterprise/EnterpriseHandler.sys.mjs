@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
-
 export const EnterpriseHandler = {
   /**
    * @typedef {object} User
@@ -26,18 +24,35 @@ export const EnterpriseHandler = {
     const { ConsoleClient } = ChromeUtils.importESModule(
       "resource:///modules/enterprise/ConsoleClient.sys.mjs"
     );
-    const { name, email, picture } = await ConsoleClient.getLoggedInUserInfo();
-    this._signedInUser = { name, email, pictureURL: picture };
+    try {
+      const { name, email, picture } =
+        await ConsoleClient.getLoggedInUserInfo();
+      this._signedInUser = { name, email, pictureUrl: picture };
+    } catch (e) {
+      console.error(
+        "EnterpriseHandler: Unable to initialize enterprise user: ",
+        e
+      );
+    }
   },
 
   updateBadge() {
-    this._document.querySelector("#enterprise-user-icon").style["list-style-image"] =
-      `url(${this._signedInUser.pictureURL})`;
+    const userIcon = this._document.querySelector("#enterprise-user-icon");
+    userIcon.setProperty(
+      "list-style-image",
+      `url(${this._signedInUser.pictureURL})`
+    );
   },
 
   openPanel(element, event) {
-    this._document.ownerGlobal.PanelUI.showSubView("panelUI-enterprise", element, event);
-    const emailSpan = this._document.querySelector(".panelUI-enterprise__email");
+    this._document.ownerGlobal.PanelUI.showSubView(
+      "panelUI-enterprise",
+      element,
+      event
+    );
+    const emailSpan = this._document.querySelector(
+      ".panelUI-enterprise__email"
+    );
     if (!emailSpan.textContent) {
       this._document.querySelector(".panelUI-enterprise__email").textContent =
         this._signedInUser.email;
@@ -51,9 +66,10 @@ export const EnterpriseHandler = {
    *       with Fxa and Sync to be determined.
    */
   hideFxaToolbarButton() {
-    this._document.getElementById("fxa-toolbar-menu-button").style.display = "none";
+    const fxaBtn = this._document.getElementById("fxa-toolbar-menu-button");
+    fxaBtn.hidden = true;
   },
 
   // TODO: Open signout dialog
-  onSignOut() { },
+  onSignOut() {},
 };
