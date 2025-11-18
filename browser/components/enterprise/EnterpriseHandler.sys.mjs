@@ -27,7 +27,7 @@ export const EnterpriseHandler = {
         await ConsoleClient.getLoggedInUserInfo();
       this._signedInUser = { name, email, pictureUrl: picture };
     } catch (e) {
-      console.error(
+      console.warn(
         "EnterpriseHandler: Unable to initialize enterprise user: ",
         e
       );
@@ -36,6 +36,15 @@ export const EnterpriseHandler = {
 
   updateBadge(window) {
     const userIcon = window.document.querySelector("#enterprise-user-icon");
+
+    if (!this._signedInUser) {
+      // Hide user icon from enterprise badge
+      userIcon.hidden = true;
+      console.warn(
+        "Unable to update user icon in badge without user information"
+      );
+      return;
+    }
     userIcon.style.setProperty(
       "list-style-image",
       `url(${this._signedInUser.pictureUrl})`
@@ -50,6 +59,16 @@ export const EnterpriseHandler = {
     );
     const document = element.ownerDocument;
     const email = document.querySelector(".panelUI-enterprise__email");
+
+    if (!this._signedInUser) {
+      email.hidden = true;
+      document.querySelector("#PanelUI-enterprise-separator").hidden = true;
+      console.warn(
+        "Unable to update email in enterprise panel without user information"
+      );
+      return;
+    }
+
     if (!email.textContent) {
       email.textContent = this._signedInUser.email;
     }
