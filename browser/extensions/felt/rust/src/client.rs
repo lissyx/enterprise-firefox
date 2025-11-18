@@ -73,8 +73,12 @@ impl FeltIpcClient {
         let msg = FeltMessage::Restarting;
         if let Some(tx) = &self.tx {
             match tx.send(msg) {
-                Ok(()) => trace!("FeltIpcClient::notify_restart() SENT"),
-                Err(err) => trace!("FeltIpcClient::notify_restart() TX ERROR: {}", err),
+                Ok(()) => {
+                    trace!("FeltIpcClient::notify_restart() SENT");
+                }
+                Err(err) => {
+                    trace!("FeltIpcClient::notify_restart() TX ERROR: {}", err);
+                }
             }
         }
     }
@@ -174,7 +178,7 @@ impl FeltClientThread {
         struct Observer {
             profile_ready: Arc<AtomicBool>,
             thread_stop: Arc<AtomicBool>,
-            notify_restart: Arc<AtomicBool>,
+            restart_tx: Option<ipc_channel::ipc::IpcSender<FeltMessage>>,
         }
 
         impl Observer {
@@ -219,7 +223,11 @@ impl FeltClientThread {
                         match obsData.trim() {
                             "restart" => {
                                 trace!("FeltClientThread::start_thread::observe() quit-application: restart");
-                                self.notify_restart.store(true, Ordering::Relaxed);
+                                if let Some(ref tx) = self.restart_tx {
+                                    if let Err(err) = tx.send(FeltMessage::Restarting) {
+                                        trace!("FeltClientThread::start_thread::observe() failed to send restart: {:?}", err);
+                                    }
+                                }
                             }
                             _ => {
                                 trace!("FeltClientThread::start_thread::observe() quit-application: something else? Ignore");
@@ -246,11 +254,16 @@ impl FeltClientThread {
 
         let profile_ready = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::new(AtomicBool::new(false));
-        let notify_restart = Arc::new(AtomicBool::new(false));
+
+        // Clone tx for the observer to send restart messages directly
+        let mut client = self.ipc_client.borrow_mut();
+        let tx_for_observer = client.tx.clone();
+        drop(client);
+
         let observer = Observer::allocate(InitObserver {
             profile_ready: profile_ready.clone(),
             thread_stop: thread_stop.clone(),
-            notify_restart: notify_restart.clone(),
+            restart_tx: tx_for_observer,
         });
         let mut rv = unsafe {
             obssvc.AddObserver(
@@ -283,7 +296,6 @@ impl FeltClientThread {
         let barrier = self.startup_ready.clone();
         let profile_ready_internal = profile_ready.clone();
         let thread_stop_internal = thread_stop.clone();
-        let notify_restart_internal = notify_restart.clone();
 
         // Clone the tx: one for the background thread to signal existing,
         // one for us to immediately notify Felt is ready (to receive URLs etc),
@@ -308,11 +320,6 @@ impl FeltClientThread {
                     let mut pending_cookies: Vec<String> = Vec::new();
 
                     loop {
-                        if notify_restart_internal.load(Ordering::Relaxed) {
-                            notify_restart_internal.store(false, Ordering::Relaxed);
-                            trace!("FeltClientThread::felt_client::ipc_loop(): restart notification required!");
-                            thread_client.notify_restart();
-                        }
 
                         if pending_cookies.len() > 0 && profile_ready_internal.load(Ordering::Relaxed) {
                             trace!("FeltClientThread::felt_client::ipc_loop(): Profile ready! Start cookies injection!");
