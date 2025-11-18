@@ -10,14 +10,12 @@ export const EnterpriseHandler = {
    * @property {string} pictureUrl picture url
    */
   _signedInUser: null,
-  _document: null,
 
   async init(window) {
-    this._document = window.document;
-    this.hideFxaToolbarButton();
-
     await this.initUser();
-    this.updateBadge();
+
+    this.hideFxaToolbarButton(window);
+    this.updateBadge(window);
   },
 
   async initUser() {
@@ -36,37 +34,31 @@ export const EnterpriseHandler = {
     }
   },
 
-  updateBadge() {
-    const userIcon = this._document.querySelector("#enterprise-user-icon");
-    userIcon.setProperty(
+  updateBadge(window) {
+    const userIcon = window.document.querySelector("#enterprise-user-icon");
+    userIcon.style.setProperty(
       "list-style-image",
-      `url(${this._signedInUser.pictureURL})`
+      `url(${this._signedInUser.pictureUrl})`
     );
   },
 
   openPanel(element, event) {
-    this._document.ownerGlobal.PanelUI.showSubView(
+    element.ownerGlobal.PanelUI.showSubView(
       "panelUI-enterprise",
       element,
       event
     );
-    const emailSpan = this._document.querySelector(
-      ".panelUI-enterprise__email"
-    );
-    if (!emailSpan.textContent) {
-      this._document.querySelector(".panelUI-enterprise__email").textContent =
-        this._signedInUser.email;
+    const document = element.ownerDocument;
+    const email = document.querySelector(".panelUI-enterprise__email");
+    if (!email.textContent) {
+      email.textContent = this._signedInUser.email;
     }
   },
 
-  /**
-   * Hides FxA toolbar button
-   * Todo: FxA shows up in a lot of different areas. For now we hide
-   *       the most prominent toolbar button. How to hide or integrate
-   *       with Fxa and Sync to be determined.
-   */
-  hideFxaToolbarButton() {
-    const fxaBtn = this._document.getElementById("fxa-toolbar-menu-button");
+  // TODO: FxA shows up in a lot of different areas. For now we hide the most prominent
+  // toolbar button. How to hide or integrate with Fxa and Sync to be determined.
+  hideFxaToolbarButton(window) {
+    const fxaBtn = window.document.getElementById("fxa-toolbar-menu-button");
     fxaBtn.hidden = true;
   },
 
