@@ -615,25 +615,7 @@ void nsWindow::DispatchResized() {
   }
 }
 
-nsIWidgetListener* nsWindow::GetListener() {
-  return mAttachedWidgetListener ? mAttachedWidgetListener : mWidgetListener;
-}
-
-nsresult nsWindow::DispatchEvent(WidgetGUIEvent* aEvent,
-                                 nsEventStatus& aStatus) {
-#ifdef DEBUG
-  debug_DumpEvent(stdout, aEvent->mWidget, aEvent, "something", 0);
-#endif
-  aStatus = nsEventStatus_eIgnore;
-  nsIWidgetListener* listener = GetListener();
-  if (listener) {
-    aStatus = listener->HandleEvent(aEvent, mUseAttachedEvents);
-  }
-
-  return NS_OK;
-}
-
-void nsWindow::OnDestroy(void) {
+void nsWindow::OnDestroy() {
   if (mOnDestroyCalled) {
     return;
   }
@@ -4143,8 +4125,8 @@ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
   }
 #endif
 
-  if (!GetListener()) {
-    LOG("quit, !GetListener()");
+  if (!GetPaintListener()) {
+    LOG("quit, !GetPaintListener()");
     return FALSE;
   }
 
@@ -4169,7 +4151,7 @@ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
   // Dispatch WillPaintWindow notification to allow scripts etc. to run
   // before we paint. It also spins event loop which may show/hide the window
   // so we may have new renderer etc.
-  GetListener()->WillPaintWindow(this);
+  GetPaintListener()->WillPaintWindow(this);
 
   // If the window has been destroyed during the will paint notification,
   // there is nothing left to do.
@@ -4180,7 +4162,7 @@ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
 
   // Re-get all rendering components since the will paint notification
   // might have killed it.
-  nsIWidgetListener* listener = GetListener();
+  nsIWidgetListener* listener = GetPaintListener();
   if (!listener) {
     LOG("quit, !listener");
     return FALSE;
@@ -4212,7 +4194,7 @@ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
 
     // Re-get the listener since the will paint notification might have
     // killed it.
-    listener = GetListener();
+    listener = GetPaintListener();
     if (!listener) {
       return TRUE;
     }
@@ -4264,7 +4246,7 @@ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
 
       // Re-get the listener since the will paint notification might have
       // killed it.
-      listener = GetListener();
+      listener = GetPaintListener();
       if (!listener) {
         return TRUE;
       }
@@ -5250,17 +5232,15 @@ void nsWindow::OnContainerFocusOutEvent(GdkEventFocus* aEvent) {
 }
 
 bool nsWindow::DispatchCommandEvent(nsAtom* aCommand) {
-  nsEventStatus status;
   WidgetCommandEvent appCommandEvent(true, aCommand, this);
-  DispatchEvent(&appCommandEvent, status);
-  return TRUE;
+  DispatchEvent(&appCommandEvent);
+  return true;
 }
 
 bool nsWindow::DispatchContentCommandEvent(EventMessage aMsg) {
-  nsEventStatus status;
   WidgetContentCommandEvent event(true, aMsg, this);
-  DispatchEvent(&event, status);
-  return TRUE;
+  DispatchEvent(&event);
+  return true;
 }
 
 WidgetEventTime nsWindow::GetWidgetEventTime(guint32 aEventTime) {
@@ -9253,8 +9233,16 @@ double nsWindow::FractionalScaleFactor() {
   if (mSurface) {
     auto scale = mSurface->GetScale();
     if (scale != sNoScale) {
-      LOGVERBOSE("nsWindow::FractionalScaleFactor(): fractional scale %.2f",
-                 scale);
+#  ifdef MOZ_LOGGING
+      if (LOG_ENABLED_VERBOSE()) {
+        static float lastScaleLog = 0.0;
+        if (lastScaleLog != scale) {
+          lastScaleLog = scale;
+          LOGVERBOSE("nsWindow::FractionalScaleFactor(): fractional scale %.2f",
+                     scale);
+        }
+      }
+#  endif
       return scale;
     }
   }
