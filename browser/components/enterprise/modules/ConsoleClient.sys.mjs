@@ -220,6 +220,7 @@ export const ConsoleClient = {
       KEY: "/api/browser/key",
       TOKEN: "/sso/token",
       DEVICE_POSTURE: "/sso/device_posture",
+      WHOAMI: "api/browser/whoami",
     };
   },
 
@@ -319,6 +320,16 @@ export const ConsoleClient = {
     throw new Error(`Post failed (${res.status}): ${text}`);
   },
 
+  /**
+   * Fetches user information from the current session.
+   *
+   * @returns {Promise<object>}
+   */
+  async getLoggedInUserInfo() {
+    const payload = await this._get(this._paths.WHOAMI);
+        return payload;
+  },
+  
   /**
    * Retrieves primary secret used for enterprise storage encryption.
    *
