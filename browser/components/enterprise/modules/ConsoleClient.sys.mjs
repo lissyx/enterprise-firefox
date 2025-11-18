@@ -556,17 +556,11 @@ export const ConsoleClient = {
 
     // TODO: Assert or force-enable session restore?
 
-    // Notify FELT that we are logging out so the shutdown is a normal one
-    // that should not be followed by restarting the process.
-    Services.felt.performSignout();
-
     const headers = new Headers({});
     const { tokenType, accessToken } = this.tokenData;
     headers.set("Authorization", `${tokenType} ${accessToken}`);
     headers.set("Content-Type", "application/json");
     headers.set("Accept", "application/json");
-
-    this.clearTokenData();
 
     const url = this.constructURI(this._paths.SIGNOUT);
     const res = await fetch(url, {
@@ -575,6 +569,13 @@ export const ConsoleClient = {
     });
 
     if (res.ok) {
+      // After successful server-side logout clear local state and notify FELT.
+      this.clearTokenData();
+
+      // Notify FELT that we are logging out so the shutdown is a normal one
+      // that should not be followed by restarting the process.
+      Services.felt.performSignout();
+
       Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
       return;
     }
