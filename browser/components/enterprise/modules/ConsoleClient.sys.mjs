@@ -359,7 +359,7 @@ export const ConsoleClient = {
     headers.set("Authorization", `${tokenType} ${accessToken}`);
 
     const url = this.constructURI(path);
-    const res = await fetch(url, { method: method, headers: headers });
+    const res = await fetch(url, { method, headers });
 
     if (res.ok) {
       return await res.json();
@@ -374,7 +374,7 @@ export const ConsoleClient = {
     throw new Error(`Fetch failed (${res.status}): ${text}`);
   },
 
-  /*
+  /**
    * Sends a POST request with the same session validity check as GET above.
    *
    * @param {string} path - Console API to request
@@ -568,7 +568,8 @@ export const ConsoleClient = {
     // TODO: Assert or force-enable session restore?
 
     const res = await this._post(this._paths.SIGNOUT);
-    if (res) {
+    // Server should maybe return better JSON?
+    if (res == null) {
       // After successful server-side logout clear local state and notify FELT.
       this.clearTokenData();
 
