@@ -221,7 +221,7 @@ export const ConsoleClient = {
       KEY: "/api/browser/key",
       TOKEN: "/sso/token",
       DEVICE_POSTURE: "/sso/device_posture",
-      WHOAMI: "api/browser/whoami",
+      WHOAMI: "/api/browser/whoami",
     };
   },
 
