@@ -219,7 +219,6 @@ export const ConsoleClient = {
       DEFAULT_PREFS: "/api/browser/hacks/default",
       REMOTE_POLICIES: "/api/browser/policies",
       KEY: "/api/browser/key",
-      WHOAMI: "/api/browser/whoami",
       TOKEN: "/sso/token",
       DEVICE_POSTURE: "/sso/device_posture",
       WHOAMI: "api/browser/whoami",
@@ -329,9 +328,9 @@ export const ConsoleClient = {
    */
   async getLoggedInUserInfo() {
     const payload = await this._get(this._paths.WHOAMI);
-        return payload;
+    return payload;
   },
-  
+
   /**
    * Retrieves primary secret used for enterprise storage encryption.
    *

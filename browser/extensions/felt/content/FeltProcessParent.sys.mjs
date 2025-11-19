@@ -89,7 +89,10 @@ export class FeltProcessParent extends JSProcessActorParent {
                     console.debug(
                       `FeltExtension: ParentProcess: Restart disabled, sending normal exit to restore FELT UI`
                     );
-                    Services.cpmm.sendAsyncMessage("FeltParent:FirefoxNormalExit", {});
+                    Services.cpmm.sendAsyncMessage(
+                      "FeltParent:FirefoxNormalExit",
+                      {}
+                    );
                   }
                 })
                 .catch(err => {
@@ -98,9 +101,7 @@ export class FeltProcessParent extends JSProcessActorParent {
                   );
                 });
             } else {
-              console.debug(
-                `FeltExtension: ParentProcess: No proc to kill!`
-              );
+              console.debug(`FeltExtension: ParentProcess: No proc to kill!`);
             }
             break;
           }
@@ -402,7 +403,9 @@ export class FeltProcessParent extends JSProcessActorParent {
       throw new Error("Logout handling should only happen on FELT side.");
     }
 
-    console.debug(`FeltExtension: Logout, waiting on ${gFeltProcessParentInstance.proc.pid}`);
+    console.debug(
+      `FeltExtension: Logout, waiting on ${gFeltProcessParentInstance.proc.pid}`
+    );
     gFeltProcessParentInstance.logoutReported = true;
     lazy.ConsoleClient.clearTokenData();
 
