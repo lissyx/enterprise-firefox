@@ -540,6 +540,10 @@ static ArgResult CheckArgExists(const char* aArg) {
   return CheckArg(aArg, nullptr, CheckArgFlag::None);
 }
 
+static bool RequestedHeadlessMode() {
+  return CheckArgExists("headless") || CheckArgExists("screenshot");
+}
+
 bool gSafeMode = false;
 bool gFxREmbedded = false;
 
@@ -4117,7 +4121,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
         "*** You are running in chaos test mode. See ChaosMode.h. ***\n");
   }
 
-  bool requestedHeadless = CheckArg("headless") || CheckArgExists("screenshot");
+  bool requestedHeadless = RequestedHeadlessMode();
 #if defined(MOZ_ENTERPRISE)
   if (requestedHeadless && !allowHeadlessMode) {
     Output(true,
@@ -6057,12 +6061,13 @@ int XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig) {
     bool allowStandaloneLaunch = false;
 #  endif
 
+    const bool requestedHeadless = RequestedHeadlessMode();
+
     // Allow standalone launch for automated testing and development
     allowStandaloneLaunch =
         allowStandaloneLaunch || EnvHasValue("MOZ_AUTOMATION") ||
-        PR_GetEnv("MOZ_RUN_GTEST") || CheckArg("headless") ||
-        CheckArgExists("screenshot") || CheckArg("marionette") ||
-        CheckArg("remote-debugging-port");
+        PR_GetEnv("MOZ_RUN_GTEST") || requestedHeadless ||
+        CheckArgExists("marionette") || CheckArgExists("remote-debugging-port");
 
     if (!allowStandaloneLaunch && !is_felt_ui() && !is_felt_browser()) {
       Output(true,
