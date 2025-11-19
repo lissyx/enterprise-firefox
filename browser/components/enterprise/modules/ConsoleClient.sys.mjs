@@ -247,7 +247,9 @@ export const ConsoleClient = {
   constructSsoLoginURI(email, devicePostureToken) {
     const url = this.consoleBaseURI;
     url.pathname = this._paths.SSO;
-    url.search = `target=browser&email=${email}&devicePostureToken=${devicePostureToken}`;
+    url.search = `target=browser&email=${encodeURIComponent(
+      email
+    )}&devicePostureToken=${encodeURIComponent(devicePostureToken)}`;
 
     // Consumer expects uri as nsIURI
     const uri = Services.io.newURI(url.href);
