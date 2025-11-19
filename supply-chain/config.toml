@@ -96,6 +96,10 @@ notes = "Patched version of upstream"
 audit-as-crates-io = true
 notes = "Patched version of upstream"
 
+[policy."ipc-channel:0.20.2@git:f2b5aed36a60f07589579d31aaace2f90d2e5e9e"]
+audit-as-crates-io = true
+notes = "Patched version to build with gecko deps"
+
 [policy.l10nregistry]
 dependency-criteria = { fluent-testing = "safe-to-run", tokio = "safe-to-run" }
 notes = "This crate has two testing-only dependencies which are specified as regular-but-optional rather than a dev-dependencies, because they need to be available to both benchmarks and integration tests."
