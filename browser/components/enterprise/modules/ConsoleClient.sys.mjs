@@ -17,8 +17,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
  */
 export const PREFS = {
   CONSOLE_ADDRESS: "enterprise.console.address",
-  // Temporary pref to share refresh token between Felt and Firefox
-  REFRESH_TOKEN: "enterprise.console.refresh_token",
 };
 
 /**
@@ -75,123 +73,11 @@ class InvalidAuthError extends Error {
 }
 
 /**
- * Structured token data associated with the console session.
- * Encapsulates expiry/refresh logic and provides helpers for access token validity.
- */
-class ConsoleTokenData {
-  /**
-   * Seconds of skew subtracted from expiry to proactively refresh early.
-   *
-   * @type {number}
-   */
-  TOKEN_EXPIRY_SKEW = 5 * 60;
-
-  /**
-   * @param {string} accessToken - Short-lived access token.
-   * @param {string} refreshToken - Long-lived refresh token.
-   * @param {number} expiresInSec - Access token lifetime (in seconds) from issuance.
-   * @param {string} [tokenType="Bearer"] - Token type
-   * @param {number} [issuedAtSec=Math.floor(ChromeUtils.now()/1000)] - Monotonic issued-at time in seconds
-   */
-  constructor(
-    accessToken,
-    refreshToken,
-    expiresInSec,
-    tokenType = "Bearer",
-    issuedAtSec = Math.floor(ChromeUtils.now() / 1000)
-  ) {
-    this._accessToken = accessToken;
-    this._refreshToken = refreshToken;
-    this._expiresInSec = expiresInSec;
-    this._tokenType = tokenType;
-    this._issuedAtSec = issuedAtSec;
-  }
-
-  get accessToken() {
-    return this._accessToken;
-  }
-
-  set accessToken(value) {
-    this._accessToken = value;
-  }
-
-  get refreshToken() {
-    return this._refreshToken;
-  }
-
-  set refreshToken(value) {
-    this._refreshToken = value;
-  }
-
-  get expiresInSec() {
-    return this._expiresInSec;
-  }
-
-  set expiresInSec(value) {
-    this._expiresInSec = value;
-  }
-
-  get tokenType() {
-    return this._tokenType;
-  }
-
-  set tokenType(value) {
-    this._tokenType = value;
-  }
-
-  get issuedAtSec() {
-    return this._issuedAtSec;
-  }
-
-  set issuedAtSec(value) {
-    this._issuedAtSec = value;
-  }
-
-  get expiresAtSec() {
-    return this._issuedAtSec + this._expiresInSec;
-  }
-
-  /**
-   * Whether the access token is expired or will expire soon.
-   *
-   * @returns {boolean}
-   */
-  isExpiringSoon() {
-    return (
-      Math.floor(ChromeUtils.now() / 1000) + this.TOKEN_EXPIRY_SKEW >=
-      (this.expiresAtSec ?? 0)
-    );
-  }
-}
-
-/**
  * Client for interacting with the Enterprise Console API.
  * Manages token state and provides helper methods for common endpoints.
  */
 export const ConsoleClient = {
   _refreshPromise: null,
-
-  /**
-   * Returns the refresh token (if any), that Felt stored in the prefs.
-   *
-   * @returns {string}
-   */
-  get refreshTokenBackup() {
-    return Services.prefs.getStringPref(PREFS.REFRESH_TOKEN, "");
-  },
-
-  /**
-   * In-memory token data for the active session.
-   *
-   * @returns {ConsoleTokenData|undefined}
-   */
-  get tokenData() {
-    return this._tokenData;
-  },
-
-  set tokenData(data) {
-    this._tokenData = data;
-  },
 
   /**
    * Base URL of the remote enterprise console
@@ -353,11 +239,9 @@ export const ConsoleClient = {
    * @returns {Promise<any>} Parsed JSON response body.
    */
   async _get(path, method = "GET", { _didRefresh = false } = {}) {
-    await this._ensureValidSession();
-
     const headers = new Headers({});
-    const { tokenType, accessToken } = this.tokenData;
-    headers.set("Authorization", `${tokenType} ${accessToken}`);
+    const accessToken = await this.getAccessToken();
+    headers.set("Authorization", `Bearer ${accessToken}`);
 
     const url = this.constructURI(path);
     const res = await fetch(url, { method, headers });
@@ -389,20 +273,22 @@ export const ConsoleClient = {
   /**
    * Ensures a non-expired access token is available, refreshing if it's expiring soon.
    *
-   * @returns {Promise<void>}
+   * @returns {Promise<string>}
    */
-  async _ensureValidSession() {
-    const td = this.tokenData;
-    if (!td?.accessToken || td.isExpiringSoon()) {
+  async getAccessToken() {
+    let accessToken = Services.felt.getAccessTokenIfValid();
+    if (!accessToken) {
       await this._refreshSession();
+      accessToken = Services.felt.getAccessTokenIfValid();
     }
-    if (!this.tokenData?.accessToken) {
+    if (!accessToken) {
       // We're not handling reauthentication just yet.
       throw new InvalidAuthError(
         "Unhandled reauthentication",
         "UNHANDLED_REAUTHENTICATION"
       );
     }
+    return accessToken;
   },
 
   /**
@@ -419,8 +305,7 @@ export const ConsoleClient = {
     }
 
     this._refreshPromise = (async () => {
-      let refreshToken =
-        this.tokenData?.refreshToken || this.refreshTokenBackup;
+      let refreshToken = Services.felt.getRefreshToken();
       if (!refreshToken) {
         const e = new ReauthRequiredError(
           "No refresh token available",
@@ -473,13 +358,8 @@ export const ConsoleClient = {
         );
       }
 
-      const t = await res.json();
-      this.ensureTokenData(t);
-
-      Services.prefs.setStringPref(
-        PREFS.REFRESH_TOKEN,
-        this.tokenData.refreshToken
-      );
+      const { access_token, refresh_token, expires_in } = await res.json();
+      Services.felt.setTokens(access_token, refresh_token, expires_in);
     })().finally(() => {
       this._refreshPromise = null;
     });
@@ -530,27 +410,11 @@ export const ConsoleClient = {
   },
 
   /**
-   * Populates in-memory token state upon initial authentication
-   * against the enterprise console or refresh.
-   *
-   * @param {object} tokenData - Token payload from the console.
-   */
-  ensureTokenData(tokenData) {
-    const { access_token, refresh_token, expires_in, token_type } = tokenData;
-    this.tokenData = new ConsoleTokenData(
-      access_token,
-      refresh_token,
-      expires_in,
-      token_type
-    );
-  },
-
-  /**
    * Clears persisted and in-memory token data.
    */
   clearTokenData() {
     this.tokenData = null;
-    Services.prefs.clearUserPref(PREFS.REFRESH_TOKEN);
+    Services.felt.setTokens("", "", 0);
   },
 
   /**

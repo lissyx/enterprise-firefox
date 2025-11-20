@@ -12,6 +12,7 @@ use std::ffi::{c_char, CStr, CString};
 use std::sync::{atomic::AtomicBool, atomic::Ordering, Arc};
 use std::time::Duration;
 use thin_vec::ThinVec;
+use time::UtcDateTime;
 use xpcom::interfaces::{
     nsICategoryManager, nsIContentPolicy, nsICookie, nsILoadInfo, nsIObserver, nsIObserverService,
     nsISupports, nsIURI,
@@ -21,6 +22,7 @@ use xpcom::RefPtr;
 use log::trace;
 
 use crate::message::{FeltMessage, FELT_IPC_VERSION};
+use crate::utils::{Tokens, TOKENS, TOKEN_EXPIRY_SKEW};
 
 #[xpcom(implement(nsIFelt), atomic)]
 pub struct FeltXPCOM {
@@ -104,6 +106,76 @@ impl FeltXPCOM {
 
     fn SendRestartForced(&self) -> nserror::nsresult {
         self.send(FeltMessage::RestartForced)
+    }
+
+    fn SendTokens(&self) -> nserror::nsresult {
+        match TOKENS.read() {
+            Ok(tokens) => {
+                trace!(
+                    "FeltXPCOM::SendTokens ({} {} {})",
+                    tokens.access_token,
+                    tokens.refresh_token,
+                    tokens.expires_at
+                );
+                self.send(FeltMessage::Tokens((
+                    tokens.access_token.clone(),
+                    tokens.refresh_token.clone(),
+                    tokens.expires_at,
+                )))
+            }
+            Err(_) => {
+                trace!("FeltXPCOM::SendTokens failed: couldn't acquire lock",);
+                NS_ERROR_FAILURE
+            }
+        }
+    }
+
+    fn SetTokens(
+        &self,
+        access_token: *const nsACString,
+        refresh_token: *const nsACString,
+        expires_in: i64,
+    ) -> nserror::nsresult {
+        let access_token = unsafe { (*access_token).to_string() };
+        let refresh_token = unsafe { (*refresh_token).to_string() };
+        let expires_at = UtcDateTime::now()
+            .unix_timestamp()
+            .saturating_add(expires_in);
+        match TOKENS.write() {
+            Ok(mut t) => {
+                *t = Tokens {
+                    access_token,
+                    refresh_token,
+                    expires_at,
+                };
+                NS_OK
+            }
+            Err(_) => NS_ERROR_FAILURE,
+        }
+    }
+
+    fn GetRefreshToken(&self, refresh_token: *mut nsACString) -> nserror::nsresult {
+        match TOKENS.read() {
+            Ok(t) => unsafe {
+                (*refresh_token).assign(t.refresh_token.as_str());
+                NS_OK
+            },
+            Err(_) => NS_ERROR_FAILURE,
+        }
+    }
+
+    fn GetAccessTokenIfValid(&self, access_token: *mut nsACString) -> nserror::nsresult {
+        match TOKENS.read() {
+            Ok(t) => unsafe {
+                (*access_token).assign(if token_needs_refresh(&t) {
+                    ""
+                } else {
+                    t.access_token.as_str()
+                });
+                NS_OK
+            },
+            Err(_) => NS_ERROR_FAILURE,
+        }
     }
 
     fn SendExtensionReady(&self) -> nserror::nsresult {
@@ -481,4 +553,8 @@ impl FeltRestartForced {
             nsIContentPolicy::ACCEPT
         }
     }
+}
+
+fn token_needs_refresh(tokens: &Tokens) -> bool {
+    tokens.expires_at.saturating_add(TOKEN_EXPIRY_SKEW) < UtcDateTime::now().unix_timestamp()
 }

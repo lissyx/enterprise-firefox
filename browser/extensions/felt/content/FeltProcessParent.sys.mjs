@@ -168,10 +168,6 @@ export class FeltProcessParent extends JSProcessActorParent {
       lazy.PREFS.CONSOLE_ADDRESS,
       lazy.ConsoleClient.consoleBaseURI
     );
-    Services.felt.sendStringPreference(
-      lazy.PREFS.REFRESH_TOKEN,
-      lazy.ConsoleClient.tokenData.refreshToken
-    );
     Services.felt.sendBoolPreference(
       "browser.policies.live_polling.enabled",
       true
@@ -192,6 +188,7 @@ export class FeltProcessParent extends JSProcessActorParent {
     this.firefox
       .then(async () => {
         this.sendPrefsToFirefox();
+        Services.felt.sendTokens();
         const { prefs } = await lazy.ConsoleClient.getDefaultPrefs();
         prefs.forEach(pref => {
           const name = pref[0];
@@ -427,7 +424,12 @@ export class FeltProcessParent extends JSProcessActorParent {
     switch (message.name) {
       case "FeltChild:StartFirefox":
         {
-          lazy.ConsoleClient.ensureTokenData(message.data);
+          const {
+            access_token = "",
+            refresh_token = "",
+            expires_in = 0,
+          } = message.data;
+          Services.felt.setTokens(access_token, refresh_token, expires_in);
 
           const ssoCollectedCookies = this.getAllCookies();
           console.debug(`Collected cookies: ${ssoCollectedCookies.length}`);
