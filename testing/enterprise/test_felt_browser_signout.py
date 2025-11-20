@@ -60,7 +60,9 @@ class BrowserSignout(FeltTests):
         self.connect_child_browser()
 
         whoami = self.felt_whoami()
-        self._logger.info(whoami)
+        assert whoami["id"], "Expected user to exist"
+        assert whoami["email"], "Expected user email to exist"
+        assert whoami["picture"], "Expected user picture to exist"
 
         self._child_driver.set_context("chrome")
 
