@@ -59,7 +59,12 @@ class BrowserSignout(FeltTests):
         return private_cookies
 
     def test_felt_3_browser_ui_state_when_user_is_logged_in(self, exp):
-        self.connect_child_browser()
+        self.connect_child_browser(
+            capabilities={
+                # Do not auto-handle prompts.
+                "unhandledPromptBehavior": "ignore"
+            }
+        )
 
         whoami = self.felt_whoami()
         assert whoami["id"], "Expected user to exist"
@@ -112,7 +117,7 @@ class BrowserSignout(FeltTests):
             self._logger.info("Clicking signout button in enterprise panel")
             self.get_elem_child(".panelUI-enterprise__sign-out-btn").click()
         except UnexpectedAlertPresentException:
-            # Do nothing, signout dialog ("aler") is expected
+            # Do nothing, signout dialog ("alert") is expected
             pass
 
         self._logger.info("Waiting for the signout dialog to open")
