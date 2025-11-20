@@ -84,6 +84,7 @@ export const EnterpriseHandler = {
     fxaBtn.hidden = true;
   },
 
+  // TODO: Open signout dialog
   onSignOut() {
     lazy.ConsoleClient.signout().catch((e) => console.error(`Unable to signout the user: ${e}`));
   },
