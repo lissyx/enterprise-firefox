@@ -162,7 +162,7 @@ for_xul = [
     # `libmozsqlite` that we distribute.
     "rusqlite/in_gecko"
 ]
-felt = ["dep:felt"]
+felt = ["dep:felt", "fog_control/felt"]
 webrender_debugger = ["webrender_bindings/debugger"]
 
 [lib]

@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use glean::net::{CapablePingUploadRequest, PingUploadRequest, PingUploader, UploadResult};
+#[cfg(not(feature = "felt"))]
 use once_cell::sync::OnceCell;
+#[cfg(not(feature = "felt"))]
 use std::sync::Once;
 use url::Url;
 use viaduct::{Request, ViaductError::*};
@@ -51,8 +53,13 @@ impl PingUploader for ViaductUploader {
             return UploadResult::http_status(200);
         }
 
+        #[cfg(feature = "felt")]
+        let result = modify_for_enterprise(upload_request)
+            .and_then(|upload_request| viaduct_upload(upload_request));
+
         // Localhost-destined pings are sent without OHTTP,
         // even if configured to use OHTTP.
+        #[cfg(not(feature = "felt"))]
         let result =
             if localhost_port == 0 && requires_ohttp && should_ohttp_upload(&upload_request) {
                 ohttp_upload(upload_request)
@@ -82,11 +89,21 @@ impl PingUploader for ViaductUploader {
                 | OhttpRequestError(_)
                 | OhttpResponseError(_) => UploadResult::recoverable_failure(),
             },
+            Err(ViaductUploaderError::Bhttp(_) | ViaductUploaderError::Ohttp(_)) => {
+                UploadResult::unrecoverable_failure()
+            }
+            #[cfg(feature = "felt")]
             Err(
-                ViaductUploaderError::Bhttp(_)
-                | ViaductUploaderError::Ohttp(_)
-                | ViaductUploaderError::Fatal,
-            ) => UploadResult::unrecoverable_failure(),
+                ViaductUploaderError::EnterpriseErrorAccessToken
+                | ViaductUploaderError::EnterpriseNoAccessToken
+                | ViaductUploaderError::EnterpriseUrlNotSet,
+            ) => UploadResult::recoverable_failure(),
+            #[cfg(feature = "felt")]
+            Err(ViaductUploaderError::EnterpriseInvalidUrl(_)) => {
+                UploadResult::unrecoverable_failure()
+            }
+            #[cfg(not(feature = "felt"))]
+            Err(ViaductUploaderError::Fatal) => UploadResult::unrecoverable_failure(),
         }
     }
 }
@@ -106,13 +123,58 @@ fn viaduct_upload(upload_request: PingUploadRequest) -> Result<UploadResult, Via
     Ok(UploadResult::http_status(res.status as i32))
 }
 
+#[cfg(feature = "felt")]
+fn modify_for_enterprise(
+    mut upload_request: PingUploadRequest,
+) -> Result<PingUploadRequest, ViaductUploaderError> {
+    let console_url = felt::CONSOLE_URL
+        .get()
+        .ok_or(ViaductUploaderError::EnterpriseUrlNotSet)?;
+    let mut parsed_console_url =
+        Url::parse(console_url).map_err(ViaductUploaderError::EnterpriseInvalidUrl)?;
+
+    let parsed_url = Url::parse(&upload_request.url)?;
+    parsed_console_url.set_path(&format!(
+        "{}/api/browser/telemetry/{}",
+        parsed_console_url
+            .path()
+            .strip_prefix('/')
+            .unwrap_or(parsed_console_url.path()),
+        parsed_url
+            .path()
+            .strip_prefix('/')
+            .unwrap_or(parsed_url.path())
+    ));
+    parsed_console_url.set_query(parsed_url.query());
+    parsed_console_url.set_fragment(parsed_url.fragment());
+
+    let bearer = {
+        let t = felt::TOKENS
+            .read()
+            .map_err(|_| ViaductUploaderError::EnterpriseErrorAccessToken)?;
+        if !t.access_token.is_empty() {
+            format!("Bearer {}", &t.access_token)
+        } else {
+            return Err(ViaductUploaderError::EnterpriseNoAccessToken);
+        }
+    };
+
+    upload_request.url = parsed_console_url.to_string();
+    upload_request
+        .headers
+        .push(("Authorization".to_string(), bearer));
+    Ok(upload_request)
+}
+
+#[cfg(not(feature = "felt"))]
 fn should_ohttp_upload(upload_request: &PingUploadRequest) -> bool {
     !upload_request.body_has_info_sections
 }
 
+#[cfg(not(feature = "felt"))]
 fn ohttp_upload(upload_request: PingUploadRequest) -> Result<UploadResult, ViaductUploaderError> {
     static CELL: OnceCell<Vec<u8>> = once_cell::sync::OnceCell::new();
-    let config = CELL.get_or_try_init(|| get_config())?;
+    let config = CELL.get_or_try_init(get_config)?;
 
     let binary_request = bhttp_encode(upload_request)?;
 
@@ -153,6 +215,7 @@ fn ohttp_upload(upload_request: PingUploadRequest) -> Result<UploadResult, Viadu
     }
 }
 
+#[cfg(not(feature = "felt"))]
 fn get_config() -> Result<Vec<u8>, ViaductUploaderError> {
     const OHTTP_CONFIG_URL: &str =
         "https://prod.ohttp-gateway.prod.webservices.mozgcp.net/ohttp-configs";
@@ -163,6 +226,7 @@ fn get_config() -> Result<Vec<u8>, ViaductUploaderError> {
 
 /// Encode the ping upload request in binary HTTP.
 /// (draft-ietf-httpbis-binary-message)
+#[cfg(not(feature = "felt"))]
 fn bhttp_encode(upload_request: PingUploadRequest) -> Result<Vec<u8>, ViaductUploaderError> {
     let parsed_url = Url::parse(&upload_request.url)?;
     let mut message = bhttp::Message::request(
@@ -200,6 +264,23 @@ enum ViaductUploaderError {
     #[error("viaduct::ViaductError {0}")]
     Viaduct(#[from] viaduct::ViaductError),
 
+    #[cfg(feature = "felt")]
+    #[error("enterprise::Error Unable to receive access_token")]
+    EnterpriseErrorAccessToken,
+
+    #[cfg(feature = "felt")]
+    #[error("enterprise::Error No access token")]
+    EnterpriseNoAccessToken,
+
+    #[cfg(feature = "felt")]
+    #[error("enterprise::Error Invalid console url {0}")]
+    EnterpriseInvalidUrl(url::ParseError),
+
+    #[cfg(feature = "felt")]
+    #[error("enterprise::Error Console url not set")]
+    EnterpriseUrlNotSet,
+
+    #[cfg(not(feature = "felt"))]
     #[error("Fatal upload error")]
     Fatal,
 }

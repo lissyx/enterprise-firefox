@@ -326,6 +326,9 @@ impl FeltClientThread {
                                 utils::inject_bool_pref(name, value);
                             },
                             Ok(FeltMessage::StringPreference((name, value))) => {
+                                if name == "enterprise.console.address" {
+                                    utils::set_console_url(value.clone());
+                                }
                                 trace!("FeltClientThread::felt_client::ipc_loop(): StringPreference({}, {})", name, value);
                                 utils::inject_string_pref(name, value);
                             },
