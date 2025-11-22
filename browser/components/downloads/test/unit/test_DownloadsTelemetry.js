@@ -15,8 +15,9 @@ const { DownloadsTelemetry } = ChromeUtils.importESModule(
  */
 add_task(async function test_recordFileDownloaded_basic() {
   // Verify the function exists
-  Assert.ok(
-    typeof DownloadsTelemetry.recordFileDownloaded === "function",
+  Assert.strictEqual(
+    typeof DownloadsTelemetry.recordFileDownloaded,
+    "function",
     "recordFileDownloaded function should exist"
   );
 
@@ -72,7 +73,7 @@ add_task(async function test_recordFileDownloaded_edge_cases() {
  */
 add_task(async function test_url_processing_policies() {
   const testUrl = "https://example.com/path/to/file.pdf?param=value";
-  
+
   const mockDownload = {
     target: {
       path: "/tmp/file.pdf",

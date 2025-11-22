@@ -3,11 +3,15 @@
 
 /**
  * Tests for Enterprise Downloads Telemetry functionality.
- * 
+ *
  * Note: These tests only run in MOZ_ENTERPRISE builds where the enterprise
  * implementation is actually available. In regular builds, these tests
  * will be skipped automatically.
  */
+
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
+);
 
 let DownloadsTelemetryEnterprise;
 
@@ -49,7 +53,7 @@ add_task(async function test_url_processing_policies() {
     },
     {
       input: "ftp://files.example.org/public/document.zip",
-      policy: "full", 
+      policy: "full",
       expected: "ftp://files.example.org/public/document.zip",
     },
     {
@@ -81,11 +85,14 @@ add_task(async function test_url_processing_policies() {
 
   for (const testCase of testCases) {
     // Mock the policy to return our test value
-    const originalGetUrlLoggingPolicy = DownloadsTelemetryEnterprise._getUrlLoggingPolicy;
+    const originalGetUrlLoggingPolicy =
+      DownloadsTelemetryEnterprise._getUrlLoggingPolicy;
     DownloadsTelemetryEnterprise._getUrlLoggingPolicy = () => testCase.policy;
 
     try {
-      const result = DownloadsTelemetryEnterprise._processSourceUrl(testCase.input);
+      const result = DownloadsTelemetryEnterprise._processSourceUrl(
+        testCase.input
+      );
       Assert.strictEqual(
         result,
         testCase.expected,
@@ -93,7 +100,8 @@ add_task(async function test_url_processing_policies() {
       );
     } finally {
       // Restore original method
-      DownloadsTelemetryEnterprise._getUrlLoggingPolicy = originalGetUrlLoggingPolicy;
+      DownloadsTelemetryEnterprise._getUrlLoggingPolicy =
+        originalGetUrlLoggingPolicy;
     }
   }
 });
@@ -108,7 +116,8 @@ add_task(async function test_default_policy_behavior() {
   }
 
   // Test that default behavior returns "full" when policies service is unavailable
-  const originalGetUrlLoggingPolicy = DownloadsTelemetryEnterprise._getUrlLoggingPolicy;
+  const originalGetUrlLoggingPolicy =
+    DownloadsTelemetryEnterprise._getUrlLoggingPolicy;
   DownloadsTelemetryEnterprise._getUrlLoggingPolicy = () => {
     // Simulate policies service being unavailable by calling original method
     // with a mocked lazy.gPoliciesService = null
@@ -125,7 +134,8 @@ add_task(async function test_default_policy_behavior() {
       "Should default to full URL when policies unavailable"
     );
   } finally {
-    DownloadsTelemetryEnterprise._getUrlLoggingPolicy = originalGetUrlLoggingPolicy;
+    DownloadsTelemetryEnterprise._getUrlLoggingPolicy =
+      originalGetUrlLoggingPolicy;
   }
 });
 
@@ -143,11 +153,11 @@ add_task(async function test_enterprise_recording_with_glean() {
   const mockGlean = {
     downloads: {
       downloadCompleted: {
-        record: (data) => {
+        record: data => {
           recordedEvents.push(data);
-        }
-      }
-    }
+        },
+      },
+    },
   };
 
   // Temporarily replace global Glean
@@ -172,16 +182,28 @@ add_task(async function test_enterprise_recording_with_glean() {
     Assert.equal(recordedEvents.length, 1, "Should record exactly one event");
 
     const event = recordedEvents[0];
-    Assert.equal(event.filename, "document.pdf", "Should extract correct filename");
+    Assert.equal(
+      event.filename,
+      "document.pdf",
+      "Should extract correct filename"
+    );
     Assert.equal(event.extension, "pdf", "Should extract correct extension");
-    Assert.equal(event.mime_type, "application/pdf", "Should preserve MIME type");
+    Assert.equal(
+      event.mime_type,
+      "application/pdf",
+      "Should preserve MIME type"
+    );
     Assert.equal(event.size_bytes, 12345, "Should record correct file size");
     Assert.equal(
       event.source_url,
       "https://example.com/secure/document.pdf?token=abc123",
       "Should record full URL by default"
     );
-    Assert.equal(event.is_private, false, "Should record private browsing status");
+    Assert.equal(
+      event.is_private,
+      false,
+      "Should record private browsing status"
+    );
   } finally {
     globalThis.Glean = originalGlean;
   }
