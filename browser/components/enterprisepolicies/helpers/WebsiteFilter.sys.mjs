@@ -178,6 +178,7 @@ export let WebsiteFilter = {
     }
     return true;
   },
+  /* eslint-disable */
 #ifdef MOZ_ENTERPRISE
   _recordBlocklistDomainBrowsed(url) {
     const isEnabled = Services.prefs.getBoolPref(
@@ -241,4 +242,5 @@ export let WebsiteFilter = {
     }
   },
 #endif
+  /* eslint-enable */
 };

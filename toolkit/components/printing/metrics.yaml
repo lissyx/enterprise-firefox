@@ -90,6 +90,8 @@ printing:
 #ifdef MOZ_ENTERPRISE
   page_printed:
     type: event
+    data_sensitivity:
+      - highly_sensitive
     description: >
       Recorded when a page is printed in enterprise builds.
       Contains security-relevant metadata for monitoring and analysis.

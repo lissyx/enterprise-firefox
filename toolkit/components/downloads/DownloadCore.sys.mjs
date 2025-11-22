@@ -734,9 +734,9 @@ Download.prototype = {
       // Record the telemetry event
       Glean.downloads.securityDownloadCompleted.record({
         filename,
-        file_extension: fileExtension,
+        extension: fileExtension,
         mime_type: this.contentType || "",
-        file_size: String(this.target.size || 0),
+        size_bytes: this.target.size || 0,
         source_url_domain: sourceDomain,
         is_private: this.source.isPrivate || false,
       });
