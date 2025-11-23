@@ -2215,7 +2215,6 @@ export var Policies = {
         "browser.",
         "datareporting.policy.",
         "dom.",
-        "enterprise.",
         "extensions.",
         "general.autoScroll",
         "general.smoothScroll",
