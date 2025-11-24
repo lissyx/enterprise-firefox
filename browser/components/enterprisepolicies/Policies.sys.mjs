@@ -134,6 +134,13 @@ export var Policies = {
         manager.disallowFeature("filepickers");
       }
     },
+    onRemove(manager, oldParams) {
+      if (!oldParams) {
+        unsetAndUnlockPref("widget.disable_file_pickers");
+        unsetAndUnlockPref("browser.download.useDownloadDir");
+        manager.allowFeature("filepickers");
+      }
+    },
   },
 
   AppAutoUpdate: {
@@ -144,6 +151,13 @@ export var Policies = {
         manager.disallowFeature("app-auto-updates-off");
       } else {
         manager.disallowFeature("app-auto-updates-on");
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (!oldParams) {
+        manager.allowFeature("app-auto-updates-off");
+      } else {
+        manager.allowFeature("app-auto-updates-on");
       }
     },
   },
@@ -322,11 +336,17 @@ export var Policies = {
     onBeforeAddons(manager, param) {
       setAndLockPref("extensions.formautofill.addresses.enabled", param);
     },
+    onRemove(_manager, _param) {
+      unsetAndUnlockPref("extensions.formautofill.addresses.enabled");
+    },
   },
 
   AutofillCreditCardEnabled: {
     onBeforeAddons(manager, param) {
       setAndLockPref("extensions.formautofill.creditCards.enabled", param);
+    },
+    onRemove(manager, param) {
+      unsetAndUnlockPref("extensions.formautofill.creditCards.enabled", param);
     },
   },
 
@@ -347,6 +367,13 @@ export var Policies = {
         manager.disallowFeature("app-background-update-off");
       } else {
         manager.disallowFeature("app-background-update-on");
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        manager.allowFeature("app-background-update-off");
+      } else {
+        manager.allowFeature("app-background-update-on");
       }
     },
   },
@@ -518,6 +545,9 @@ export var Policies = {
   CaptivePortal: {
     onBeforeAddons(manager, param) {
       setAndLockPref("network.captive-portal-service.enabled", param);
+    },
+    onRemove(_manager, _oldParams) {
+      unsetAndUnlockPref("network.captive-portal-service.enabled");
     },
   },
 
@@ -918,12 +948,23 @@ export var Policies = {
         setAndLockPref("browser.aboutwelcome.enabled", false);
       }
     },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        unsetAndUnlockPref("identity.fxaccounts.enabled");
+        unsetAndUnlockPref("browser.aboutwelcome.enabled");
+      }
+    },
   },
 
   DisableAppUpdate: {
     onBeforeAddons(manager, param) {
       if (param) {
         manager.disallowFeature("appUpdate");
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        manager.allowFeature("appUpdate");
       }
     },
   },
@@ -1030,12 +1071,23 @@ export var Policies = {
         setAndLockPref("network.dns.http3_echconfig.enabled", false);
       }
     },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        unsetAndUnlockPref("network.dns.echconfig.enabled");
+        unsetAndUnlockPref("network.dns.http3_echconfig.enabled");
+      }
+    },
   },
 
   DisableFeedbackCommands: {
     onBeforeUIStartup(manager, param) {
       if (param) {
         manager.disallowFeature("feedbackCommands");
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        manager.allowFeature("feedbackCommands");
       }
     },
   },
@@ -1052,12 +1104,29 @@ export var Policies = {
         setAndLockPref("browser.aboutwelcome.enabled", false);
       }
     },
+    onRemove(manager, oldParams) {
+      // If DisableAccounts is set, let it take precedence.
+      // TODO: true for onRemove as well?
+      if ("DisableAccounts" in manager.getActivePolicies()) {
+        return;
+      }
+
+      if (oldParams) {
+        unsetAndUnlockPref("identity.fxaccounts.enabled");
+        unsetAndUnlockPref("browser.aboutwelcome.enabled");
+      }
+    },
   },
 
   DisableFirefoxScreenshots: {
     onBeforeUIStartup(manager, param) {
       if (param) {
         setAndLockPref("screenshots.browser.component.enabled", false);
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        unsetAndUnlockPref("screenshots.browser.component.enabled");
       }
     },
   },
@@ -1073,6 +1142,17 @@ export var Policies = {
         setAndLockPref(
           "browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features",
           false
+        );
+      }
+    },
+    onRemove(manager, oldParams) {
+      if (oldParams) {
+        manager.allowFeature("Shield");
+        unsetAndUnlockPref(
+          "browser.newtabpage.activity-stream.asrouter.userprefs.cfr.addons"
+        );
+        unsetAndUnlockPref(
+          "browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features"
         );
       }
     },
