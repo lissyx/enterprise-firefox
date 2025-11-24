@@ -22,21 +22,21 @@ import MozInputFolder from "chrome://global/content/elements/moz-input-folder.mj
 /** @import { Setting } from "chrome://global/content/preferences/Setting.mjs" */
 
 /**
- * @typedef {Object} SettingNestedConfig
+ * @typedef {object} SettingNestedConfig
  * @property {SettingControlConfig[]} [items] Additional nested SettingControls to render.
  * @property {SettingOptionConfig[]} [options]
  * Additional nested plain elements to render (may have SettingControls nested within them, though).
  */
 
 /**
- * @typedef {Object} SettingOptionConfigExtensions
+ * @typedef {object} SettingOptionConfigExtensions
  * @property {string} [control]
  * The element tag to render, default assumed based on parent control.
  * @property {any} [value] A value to set on the option.
  */
 
 /**
- * @typedef {Object} SettingControlConfigExtensions
+ * @typedef {object} SettingControlConfigExtensions
  * @property {string} id
  * The ID for the Setting, also set in the DOM unless overridden with controlAttrs.id
  * @property {string} [control] The element to render, default to "moz-checkbox".
@@ -106,8 +106,9 @@ export class SettingControl extends SettingElement {
     config: { type: Object },
     value: {},
     parentDisabled: { type: Boolean },
-    showEnableExtensionMessage: { type: Boolean },
     tabIndex: { type: Number, reflect: true },
+    showEnableExtensionMessage: { type: Boolean, state: true },
+    isDisablingExtension: { type: Boolean, state: true },
   };
 
   /**
@@ -144,6 +145,11 @@ export class SettingControl extends SettingElement {
      * @type {boolean}
      */
     this.showEnableExtensionMessage = false;
+
+    /**
+     * @type {boolean}
+     */
+    this.isDisablingExtension = false;
   }
 
   createRenderRoot() {
@@ -301,8 +307,10 @@ export class SettingControl extends SettingElement {
   }
 
   async disableExtension() {
-    await this.setting.disableControllingExtension();
+    this.isDisablingExtension = true;
     this.showEnableExtensionMessage = true;
+    await this.setting.disableControllingExtension();
+    this.isDisablingExtension = false;
   }
 
   isControlledByExtension() {
@@ -325,7 +333,7 @@ export class SettingControl extends SettingElement {
       event.preventDefault();
       // @ts-ignore
       let mainWindow = window.browsingContext.topChromeWindow;
-      mainWindow.BrowserAddonUI.openAddonsMgr("addons://list/theme");
+      mainWindow.BrowserAddonUI.openAddonsMgr("addons://list/extension");
     }
   }
 
@@ -434,6 +442,7 @@ export class SettingControl extends SettingElement {
         <moz-button
           slot="actions"
           @click=${this.disableExtension}
+          ?disabled=${this.isDisablingExtension}
           data-l10n-id="disable-extension"
         ></moz-button>
       </moz-message-bar>`;

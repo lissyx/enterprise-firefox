@@ -299,19 +299,14 @@ class TrustPanel {
 
   #updateUrlbarIcon() {
     let icon = document.getElementById("trust-icon-container");
-    let secureConnection = this.#isSecurePage();
-    icon.className = "";
+    icon.className = this.#isSecurePage() ? "secure" : "insecure";
 
     if (this.#isURILoadedFromFile) {
       icon.classList.add("file");
-    } else if (!this.#trackingProtectionEnabled) {
+    }
+
+    if (!this.#trackingProtectionEnabled) {
       icon.classList.add("inactive");
-    } else if (secureConnection && this.#trackingProtectionEnabled) {
-      icon.classList.add("secure");
-    } else if (!secureConnection || !this.#trackingProtectionEnabled) {
-      icon.classList.add("insecure");
-    } else {
-      icon.classList.add("warning");
     }
 
     icon.classList.toggle("chickletShown", this.#isSecureInternalUI);
@@ -1323,7 +1318,7 @@ class TrustPanel {
   /**
    * Sends a message to webcompat extension to unblock content and remove placeholders
    *
-   * @param {String} shimId - the id of the shim blocking the content
+   * @param {string} shimId - the id of the shim blocking the content
    */
   #sendUnblockMessageToSmartblock(shimId) {
     Services.obs.notifyObservers(
@@ -1336,7 +1331,7 @@ class TrustPanel {
   /**
    * Sends a message to webcompat extension to reblock content
    *
-   * @param {String} shimId - the id of the shim blocking the content
+   * @param {string} shimId - the id of the shim blocking the content
    */
   #sendReblockMessageToSmartblock(shimId) {
     Services.obs.notifyObservers(
