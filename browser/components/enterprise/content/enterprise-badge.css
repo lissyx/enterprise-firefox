@@ -2,6 +2,22 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+:root {
+  --badge-border-color: rgba(21, 20, 26, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --badge-border-color: rgba(251, 251, 254, 0.4);
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --badge-border-color: CanvasText;
+  }
+}
+
 .enterprise-badge {
   --button-background-color: #fff;
 
@@ -12,8 +28,8 @@
   flex-shrink: 0;
 
   border-radius: var(--border-radius-small);
-  border: 1px solid var(--border-color-card);
-  background: var(--button-background-color);
+  border: 1px solid var(--badge-border-color);
+  background: var(--background-color-box);
 
   &:hover {
     background: var(--button-background-color-hover);
