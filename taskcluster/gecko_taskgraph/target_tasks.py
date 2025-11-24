@@ -452,9 +452,35 @@ def target_tasks_mozilla_central(full_task_graph, parameters, graph_config):
 
 @register_target_task("enterprise_firefox_tasks")
 def target_tasks_enterprise_firefox(full_task_graph, parameters, graph_config):
-    """In addition to doing the filtering by project that the 'default'
-    filter does, also remove any tests running against regular (aka not shippable,
-    asan, etc.) opt builds."""
+    """
+    Filter to run Enterprise-specific builds, i.e., those allowed to run from
+    GitHub repos and that matches the "enterprise-firefox" project.
+    """
+    filtered_for_enterprise = target_tasks_enterprise_firefox_with_tests(
+        full_task_graph, parameters, graph_config
+    )
+
+    def filter(task):
+        if task.kind in TEST_KINDS or task.kind == "enterprise-test":
+            return False
+
+        return True
+
+    return [l for l in filtered_for_enterprise if filter(full_task_graph[l])]
+
+
+@register_target_task("enterprise_firefox_with_tests_tasks")
+def target_tasks_enterprise_firefox_with_tests(
+    full_task_graph, parameters, graph_config
+):
+    """
+    Filter to run Enterprise-specific builds, i.e., those allowed to run from
+    GitHub repos and that matches the "enterprise-firefox" project.
+    Also run enterprise-specific selenium-based tests of the kind
+    "enterprise-test" until those are migrated to marionette and classic test
+    suites.
+    """
+
     filtered_for_project = target_tasks_default(
         full_task_graph, parameters, graph_config
     )
@@ -464,7 +490,7 @@ def target_tasks_enterprise_firefox(full_task_graph, parameters, graph_config):
         if task.kind == "build" and "all" in task.attributes.get("run_on_projects"):
             return False
 
-        if task.kind not in TEST_KINDS:
+        if task.kind == "enterprise-test":
             return True
 
         build_platform = task.attributes.get("build_platform")

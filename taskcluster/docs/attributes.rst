@@ -582,3 +582,11 @@ dxc-crash-symbols
 =================
 
 Indicates that the job produces crash symbols for `dxcompiler.dll`.
+
+enterprise_test_file
+====================
+Helper to define the python file to use for the execution of Enteprise selenium-based tests.
+
+enterprise_test_slug
+====================
+Helper to define the treeherder symbol for that test, for Enteprise selenium-based tests.
