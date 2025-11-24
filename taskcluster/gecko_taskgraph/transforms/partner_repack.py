@@ -105,7 +105,9 @@ def add_command_arguments(config, tasks):
 
     for task in tasks:
         # add the MOZHARNESS_OPTIONS, eg version=61.0, build-number=1, platform=win64
-        if not task["attributes"]["build_platform"].endswith("-shippable"):
+        if not config.kind.startswith("enterprise-repack") and not task["attributes"][
+            "build_platform"
+        ].endswith("-shippable"):
             raise Exception(
                 "Unexpected partner repack platform: {}".format(
                     task["attributes"]["build_platform"],
@@ -133,7 +135,13 @@ def add_command_arguments(config, tasks):
                 [
                     f"<{dep}>"
                     for dep in task["dependencies"]
-                    if ("signing" in dep or "notarization" in dep)
+                    if (
+                        (
+                            not config.kind.startswith("enterprise-repack")
+                            and ("signing" in dep or "notarization" in dep)
+                        )
+                        or (config.kind.startswith("enterprise-repack"))
+                    )
                 ]
             )
         }

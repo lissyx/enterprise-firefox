@@ -71,6 +71,9 @@ graph_config_schema = Schema(
             Required("release-eme-free-repack"): optionally_keyed_by(
                 "release-product", "release-level", "release-type", Any(str, None)
             ),
+            Required("enterprise-repack"): optionally_keyed_by(
+                "release-product", "release-level", "release-type", Any(str, None)
+            ),
         },
         Required("workers"): {
             Required("aliases"): {
