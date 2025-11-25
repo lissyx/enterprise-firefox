@@ -505,6 +505,17 @@ export const PREFS_CONFIG = new Map([
       value_local_dev: false,
     },
   ],
+  ...(!AppConstants.MOZ_ENTERPRISE
+    ? [
+        [
+          "telemetry.structuredIngestion.endpoint",
+          {
+            title: "Structured Ingestion telemetry server endpoint",
+            value: "https://incoming.telemetry.mozilla.org/submit",
+          },
+        ],
+      ]
+    : []),
   [
     "telemetry.privatePing.enabled",
     {
