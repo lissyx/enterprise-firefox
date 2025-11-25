@@ -1608,11 +1608,7 @@ export var TelemetrySendImpl = {
       ? AppConstants.MOZ_TELEMETRY_REPORTING
       : Services.telemetry.isOfficialTelemetry;
 
-    if (
-      !checkPassed &&
-      !this._testMode &&
-      !this._overrideOfficialCheck
-    ) {
+    if (!checkPassed && !this._testMode && !this._overrideOfficialCheck) {
       return false;
     }
 
