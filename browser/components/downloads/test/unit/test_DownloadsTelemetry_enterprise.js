@@ -19,7 +19,7 @@ let DownloadsTelemetryEnterprise;
 if (AppConstants.MOZ_ENTERPRISE) {
   try {
     ({ DownloadsTelemetryEnterprise } = ChromeUtils.importESModule(
-      "resource:///browser/components/downloads/DownloadsTelemetry.enterprise.sys.mjs"
+      "moz-src:///browser/components/downloads/DownloadsTelemetry.enterprise.sys.mjs"
     ));
   } catch (ex) {
     // Enterprise module not available, skip these tests
@@ -140,71 +140,104 @@ add_task(async function test_default_policy_behavior() {
 });
 
 /**
- * Test end-to-end recording with mocked Glean.
+ * Test that enterprise telemetry records and parses download data correctly.
  */
-add_task(async function test_enterprise_recording_with_glean() {
+add_task(async function test_enterprise_data_parsing() {
   if (!DownloadsTelemetryEnterprise) {
     info("Skipping enterprise-specific tests (not MOZ_ENTERPRISE build)");
     return;
   }
 
-  // Mock Glean object
-  const recordedEvents = [];
-  const mockGlean = {
-    downloads: {
-      downloadCompleted: {
-        record: data => {
-          recordedEvents.push(data);
-        },
-      },
+  // Record a download with complete data
+  const mockDownload = {
+    target: {
+      path: "/home/user/Downloads/document.pdf",
+      size: 12345,
     },
+    source: {
+      url: "https://example.com/secure/document.pdf?token=abc123",
+      isPrivate: false,
+    },
+    contentType: "application/pdf",
   };
 
-  // Temporarily replace global Glean
-  const originalGlean = globalThis.Glean;
-  globalThis.Glean = mockGlean;
+  // Disable ping submission to prevent clearing telemetry data before we can inspect it
+  Services.prefs.setBoolPref(
+    "browser.download.enterprise.telemetry.testing.disableSubmit",
+    true
+  );
 
   try {
-    const mockDownload = {
-      target: {
-        path: "/home/user/Downloads/document.pdf",
-        size: 12345,
-      },
-      source: {
-        url: "https://example.com/secure/document.pdf?token=abc123",
-        isPrivate: false,
-      },
-      contentType: "application/pdf",
-    };
-
     DownloadsTelemetryEnterprise.recordFileDownloaded(mockDownload);
 
-    Assert.equal(recordedEvents.length, 1, "Should record exactly one event");
+    // Verify the telemetry was recorded correctly
+    // Note: downloadCompleted events are sent to the "enterprise" ping
+    const events = Glean.downloads.downloadCompleted.testGetValue("enterprise");
+  Assert.ok(events, "Should have recorded events");
+  Assert.equal(events.length, 1, "Should record exactly one event");
 
-    const event = recordedEvents[0];
-    Assert.equal(
-      event.filename,
-      "document.pdf",
-      "Should extract correct filename"
-    );
-    Assert.equal(event.extension, "pdf", "Should extract correct extension");
-    Assert.equal(
-      event.mime_type,
-      "application/pdf",
-      "Should preserve MIME type"
-    );
-    Assert.equal(event.size_bytes, 12345, "Should record correct file size");
-    Assert.equal(
-      event.source_url,
-      "https://example.com/secure/document.pdf?token=abc123",
-      "Should record full URL by default"
-    );
-    Assert.equal(
-      event.is_private,
-      false,
-      "Should record private browsing status"
-    );
+  const event = events[0];
+  Assert.ok(event.extra, "Event should have extra data");
+
+  // Verify all fields are parsed correctly
+  Assert.equal(
+    event.extra.filename,
+    "document.pdf",
+    "Should extract correct filename"
+  );
+  Assert.equal(
+    event.extra.extension,
+    "pdf",
+    "Should extract correct extension"
+  );
+  Assert.equal(
+    event.extra.mime_type,
+    "application/pdf",
+    "Should preserve MIME type"
+  );
+  Assert.equal(
+    event.extra.size_bytes,
+    "12345",
+    "Should record correct file size"
+  );
+  Assert.equal(
+    event.extra.source_url,
+    "https://example.com/secure/document.pdf?token=abc123",
+    "Should record full URL by default"
+  );
+  Assert.equal(
+    event.extra.is_private,
+    "false",
+    "Should record private browsing status"
+  );
+
+    // Test with edge cases - they should be handled gracefully
+    Services.fog.testResetFOG();
+
+    const edgeCases = [
+      { target: {}, source: {}, contentType: "" },
+      { target: { path: "" }, source: { url: "" } },
+      {
+        target: { path: "/test.pdf", size: 0 },
+        source: { url: "invalid-url", isPrivate: true },
+      },
+    ];
+
+    for (const testCase of edgeCases) {
+      try {
+        DownloadsTelemetryEnterprise.recordFileDownloaded(testCase);
+        Assert.ok(
+          true,
+          "recordFileDownloaded handles edge cases without throwing"
+        );
+      } catch (e) {
+        Assert.ok(false, `recordFileDownloaded threw with edge case: ${e}`);
+      }
+    }
   } finally {
-    globalThis.Glean = originalGlean;
+    // Clear the testing pref
+    Services.prefs.clearUserPref(
+      "browser.download.enterprise.telemetry.testing.disableSubmit"
+    );
   }
 });

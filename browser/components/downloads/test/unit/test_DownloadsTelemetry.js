@@ -6,7 +6,7 @@
  */
 
 const { DownloadsTelemetry } = ChromeUtils.importESModule(
-  "resource:///browser/components/downloads/DownloadsTelemetry.sys.mjs"
+  "moz-src:///browser/components/downloads/DownloadsTelemetry.sys.mjs"
 );
 
 /**
@@ -34,9 +34,12 @@ add_task(async function test_recordFileDownloaded_basic() {
   };
 
   // Should not throw when called
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded(mockDownload);
-  }, "recordFileDownloaded should not throw with valid input");
+    Assert.ok(true, "recordFileDownloaded should not throw with valid input");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw: ${e}` );
+  }
 });
 
 /**
@@ -44,26 +47,38 @@ add_task(async function test_recordFileDownloaded_basic() {
  */
 add_task(async function test_recordFileDownloaded_edge_cases() {
   // Test with null/undefined
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded(null);
-  }, "recordFileDownloaded should handle null input");
+    Assert.ok(true, "recordFileDownloaded should handle null input");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with null: ${e}`);
+  }
 
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded(undefined);
-  }, "recordFileDownloaded should handle undefined input");
+    Assert.ok(true, "recordFileDownloaded should handle undefined input");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with undefined: ${e}`);
+  }
 
   // Test with empty object
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded({});
-  }, "recordFileDownloaded should handle empty object");
+    Assert.ok(true, "recordFileDownloaded should handle empty object");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with empty object: ${e}`);
+  }
 
   // Test with minimal download object
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded({
       target: {},
       source: {},
     });
-  }, "recordFileDownloaded should handle minimal object");
+    Assert.ok(true, "recordFileDownloaded should handle minimal object");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with minimal object: ${e}`);
+  }
 });
 
 /**
@@ -86,9 +101,12 @@ add_task(async function test_url_processing_policies() {
   };
 
   // The shim implementation should handle all policy configurations gracefully
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded(mockDownload);
-  }, "recordFileDownloaded should handle downloads with URLs");
+    Assert.ok(true, "recordFileDownloaded should handle downloads with URLs");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with URL: ${e}`);
+  }
 
   // Test with invalid URL
   const mockDownloadInvalidUrl = {
@@ -98,7 +116,10 @@ add_task(async function test_url_processing_policies() {
     },
   };
 
-  Assert.doesNotThrow(() => {
+  try {
     DownloadsTelemetry.recordFileDownloaded(mockDownloadInvalidUrl);
-  }, "recordFileDownloaded should handle invalid URLs");
+    Assert.ok(true, "recordFileDownloaded should handle invalid URLs");
+  } catch (e) {
+    Assert.ok(false, `recordFileDownloaded threw with invalid URL: ${e}`);
+  }
 });
