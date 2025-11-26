@@ -187,7 +187,17 @@ EnterprisePoliciesManager.prototype = {
     );
 
     // Make a deep copy that will be trimmed later
-    const previousPolicies = structuredClone(this._parsedPolicies || {});
+    let previousPolicies = null;
+    try {
+      previousPolicies = structuredClone(this._parsedPolicies || {});
+    } catch (ex) {
+      // DataCloneError: URL object could not be cloned.
+      if (ex.name === "DataCloneError") {
+        previousPolicies = JSON.parse(JSON.stringify(this._parsedPolicies));
+      } else {
+        throw ex;
+      }
+    }
 
     this._parsedPolicies = {};
 
@@ -462,9 +472,7 @@ EnterprisePoliciesManager.prototype = {
     }
   },
 
-  disallowFeature(feature, neededOnContentProcess = false) {
-    DisallowedFeatures[feature] = neededOnContentProcess;
-
+  messageDisallowedFeatures(neededOnContentProcess = false) {
     // NOTE: For optimization purposes, only features marked as needed
     // on content process will be passed onto the child processes.
     if (neededOnContentProcess) {
@@ -475,6 +483,16 @@ EnterprisePoliciesManager.prototype = {
         )
       );
     }
+  },
+
+  disallowFeature(feature, neededOnContentProcess = false) {
+    DisallowedFeatures[feature] = neededOnContentProcess;
+    this.messageDisallowedFeatures(neededOnContentProcess);
+  },
+
+  allowFeature(feature, neededOnContentProcess = false) {
+    delete DisallowedFeatures[feature];
+    this.messageDisallowedFeatures(neededOnContentProcess);
   },
 
   // ------------------------------
