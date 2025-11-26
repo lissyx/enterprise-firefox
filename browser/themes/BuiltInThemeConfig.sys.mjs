@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
+
 /**
  * A Map of themes built in to the browser. Params for the objects contained
  * within the map:
@@ -47,3 +49,10 @@ export const BuiltInThemeConfig = new Map([
     },
   ],
 ]);
+
+if (AppConstants.MOZ_ENTERPRISE) {
+  BuiltInThemeConfig.set("firefox-enterprise@mozilla.org", {
+    version: "1.0.0",
+    path: "resource://builtin-themes/enterprise/",
+  });
+}

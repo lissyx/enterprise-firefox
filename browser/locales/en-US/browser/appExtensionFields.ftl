@@ -16,3 +16,6 @@ extension-firefox-compact-dark-description=A theme with a dark color scheme.
 
 extension-firefox-alpenglow-name=Firefox Alpenglow
 extension-firefox-alpenglow-description=Use a colorful appearance for buttons, menus, and windows.
+
+extension-firefox-enterprise-name=Enterprise
+extension-firefox-enterprise-description=Firefox Enterprise
