@@ -139,6 +139,7 @@ CO01:
         - addon-install-error-hard-blocked
         # browser/appExtensionFields.ftl
         - extension-firefox-alpenglow-name
+        - extension-firefox-enterprise-description
         # browser/browser.ftl
         - identity-custom-root
         - identity-description-custom-root2
