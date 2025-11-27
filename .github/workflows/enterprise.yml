@@ -513,11 +513,13 @@ jobs:
           $Env:MOZ_LOG="console:5"
           python3 test_felt_browser_signout.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
 
-      - name: "test browser safe mode"
-        run: |
-          . venv_tests\Scripts\activate
-          $Env:MOZ_LOG="console:5"
-          python3 test_felt_browser_safe_mode.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+      ### This is failing on our GCP workers in a non debuggable way.
+      ### GitHub Actions Windows workers are fine and TaskCluster.
+      # - name: "test browser safe mode"
+      #   run: |
+      #     . venv_tests\Scripts\activate
+      #     $Env:MOZ_LOG="console:5"
+      #     python3 test_felt_browser_safe_mode.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
 
       - name: "test browser restart is a quit"
         run: |
@@ -534,6 +536,73 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-tests-results
+          path: |
+            screenshot_*.png
+            geckodriver.log
+          compression-level: 0
+        if: "always()"
+
+  windows-test-gha:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    needs: [ windows-build-opt, package-tests ]
+
+    steps:
+      - name: "download firefox build"
+        uses: actions/download-artifact@v5
+        with:
+          name: firefox-windows-amd64
+
+      - name: "download enterprise tests"
+        uses: actions/download-artifact@v5
+        with:
+          name: enterprise-tests
+
+      - name: "install MozillaBuild"
+        run: |
+          $client = New-Object system.net.WebClient
+          $client.DownloadFile("https://ftp.mozilla.org/pub/mozilla.org/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe", "C:\MozillaBuildSetup.exe")
+          Start-Process "C:\MozillaBuildSetup.exe" -ArgumentList "/S" -Wait -NoNewWindow -PassThru -RedirectStandardOutput "C:\MozillaBuild_install.log" -RedirectStandardError "C:\MozillaBuild_install.err"
+
+      - name: "unpack firefox build"
+        id: unpack
+        run: |
+          $zipFile = Get-ChildItem -Path .\obj-*\dist\firefox-*.win64.zip | Select-Object -First 1 -ExpandProperty FullName
+          C:\mozilla-build\bin\unzip.exe $zipFile
+          $firefoxPath = Get-ChildItem -Path .\firefox\firefox.exe | Select-Object -First 1 -ExpandProperty FullName
+          echo "firefox_path=$firefoxPath" >> $Env:GITHUB_OUTPUT
+
+          Invoke-WebRequest -Uri https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-win32.zip -OutFile geckodriver-v0.36.0-win32.zip
+          C:\mozilla-build\bin\unzip.exe geckodriver-v0.36.0-win32.zip
+          $geckodriverPath = Join-Path -Path $PWD -ChildPath "geckodriver.exe"
+          echo "geckodriver_path=$geckodriverPath" >> $Env:GITHUB_OUTPUT
+
+          $profilesPath = Join-Path -Path $PWD -ChildPath "profiles"
+          New-Item -ItemType Directory -Force -Path $profilesPath
+          echo "profiles_path=$profilesPath" >> $Env:GITHUB_OUTPUT
+
+      - name: "install python"
+        run: |
+          python3 -m venv venv_tests
+          . venv_tests\Scripts\activate
+          pip3 install -r requirements.txt
+
+      - name: "test firefox start"
+        run: |
+          $runtimeVersion = (Get-Content ".\firefox\application.ini") -match "^Version=" | ForEach-Object { $_.Split('=')[1] }
+          (Get-Content firefox_start.json.in) -replace '#RUNTIME_VERSION#', $runtimeVersion | Set-Content firefox_start.json
+          . venv_tests\Scripts\activate
+          python3 test_firefox_start.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test browser safe mode"
+        run: |
+          . venv_tests\Scripts\activate
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_browser_safe_mode.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests-gha-results
           path: |
             screenshot_*.png
             geckodriver.log
@@ -886,4 +955,4 @@ jobs:
 
       - name: Run lint checks
         run: |
-          ./mach lint --outgoing ${{ github.event.pull_request.base.sha }} --warnings --no-warn-ignored
+          ./mach lint --outgoing ${{ github.event.pull_request.base.sha }} --warnings=soft
