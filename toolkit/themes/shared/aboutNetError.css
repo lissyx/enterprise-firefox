@@ -43,8 +43,32 @@ body.certerror .title {
 }
 
 body.blocked .title {
-  background-image: url("chrome://global/skin/icons/close-fill.svg");
+  background-image: none;
+  position: relative;
+}
+
+body.blocked .title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.6em;
+  height: 1.6em;
+  /* The icon SVG has a 16×16 viewBox with a 15px diameter circle (7.5px radius).
+     The white circle radius matches the icon: 7.5 / 16 = 0.46875 = 46.875%.
+     Icon layer must be first to render on top of the white background. */
+  background: url("chrome://global/skin/icons/close-fill.svg"), radial-gradient(circle, white 46.875%, transparent 46.875%);
+  background-size: 100%, 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  -moz-context-properties: fill;
   fill: var(--blocked-color);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.75));
+}
+
+body.blocked .title:dir(rtl)::before {
+  left: auto;
+  right: 0;
 }
 
 body.clockSkewError .title {
