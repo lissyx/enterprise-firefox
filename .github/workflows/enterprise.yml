@@ -250,6 +250,11 @@ jobs:
           . venv_tests/bin/activate
           MOZ_LOG=console:5 python3 test_felt_browser_signout.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
 
+      - name: "test browser safe mode"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_safe_mode.py ${{ steps.unpack.outputs.runtime_path }} $PWD/geckodriver $PWD/profiles/
+
       - name: "test browser restart is a quit"
         run: |
           . venv_tests/bin/activate
@@ -507,6 +512,12 @@ jobs:
           . venv_tests\Scripts\activate
           $Env:MOZ_LOG="console:5"
           python3 test_felt_browser_signout.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
+
+      - name: "test browser safe mode"
+        run: |
+          . venv_tests\Scripts\activate
+          $Env:MOZ_LOG="console:5"
+          python3 test_felt_browser_safe_mode.py "${{ steps.unpack.outputs.firefox_path }}" "${{ steps.unpack.outputs.geckodriver_path }}" "${{ steps.unpack.outputs.profiles_path }}"
 
       - name: "test browser restart is a quit"
         run: |
@@ -821,6 +832,11 @@ jobs:
           . venv_tests/bin/activate
           MOZ_LOG=console:5 python3 test_felt_browser_signout.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
 
+      - name: "test browser safe mode"
+        run: |
+          . venv_tests/bin/activate
+          MOZ_LOG=console:5 python3 test_felt_browser_safe_mode.py "${{ steps.attach.outputs.runtime_path }}" $PWD/geckodriver $PWD/profiles/
+
       - name: "test browser restart is a quit"
         run: |
           . venv_tests/bin/activate
@@ -870,4 +886,4 @@ jobs:
 
       - name: Run lint checks
         run: |
-          ./mach lint --outgoing ${{ github.event.pull_request.base.sha }} --warnings
+          ./mach lint --outgoing ${{ github.event.pull_request.base.sha }} --warnings --no-warn-ignored
