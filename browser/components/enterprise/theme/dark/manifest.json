@@ -8,7 +8,8 @@
     },
     "properties": {
       "additional_backgrounds_alignment": ["right top"],
-      "additional_backgrounds_tiling": ["no-repeat"]
+      "additional_backgrounds_tiling": ["no-repeat"],
+      "color_scheme": "dark"
     },
     "colors": {
       "toolbar": "rgb(3, 51, 86)",
