@@ -296,6 +296,16 @@ export class FeltProcessParent extends JSProcessActorParent {
       ];
     }
 
+    let startupCache = Cc["@mozilla.org/startupcacheinfo;1"].getService(
+      Ci.nsIStartupCacheInfo
+    );
+
+    // If we rebuilt the startup cache then have the new profile purge its
+    // caches too.
+    if (startupCache.IgnoreDiskCache || !startupCache.FoundDiskCacheOnInit) {
+      extraRunArgs.push("-purgecaches");
+    }
+
     const prefsJsFile = PathUtils.join(profilePath, "prefs.js");
     let prefsJsContent = "";
     if (await IOUtils.exists(prefsJsFile)) {
