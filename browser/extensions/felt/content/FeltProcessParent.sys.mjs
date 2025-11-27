@@ -304,6 +304,7 @@ export class FeltProcessParent extends JSProcessActorParent {
     // caches too.
     if (startupCache.IgnoreDiskCache || !startupCache.FoundDiskCacheOnInit) {
       extraRunArgs.push("-purgecaches");
+    }
 
     if (Services.felt.isFeltSafeMode()) {
       extraRunArgs.push("--safe-mode");
