@@ -296,6 +296,15 @@ export class FeltProcessParent extends JSProcessActorParent {
       ];
     }
 
+    let startupCache = Cc["@mozilla.org/startupcacheinfo;1"].getService(
+      Ci.nsIStartupCacheInfo
+    );
+
+    // If we rebuilt the startup cache then have the new profile purge its
+    // caches too.
+    if (startupCache.IgnoreDiskCache || !startupCache.FoundDiskCacheOnInit) {
+      extraRunArgs.push("-purgecaches");
+
     if (Services.felt.isFeltSafeMode()) {
       extraRunArgs.push("--safe-mode");
     }
