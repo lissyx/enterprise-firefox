@@ -81,6 +81,9 @@ export const EnterpriseHandler = {
         }
         win.openTrustedLinkIn(LEARN_MORE_URL, where);
         e.preventDefault();
+
+        const panel = document.getElementById("panelUI-enterprise").closest("panel")
+        win.PanelMultiView.hidePopup(panel)
       })
     }
 
