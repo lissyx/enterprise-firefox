@@ -86,7 +86,7 @@ linux64-enterprise/opt:
         tooltool-downloads: public
     run-on-projects: ["enterprise-firefox"]
     run-on-repo-type: ["git"]
-    use-sccache: true
+    use-sccache: false
     use-python: "3.11"
     fetches:
         toolchain:
@@ -480,7 +480,7 @@ linux64-enterprise/debug:
         tooltool-downloads: public
     run-on-projects: ["enterprise-firefox"]
     run-on-repo-type: ["git"]
-    use-sccache: true
+    use-sccache: false
     use-python: "3.11"
     fetches:
         toolchain:
