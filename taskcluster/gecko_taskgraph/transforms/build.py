@@ -204,7 +204,12 @@ def enable_full_crashsymbols(config, jobs):
     """Enable full crashsymbols on jobs with
     'enable-full-crashsymbols' set to True and on release branches, or
     on try"""
-    branches = RELEASE_PROJECTS | {"toolchains", "try", "try-comm-central", "enterprise-firefox"}
+    branches = RELEASE_PROJECTS | {
+        "toolchains",
+        "try",
+        "try-comm-central",
+        "enterprise-firefox",
+    }
     for job in jobs:
         enable_full_crashsymbols = job["attributes"].get("enable-full-crashsymbols")
         if enable_full_crashsymbols and config.params["project"] in branches:
@@ -299,4 +304,20 @@ def add_signing_artifacts(config, jobs):
             for entry in job.get("worker", {}).get("artifacts", []):
                 if entry.get("path", "").startswith("checkouts/gecko/security"):
                     entry["path"] = "/builds/worker/" + entry["path"]
+        yield job
+
+
+@transforms.add
+def add_enterprise_secret_scopes(config, jobs):
+    """Enterprise builds re-use some secrets from the Gecko trust domain."""
+    level = config.params["level"]
+    for job in jobs:
+        if "enterprise" in job["name"]:
+            job.setdefault("scopes", []).extend(
+                [
+                    f"secrets:get:project/releng/gecko/build/level-{level}/gls-gapi.data",
+                    f"secrets:get:project/releng/gecko/build/level-{level}/sb-gapi.data",
+                    f"secrets:get:project/releng/gecko/build/level-{level}/mozilla-desktop-geoloc-api.key",
+                ]
+            )
         yield job
