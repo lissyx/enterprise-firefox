@@ -453,6 +453,7 @@
 #include "nsXPCOMCID.h"
 #include "nsXULAppAPI.h"
 #include "nsXULCommandDispatcher.h"
+#include "nsXULElement.h"
 #include "nsXULPopupManager.h"
 #include "nsXULPrototypeDocument.h"
 #include "prthread.h"
@@ -7514,8 +7515,7 @@ static inline void AssertNoStaleServoDataIn(nsINode& aSubtreeRoot) {
 }
 
 already_AddRefed<PresShell> Document::CreatePresShell(
-    nsPresContext* aContext, nsViewManager* aViewManager,
-    nsSubDocumentFrame* aEmbedderFrame) {
+    nsPresContext* aContext, nsSubDocumentFrame* aEmbedderFrame) {
   MOZ_DIAGNOSTIC_ASSERT(!mPresShell, "We have a presshell already!");
 
   NS_ENSURE_FALSE(GetBFCacheEntry(), nullptr);
@@ -7536,7 +7536,7 @@ already_AddRefed<PresShell> Document::CreatePresShell(
     FillStyleSet();
   }
 
-  presShell->Init(aContext, aViewManager);
+  presShell->Init(aContext);
   if (RefPtr<class HighlightRegistry> highlightRegistry = mHighlightRegistry) {
     highlightRegistry->AddHighlightSelectionsToFrameSelection();
   }
