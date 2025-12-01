@@ -341,7 +341,7 @@ tasks:
     - $if: 'tasks_for in ["github-push"]'
       then:
           $let:
-              trustDomain: gecko
+              trustDomain: enterprise
               level: 1
               ownerEmail: '${event.pusher.email}'
               baseRepoUrl: '${event.repository.html_url}'

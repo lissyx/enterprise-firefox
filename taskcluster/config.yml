@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ---
-trust-domain: gecko
+trust-domain: enterprise
 project-repo-param-prefix: ''
 product-dir: 'browser'
 treeherder:
@@ -814,12 +814,12 @@ workers:
             os: windows
             worker-type: '{alias}'
         win10-64-2009:
-            provisioner: 'gecko-t'
+            provisioner: '{trust-domain}-t'
             implementation: generic-worker
             os: windows
             worker-type: '{alias}'
         win10-64-2009(-gpu|-source):
-            provisioner: 'gecko-t'
+            provisioner: '{trust-domain}-t'
             implementation: generic-worker
             os: windows
             worker-type: '{alias}'
@@ -829,12 +829,12 @@ workers:
             os: windows
             worker-type: '{alias}'
         win11-64-24h2(|-gpu|-source|-large|-webgpu):
-            provisioner: 'gecko-t'
+            provisioner: '{trust-domain}-t'
             implementation: generic-worker
             os: windows
             worker-type: '{alias}'
         win11-a64-24h2:
-            provisioner: 'gecko-t'
+            provisioner: '{trust-domain}-t'
             implementation: generic-worker
             os: windows
             worker-type: '{alias}'

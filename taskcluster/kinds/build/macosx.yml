@@ -90,7 +90,7 @@ macosx64-enterprise/debug:
         mozconfig-variant: debug-enterprise
     run-on-projects: ["enterprise-firefox"]
     run-on-repo-type: ["git"]
-    use-sccache: true
+    use-sccache: false
     use-python: "3.11"
     fetches:
         toolchain:
@@ -221,7 +221,7 @@ macosx64-enterprise/opt:
             - builds/releng_base_mac_64_cross_builds.py
     run-on-projects: ["enterprise-firefox"]
     run-on-repo-type: ["git"]
-    use-sccache: true
+    use-sccache: false
     use-python: "3.11"
     fetches:
         toolchain:
