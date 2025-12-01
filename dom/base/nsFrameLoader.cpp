@@ -118,7 +118,6 @@
 #include "nsSubDocumentFrame.h"
 #include "nsThreadUtils.h"
 #include "nsUnicharUtils.h"
-#include "nsViewManager.h"
 #include "nsXPCOMPrivate.h"  // for XUL_DLL
 #include "nsXULPopupManager.h"
 #include "prenv.h"
@@ -984,7 +983,6 @@ bool nsFrameLoader::Show(nsSubDocumentFrame* aFrame) {
       }
     }
     aFrame->EnsureEmbeddingPresShell(presShell);
-    MOZ_DIAGNOSTIC_ASSERT(presShell->GetViewManager()->GetRootView());
   }
 
   RefPtr<nsDocShell> baseWindow = GetDocShell();
