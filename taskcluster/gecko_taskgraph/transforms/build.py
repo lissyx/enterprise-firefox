@@ -321,4 +321,12 @@ def add_enterprise_secret_scopes(config, jobs):
                     f"secrets:get:project/releng/gecko/build/level-{level}/mozilla-desktop-geoloc-api.key",
                 ]
             )
+
+        if "enterprise" in job["name"] and "symbol-upload" in job["name"]:
+            job.setdefault("scopes", []).extend(
+                [
+                    f"secrets:get:project/releng/gecko/build/level-{level}/gecko-symbol-upload",
+                ]
+            )
+
         yield job
