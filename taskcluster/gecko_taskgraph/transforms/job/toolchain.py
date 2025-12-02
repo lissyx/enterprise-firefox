@@ -201,7 +201,7 @@ def common_toolchain(config, job, taskdesc, is_docker):
                 "Toolchain {} used for local developement must not have"
                 " run-on-projects set".format(taskdesc["label"])
             )
-        taskdesc["run-on-projects"] = ["integration", "release"]
+        taskdesc["run-on-projects"] = ["integration", "release", "enterprise-firefox"]
 
     script = run.pop("script")
     arguments = run.pop("arguments", [])
