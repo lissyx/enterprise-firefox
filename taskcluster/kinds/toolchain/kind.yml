@@ -15,12 +15,10 @@ transforms:
     - gecko_taskgraph.transforms.task:transforms
 
 task-defaults:
-    run-on-repo-type: [hg]
     treeherder:
         kind: build
         platform: toolchains/opt
         tier: 1
-    run-on-projects: []
     run:
         using: toolchain-script
 
