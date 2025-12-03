@@ -329,4 +329,11 @@ def add_enterprise_secret_scopes(config, jobs):
                 ]
             )
 
+        if "enterprise" in job["name"] and "sign" in job["name"]:
+            job.setdefault("scopes", []).extend(
+                [
+                    f"project:enterprise:releng:signing:cert:dep-signing",
+                ]
+            )
+
         yield job
