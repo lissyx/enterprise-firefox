@@ -73,7 +73,7 @@ async function listenFormEmailSubmission() {
   const signInBtn = document.getElementById("felt-form__sign-in-btn");
   const emailInput = document.getElementById("felt-form__email");
 
-  const lastUsedUserEmail = await lazy.FeltStorage.getLastSignedInUser();
+  const lastUsedUserEmail = lazy.FeltStorage.getLastSignedInUser();
   if (lastUsedUserEmail) {
     emailInput.value = lastUsedUserEmail;
     signInBtn.disabled = false;
