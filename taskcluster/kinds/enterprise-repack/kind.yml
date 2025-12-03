@@ -27,7 +27,7 @@ task-defaults:
     run-on-projects: ["enterprise-firefox"]
     name: ent-repack
     description: Enterprise repacks
-    worker-type: b-linux-gcp
+    worker-type: b-linux
     worker:
         docker-image:
             in-tree: "partner-repack"

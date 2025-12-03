@@ -76,11 +76,18 @@ def populate_repack_manifests_url(config, tasks):
             )
 
         if task["worker"]["env"]["REPACK_MANIFESTS_URL"].startswith("git@"):
-            task.setdefault("scopes", []).append(
-                "secrets:get:project/releng/gecko/build/level-{level}/partner-github-ssh".format(
-                    **config.params
+            if "enterprise" in task["name"]:
+                task.setdefault("scopes", []).append(
+                    "secrets:get:project/enterprise/level-{level}/partner-github-ssh".format(
+                        **config.params
+                    )
                 )
-            )
+            else:
+                task.setdefault("scopes", []).append(
+                    "secrets:get:project/releng/gecko/build/level-{level}/partner-github-ssh".format(
+                        **config.params
+                    )
+                )
 
         yield task
 
