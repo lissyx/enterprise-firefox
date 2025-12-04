@@ -518,11 +518,11 @@ partner-urls:
             default: null
             firefox-enterprise:
                 by-release-type:
-                    default: 'git@github.com:mozilla/enterprise-manifests.git'
+                    default: 'https://github.com/mozilla/enterprise-manifests.git'
                     beta|release.*:
                         by-release-level:
-                            production: 'git@github.com:mozilla/enterprise-manifests.git'
-                            staging: 'git@github.com:mozilla/enterprise-manifests.git'
+                            production: 'https://github.com/mozilla/enterprise-manifests.git'
+                            staging: 'https://github.com/mozilla/enterprise-manifests.git'
 
 
 task-priority:
