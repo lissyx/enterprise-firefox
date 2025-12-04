@@ -13,21 +13,21 @@ transforms:
 kind-dependencies:
     - build
     - toolchain
+    - build-signing
+    - build-mac-signing
+    - build-mac-notarization
+    - shippable-l10n-signing
+    - shippable-l10n-mac-signing
+    - shippable-l10n-mac-notarization
 
 # Those are failing on chain of trust because of github-push:
 # scriptworker.exceptions.CoTError: 'Error while rebuilding scriptworker:parent AV-ahp-DQjm3f5-0nD5ndg task definition!\nscriptworker:parent AV-ahp-DQjm3f5-0nD5ndg: Unknown tasks_for: github-push'
-#    - build-signing
-#    - build-mac-signing
-#    - build-mac-notarization
-#    - shippable-l10n-signing
-#    - shippable-l10n-mac-signing
-#    - shippable-l10n-mac-notarization
 
 task-defaults:
-    run-on-projects: []
+    run-on-projects: ["enterprise-firefox"]
     name: ent-repack
     description: Enterprise repacks
-    worker-type: b-linux-gcp
+    worker-type: b-linux
     worker:
         docker-image:
             in-tree: "partner-repack"

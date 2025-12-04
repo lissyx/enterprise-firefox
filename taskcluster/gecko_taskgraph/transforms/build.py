@@ -321,4 +321,5 @@ def add_enterprise_secret_scopes(config, jobs):
                     f"secrets:get:project/releng/gecko/build/level-{level}/mozilla-desktop-geoloc-api.key",
                 ]
             )
+
         yield job
