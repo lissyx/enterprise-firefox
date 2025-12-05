@@ -6,20 +6,17 @@
 
 body {
   --warning-color: #ffa436;
-  --blocked-color: #d70022;
 }
 
 @media (prefers-color-scheme: dark) {
   body {
     --warning-color: #ffbd4f;
-    --blocked-color: #ff4f5e;
   }
 }
 
 @media (prefers-contrast) {
   body {
     --warning-color: var(--text-color);
-    --blocked-color: var(--text-color);
   }
 }
 
@@ -50,25 +47,20 @@ body.blocked .title {
 body.blocked .title::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 1.6em;
-  height: 1.6em;
-  /* The icon SVG has a 16×16 viewBox with a 15px diameter circle (7.5px radius).
-     The white circle radius matches the icon: 7.5 / 16 = 0.46875 = 46.875%.
-     Icon layer must be first to render on top of the white background. */
-  background: url("chrome://global/skin/icons/close-fill.svg"), radial-gradient(circle, white 46.875%, transparent 46.875%);
-  background-size: 100%, 100%;
-  background-repeat: no-repeat;
-  background-position: center;
+  left: -0.7em;
+  top: -0.7em;
+  width: 3em;
+  height: 3em;
+  background:
+    url("chrome://global/skin/icons/close-fill.svg") center / 53.33% no-repeat,
+    radial-gradient(circle, var(--button-background-color) 60%, transparent 60%);
   -moz-context-properties: fill;
-  fill: var(--blocked-color);
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.75));
+  fill: var(--text-color-error);
 }
 
 body.blocked .title:dir(rtl)::before {
   left: auto;
-  right: 0;
+  right: -0.7em;
 }
 
 body.clockSkewError .title {
