@@ -40,7 +40,6 @@ body.certerror .title {
 }
 
 body.blocked .title {
-  background-image: none;
   position: relative;
 }
 
@@ -52,7 +51,7 @@ body.blocked .title::before {
   width: 3em;
   height: 3em;
   background:
-    url("chrome://global/skin/icons/close-fill.svg") center / 53.33% no-repeat,
+    url("chrome://global/skin/icons/close-fill.svg") center / 53% no-repeat,
     radial-gradient(circle, var(--button-background-color) 60%, transparent 60%);
   -moz-context-properties: fill;
   fill: var(--text-color-error);
