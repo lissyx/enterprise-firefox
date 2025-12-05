@@ -40,7 +40,26 @@ body.certerror .title {
 }
 
 body.blocked .title {
-  background-image: url("chrome://global/skin/icons/blocked.svg");
+  position: relative;
+}
+
+body.blocked .title::before {
+  content: "";
+  position: absolute;
+  left: -0.7em;
+  top: -0.7em;
+  width: 3em;
+  height: 3em;
+  background:
+    url("chrome://global/skin/icons/close-fill.svg") center / 53% no-repeat,
+    radial-gradient(circle, var(--button-background-color) 60%, transparent 60%);
+  -moz-context-properties: fill;
+  fill: var(--text-color-error);
+}
+
+body.blocked .title:dir(rtl)::before {
+  left: auto;
+  right: -0.7em;
 }
 
 body.clockSkewError .title {
