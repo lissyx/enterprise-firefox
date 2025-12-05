@@ -47,6 +47,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   RemoteSettings: "resource://services-settings/remote-settings.sys.mjs",
   Sampling: "resource://gre/modules/components-utils/Sampling.sys.mjs",
   Screenshots: "resource://newtab/lib/Screenshots.sys.mjs",
+  Utils: "resource://services-settings/Utils.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "log", () => {
@@ -107,6 +108,7 @@ const PREF_UNIFIED_ADS_BLOCKED_LIST = "unifiedAds.blockedAds";
 const PREF_UNIFIED_ADS_ADSFEED_ENABLED = "unifiedAds.adsFeed.enabled";
 
 const PREF_SOV_ENABLED = "sov.enabled";
+const PREF_SOV_FRECENCY_EXPOSURE = "sov.frecency.exposure";
 const PREF_SOV_NAME = "sov.name";
 const PREF_SOV_AMP_ALLOCATION = "sov.amp.allocation";
 const PREF_SOV_FRECENCY_ALLOCATION = "sov.frecency.allocation";
@@ -155,6 +157,9 @@ const SPONSORED_TILE_PARTNERS = new Set([
 const DISPLAY_FAIL_REASON_OVERSOLD = "oversold";
 const DISPLAY_FAIL_REASON_DISMISSED = "dismissed";
 const DISPLAY_FAIL_REASON_UNRESOLVED = "unresolved";
+
+const RS_FALLBACK_BASE_URL =
+  "https://firefox-settings-attachments.cdn.mozilla.net/";
 
 // Smart shortcuts
 import { RankShortcutsProvider } from "resource://newtab/lib/SmartShortcutsRanker/RankShortcuts.mjs";
@@ -526,7 +531,7 @@ export class ContileIntegration {
   sovEnabled() {
     const { values } = this._topSitesFeed.store.getState().Prefs;
     const trainhopSovEnabled = values?.trainhopConfig?.sov?.enabled;
-    return trainhopSovEnabled || values[PREF_SOV_ENABLED];
+    return trainhopSovEnabled || values?.[PREF_SOV_ENABLED];
   }
 
   csvToInts(val) {
@@ -838,6 +843,8 @@ export class TopSitesFeed {
     this._telemetryUtility = new TopSitesTelemetry();
     this._contile = new ContileIntegration(this);
     this._tippyTopProvider = new TippyTopProvider();
+    this._frecencyBoostedSponsors = new Map();
+    this._frecencyBoostRS = null;
     ChromeUtils.defineLazyGetter(
       this,
       "_currentSearchHostname",
@@ -1319,6 +1326,91 @@ export class TopSitesFeed {
     return fetch(...args);
   }
 
+  get _frecencyBoostRemoteSettings() {
+    if (!this._frecencyBoostRS) {
+      this._frecencyBoostRS = lazy.RemoteSettings(
+        "newtab-frecency-boosted-sponsors"
+      );
+    }
+    return this._frecencyBoostRS;
+  }
+
+  /**
+   * Import all sponsors from Remote Settings and save their favicons.
+   * This is called lazily when frecency boosted spocs are first requested.
+   * We fetch all favicons regardless of whether the user has visited these sites.
+   */
+  async _importFrecencyBoostedSponsors() {
+    const records = await this._frecencyBoostRemoteSettings.get();
+
+    const userRegion = lazy.Region.home || "";
+    const regionRecords = records.filter(
+      record => record.region === userRegion
+    );
+
+    await Promise.all(
+      regionRecords.map(record =>
+        this._importFrecencyBoostedSponsor(record).catch(error => {
+          lazy.log.warn(
+            `Failed to import sponsor ${record.title || "unknown"}`,
+            error
+          );
+        })
+      )
+    );
+  }
+
+  /**
+   * Import a single sponsor record and fetch its favicon as data URI.
+   *
+   * @param {object} record - Remote Settings record with title, domain, redirect_url, and attachment
+   */
+  async _importFrecencyBoostedSponsor(record) {
+    const { title, domain, redirect_url, attachment } = record;
+    const faviconDataURI = await this._fetchSponsorFaviconAsDataURI(attachment);
+    const { hostname } = new URL(domain);
+
+    const sponsorData = {
+      title,
+      hostname,
+      redirectURL: redirect_url,
+      faviconDataURI,
+    };
+
+    this._frecencyBoostedSponsors.set(hostname, sponsorData);
+  }
+
+  /**
+   * Fetch favicon from Remote Settings attachment and return as data URI.
+   *
+   * @param {object} attachment - Remote Settings attachment object
+   * @returns {Promise<string|null>} Favicon data URI, or null on error
+   */
+  async _fetchSponsorFaviconAsDataURI(attachment) {
+    let baseAttachmentURL = RS_FALLBACK_BASE_URL;
+    try {
+      baseAttachmentURL = await lazy.Utils.baseAttachmentsURL();
+    } catch (error) {
+      lazy.log.warn(
+        `Error fetching remote settings base url from CDN. Falling back to ${RS_FALLBACK_BASE_URL}`,
+        error
+      );
+    }
+
+    const faviconURL = baseAttachmentURL + attachment.location;
+    const response = await fetch(faviconURL);
+
+    const blob = await response.blob();
+    const dataURI = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(reader.result));
+      reader.addEventListener("error", reject);
+      reader.readAsDataURL(blob);
+    });
+
+    return dataURI;
+  }
+
   /**
    * Dedupe sponsored domains against organic topsites.
    *
@@ -1339,15 +1431,15 @@ export class TopSitesFeed {
         .filter(Boolean)
     );
 
-    return sponsors.filter(({ domain }) => !topsites.has(domain));
+    return sponsors.filter(({ hostname }) => !topsites.has(hostname));
   }
 
   /**
    * Build frecency-boosted spocs from a list of sponsor domains by checking Places history.
-   * Checks if domains exist in history with favicons, dedupes against organic
-   * topsites, and returns all matches sorted by frecency.
+   * Checks if domains exist in history, dedupes against organic topsites,
+   * and returns all matches sorted by frecency.
    *
-   * @param {Array} sponsors - List of sponsor domain objects with domain and title
+   * @param {Array} sponsors - List of sponsor domain objects with hostname and title
    * @returns {Array} Array of sponsored tile objects sorted by frecency, or empty array
    */
   async buildFrecencyBoostedSpocs(sponsors) {
@@ -1364,7 +1456,7 @@ export class TopSitesFeed {
     let pagesMap;
     try {
       pagesMap = await lazy.PlacesUtils.history.fetchMany(
-        sponsorsToCheck.map(({ domain }) => `https://${domain}`)
+        sponsorsToCheck.map(({ hostname }) => `https://${hostname}`)
       );
     } catch (error) {
       lazy.log.warn(`Failed to fetch history data: ${error.message}`);
@@ -1373,23 +1465,33 @@ export class TopSitesFeed {
 
     const candidates = [];
     for (const domainObj of sponsorsToCheck) {
-      const url = `https://${domainObj.domain}/`;
+      const url = `https://${domainObj.hostname}/`;
       const page = pagesMap.get(url);
 
-      if (!page) {
+      if (!page || lazy.NewTabUtils.blockedLinks.isBlocked({ url })) {
         continue;
       }
 
+      const sponsorData = this._frecencyBoostedSponsors.get(domainObj.hostname);
+
       candidates.push({
-        hostname: domainObj.domain,
-        url,
+        hostname: domainObj.hostname,
+        url: domainObj.redirectURL,
         label: domainObj.title,
         sponsored_position: 3,
         partner: SPONSORED_TILE_PARTNER_FREC_BOOST,
         type: "frecency-boost",
         frecency: page.frecency,
         show_sponsored_label: true,
+        favicon: sponsorData.faviconDataURI,
+        faviconSize: 96,
       });
+    }
+
+    // If we have a matched set of candidates,
+    // we can check if it's an exposure event.
+    if (candidates.length) {
+      this.frecencyBoostedSpocsExposureEvent();
     }
 
     candidates.sort((a, b) => b.frecency - a.frecency);
@@ -1402,16 +1504,37 @@ export class TopSitesFeed {
    * @returns {Array} An array of sponsored tile objects.
    */
   async fetchFrecencyBoostedSpocs() {
-    if (!this._contile.sovEnabled() || !this._linksWithDefaults?.length) {
+    if (
+      !this._contile.sovEnabled() ||
+      !this._linksWithDefaults?.length ||
+      !this.store.getState().Prefs.values[SHOW_SPONSORED_PREF]
+    ) {
       return [];
     }
-    const domainData = {};
-    // Get domains for current region
-    const userRegion = lazy.Region.home || "";
-    const domainList = domainData[userRegion] || [];
 
-    // Find all matches from the test domains, sorted by frecency
+    if (this._frecencyBoostedSponsors.size === 0) {
+      await this._importFrecencyBoostedSponsors();
+    }
+
+    const domainList = Array.from(this._frecencyBoostedSponsors.values());
+
+    // Find all matches from the sponsor domains, sorted by frecency
     return this.buildFrecencyBoostedSpocs(domainList);
+  }
+
+  /**
+   * Flip exposure event pref,
+   * if the user is in a SOV experiment,
+   * for both control and treatment,
+   * and had frecency boosted spocs because of it.
+   */
+  frecencyBoostedSpocsExposureEvent() {
+    const { values } = this.store.getState().Prefs;
+    const trainhopSovEnabled = values?.trainhopConfig?.sov?.enabled;
+
+    if (trainhopSovEnabled) {
+      this.store.dispatch(ac.SetPref(PREF_SOV_FRECENCY_EXPOSURE, true));
+    }
   }
 
   /**
@@ -1773,7 +1896,6 @@ export class TopSitesFeed {
       sponsoredLinks[SPONSORED_TILE_PARTNER_AMP].filter(Boolean);
 
     let sponsored = [];
-    let chosenPartners = [];
 
     for (const allocation of allocatedPositions) {
       let link = null;
@@ -1801,11 +1923,6 @@ export class TopSitesFeed {
 
         if (!link) {
           // No more links to be added across all the partners, just return.
-          if (chosenPartners.length) {
-            Glean.newtab.sovAllocation.set(
-              chosenPartners.map(entry => JSON.stringify(entry))
-            );
-          }
           return sponsored;
         }
       }
@@ -1817,18 +1934,6 @@ export class TopSitesFeed {
         link.pos = allocation.position - 1;
       }
       sponsored.push(link);
-
-      chosenPartners.push({
-        pos: allocation.position,
-        assigned: assignedPartner, // The assigned partner based on SOV
-        chosen: link.partner,
-      });
-    }
-    // Record chosen partners to glean
-    if (chosenPartners.length) {
-      Glean.newtab.sovAllocation.set(
-        chosenPartners.map(entry => JSON.stringify(entry))
-      );
     }
 
     // add the remaining contile sponsoredLinks when nimbus variable present
