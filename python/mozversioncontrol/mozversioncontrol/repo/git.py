@@ -329,6 +329,8 @@ class GitRepository(Repository):
             raise MissingVCSExtension("cinnabar")
 
         with self.try_commit(message, changed_files) as head:
+            try_repo = "mozillaenterprise-github-lissyx" # "hg::ssh://hg.mozilla.org/try"
+            try_ref = "enterprise-try" # "refs/heads/branches/default/tip"
             cmd = (
                 str(self._tool),
                 "-c",
@@ -337,8 +339,8 @@ class GitRepository(Repository):
                 # is, and figures on its own, but that request takes a long time on try.
                 "cinnabar.data=never",
                 "push",
-                "hg::ssh://hg.mozilla.org/try",
-                f"+{head}:refs/heads/branches/default/tip",
+                try_repo,
+                f"+{head}:{try_ref}",
             )
             if allow_log_capture:
                 self._push_to_try_with_log_capture(

@@ -75,7 +75,7 @@ def populate_repack_manifests_url(config, tasks):
                 **{"release-level": release_level(config.params["project"])},
             )
 
-        if task["worker"]["env"]["REPACK_MANIFESTS_URL"].startswith("git@"):
+        if task["worker"]["env"]["REPACK_MANIFESTS_URL"] and task["worker"]["env"]["REPACK_MANIFESTS_URL"].startswith("git@"):
             if "enterprise" in task["name"]:
                 task.setdefault("scopes", []).append(
                     "secrets:get:project/enterprise/level-{level}/partner-github-ssh".format(
