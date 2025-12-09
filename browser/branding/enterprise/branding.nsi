@@ -4,6 +4,9 @@
 
 # NSIS branding defines for enterprise release builds.
 
+# Disable installer telemetry for enterprise builds
+!define DISABLE_INSTALLER_TELEMETRY
+
 # BrandFullNameInternal is used for some registry and file system values
 # instead of BrandFullName and typically should not be modified.
 !define BrandFullNameInternal "Firefox Enterprise"

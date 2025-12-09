@@ -327,6 +327,10 @@ Function un.OpenRefreshHelpURL
 FunctionEnd
 
 Function un.SendUninstallPing
+!ifdef DISABLE_INSTALLER_TELEMETRY
+  Return
+!endif
+
   ; Notably, we only check the non-private AUMID here. There's no good reason
   ; to send the uninstall ping twice.
   ${If} $AppUserModelID == ""
