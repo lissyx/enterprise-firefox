@@ -993,13 +993,9 @@ Function SendPing
                       $\nWindows UBR = $WindowsUBR \
                       $\nStub Installer Build ID = $StubBuildID \
                       $\nLaunched by = $R4"
+!endif
+!if defined(STUB_DEBUG) | defined(DISABLE_INSTALLER_TELEMETRY)
     ; The following will exit the installer
-    SetAutoClose true
-    StrCpy $R9 "2"
-    Call RelativeGotoPage
-!else
-!ifdef DISABLE_INSTALLER_TELEMETRY
-    ; Installer telemetry is disabled; skip sending the ping and exit
     SetAutoClose true
     StrCpy $R9 "2"
     Call RelativeGotoPage
@@ -1009,7 +1005,6 @@ Function SendPing
     ; for instructions on how to make changes to data being reported in this ping
     InetBgDL::Get "${BaseURLStubPing}/${StubURLVersion}${StubURLVersionAppend}/${Channel}/${UpdateChannel}/${AB_CD}/$R0/$R1/$5/$6/$7/$8/$9/$ExitCode/$FirefoxLaunchCode/$DownloadRetryCount/$DownloadedBytes/$DownloadSizeBytes/$IntroPhaseSeconds/$OptionsPhaseSeconds/$0/$1/$DownloadFirstTransferSeconds/$2/$3/$4/$InitialInstallRequirementsCode/$OpenedDownloadPage/$ExistingProfile/$ExistingVersion/$ExistingBuildID/$R5/$R6/$R7/$R8/$R2/$R3/$DownloadServerIP/$PostSigningData/$ProfileCleanupPromptType/$CheckboxCleanupProfile/$DistributionID/$DistributionVersion/$WindowsUBR/$StubBuildID/$R4" \
                   "$PLUGINSDIR\_temp" /END
-!endif
 !endif
   ${Else}
     ${If} "$IsDownloadFinished" == "false"
