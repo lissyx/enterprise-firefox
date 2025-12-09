@@ -483,7 +483,16 @@ def make_job_description(config, jobs):
             platform_simple = attributes.get("build_platform", "").replace(
                 "-enterprise-shippable", ""
             )
+
+            if "repack" in dep_job.label:
+                variant = f"{variant}-ent"
+
             treeherder["symbol"] = f"Rpk({platform_simple}{variant})"
+
+            if "enterprise-repack" in dep_job.label:
+                job["label"] = job["label"].replace(
+                    "repackage", "repackage-enterprise-repack"
+                )
 
         dep_th_platform = dep_job.task.get("extra", {}).get("treeherder-platform")
         treeherder.setdefault("platform", dep_th_platform)
@@ -501,9 +510,14 @@ def make_job_description(config, jobs):
             elif "shippable-l10n" in dependency:
                 # Thunderbird does not sign langpacks, so we find them in the langpack build task
                 signing_task = dependency
+            elif "enterprise-repack" in dependency:
+                signing_task = dependency
 
         if config.kind == "repackage-msi":
-            treeherder["symbol"] = "MSI({})".format(locale or "N")
+            if "enterprise-repack" in dep_job.label:
+                treeherder["symbol"] = "MSIEnt({})".format(locale or "N")
+            else:
+                treeherder["symbol"] = "MSI({})".format(locale or "N")
 
         elif config.kind == "repackage-msix":
             assert not locale
@@ -572,6 +586,9 @@ def make_job_description(config, jobs):
                 version=config.params["version"],
                 package=config.kind.split("-")[1],
             )
+
+            if "enterprise-repack" in dep_job.label:
+                attributes["repackage_type"] = f"{config.kind}-enterprise-repack"
 
         if config.kind in ("repackage-flatpak", "repackage-rpm"):
             assert not locale
@@ -643,7 +660,7 @@ def make_job_description(config, jobs):
                 "_locale": _fetch_subst_locale,
                 "architecture": architecture(build_platform),
                 "version_display": config.params["version"],
-                "mar-channel-id": attributes["mar-channel-id"],
+                "mar-channel-id": attributes.get("mar-channel-id", ""),
                 "build_number": config.params["build_number"],
                 "shipping_product": job["shipping-product"],
                 "release_type": config.params["release_type"],
@@ -791,6 +808,11 @@ def _generate_download_config(
     fetch = {}
     if existing_fetch:
         fetch.update(existing_fetch)
+
+    if "enterprise-repack" in task.label:
+        enterprise_repacks = task.attributes.get("enterprise_repacks", [])
+        # TODO: Only one repack, gcpEU for now
+        locale_path = f"{enterprise_repacks[0]}/"
 
     if repackage_signing_task and build_platform.startswith("win"):
         fetch.update(

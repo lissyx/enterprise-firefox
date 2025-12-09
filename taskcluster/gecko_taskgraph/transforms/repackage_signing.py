@@ -73,7 +73,10 @@ def make_repackage_signing_description(config, jobs):
             treeherder["symbol"] = f"rs({locale})"
 
         if config.kind == "repackage-signing-msi":
-            treeherder["symbol"] = "MSIs({})".format(locale or "N")
+            if "enterprise-repack" in dep_job.label:
+                treeherder["symbol"] = "MSIsEnt({})".format(locale or "N")
+            else:
+                treeherder["symbol"] = "MSIs({})".format(locale or "N")
 
         elif config.kind in (
             "repackage-signing-msix",
@@ -82,6 +85,11 @@ def make_repackage_signing_description(config, jobs):
             # Like "MSIXs(Bs-multi)".
             treeherder["symbol"] = "MSIXs({})".format(
                 dep_job.task.get("extra", {}).get("treeherder", {}).get("symbol", "B")
+            )
+
+        if "enterprise-repack" in dep_job.label:
+            job["label"] = job["label"].replace(
+                "repackage-signing", "repackage-signing-enterprise-repack"
             )
 
         label = job["label"]

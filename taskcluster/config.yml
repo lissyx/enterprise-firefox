@@ -198,6 +198,8 @@ treeherder:
         'TentChaos': 'Enterprise specific selenium tests (MOZ_CHAOSMODE)'
         'Ent-Rpk': 'Enterprise repacks'
         'Rpk': 'Classic repacks'
+        'MSIEnt': "MSI Enterprise repacks"
+        'MSIsEnt': "MSI signed Enterprise repacks"
 
         # The below symbols are from firefox-android (fenix/focus/android-components)
         'buildconfig': 'Make sure the content of .buildconfig.yml matches what gradle knows about its projects'

@@ -14,6 +14,7 @@ transforms:
 kind-dependencies:
     - repackage-signing
     - repackage-signing-l10n
+    - enterprise-repack
     - fetch
 
 only-for-build-platforms:
@@ -21,7 +22,7 @@ only-for-build-platforms:
     - win64-shippable/opt
     - win32-devedition/opt
     - win64-devedition/opt
-    - win64-enterprise/opt
+    - win64-enterprise-shippable/opt
 
 tasks:
     repackage-msi:
