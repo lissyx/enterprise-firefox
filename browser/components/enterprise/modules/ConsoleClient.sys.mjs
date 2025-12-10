@@ -483,13 +483,17 @@ export const ConsoleClient = {
       }
     };
 
+    const networkInterfaces = Cc["@mozilla.org/network/network-link-service;1"]
+      .getService()
+      .QueryInterface(Ci.nsINetworkLinkService).networkInterfaces;
+
     const devicePosturePayload = {
       os: lazy.TelemetryEnvironment.currentEnvironment.system.os,
       security: lazy.TelemetryEnvironment.currentEnvironment.system.sec,
       build: lazy.TelemetryEnvironment.currentEnvironment.build,
       network: {
-        // TBC
         mobileEquipmentId: await getImeiValue(),
+        interfaces: networkInterfaces,
       },
       secureBootEnabled:
         Services.sysinfo.getPropertyAsBool("secureBootEnabled"),
