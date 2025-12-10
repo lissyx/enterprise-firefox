@@ -364,7 +364,11 @@ static uint32_t gLastTouchID = 0;
 // throw it away otherwise.
 MOZ_RUNINIT static GUniquePtr<GdkEventCrossing> sStoredLeaveNotifyEvent;
 
-#define NS_WINDOW_TITLE_MAX_LENGTH 4095
+// GDK's MAX_WL_BUFFER_SIZE is 4083 (4096 minus header, string
+// argument length and NUL byte). Here truncates the string length
+// further to prevent Wayland protocol message size limit exceeded
+// errors.  See bug 2001083.
+#define NS_WINDOW_TITLE_MAX_LENGTH 2048
 
 // cursor cache
 static GdkCursor* gCursorCache[eCursorCount];
@@ -3501,8 +3505,10 @@ void nsWindow::RecomputeBounds(bool aMayChangeCsdMargin, bool aScaleChange) {
   LOG("RecomputeBounds() margin %d scale change %d", aMayChangeCsdMargin,
       aScaleChange);
 
-  mPendingBoundsChange = false;
-  mPendingBoundsChangeMayChangeCsdMargin = false;
+  if (aMayChangeCsdMargin || !mPendingBoundsChangeMayChangeCsdMargin) {
+    mPendingBoundsChange = false;
+    mPendingBoundsChangeMayChangeCsdMargin = false;
+  }
 
   auto* toplevel = GetToplevelGdkWindow();
   if (!toplevel || mIsDestroyed) {

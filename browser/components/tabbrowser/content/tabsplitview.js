@@ -39,6 +39,9 @@
     /** @type {MozTabbrowserTab[]} */
     #tabs = [];
 
+    /** @type {boolean} */
+    #activated = false;
+
     /**
      * @returns {boolean}
      */
@@ -73,6 +76,10 @@
 
       this.#observeTabChanges();
 
+      if (this.hasActiveTab) {
+        this.#activate();
+      }
+
       if (this._initialized) {
         return;
       }
@@ -89,9 +96,10 @@
       this.#tabChangeObserver?.disconnect();
       this.ownerGlobal.removeEventListener("TabSelect", this);
       this.#deactivate();
-      this.dispatchEvent(
+      this.container.dispatchEvent(
         new CustomEvent("SplitViewRemoved", {
           bubbles: true,
+          composed: true,
         })
       );
     }
@@ -140,14 +148,18 @@
      * Show all Split View tabs in the content area.
      */
     #activate() {
-      gBrowser.showSplitViewPanels(this.#tabs);
       updateUrlbarButton.arm();
+      if (this.#activated) {
+        return;
+      }
+      gBrowser.showSplitViewPanels(this.#tabs);
       this.container.dispatchEvent(
         new CustomEvent("TabSplitViewActivate", {
           detail: { tabs: this.#tabs, splitview: this },
           bubbles: true,
         })
       );
+      this.#activated = true;
     }
 
     /**
@@ -162,6 +174,7 @@
           bubbles: true,
         })
       );
+      this.#activated = false;
     }
 
     /**
@@ -197,6 +210,15 @@
      */
     unsplitTabs() {
       gBrowser.unsplitTabs(this);
+    }
+
+    /**
+     * Replace a tab in the split view with another tab
+     */
+    replaceTab(tabToReplace, newTab) {
+      this.#tabs = this.#tabs.filter(tab => tab != tabToReplace);
+      this.addTabs([newTab]);
+      gBrowser.removeTab(tabToReplace);
     }
 
     /**

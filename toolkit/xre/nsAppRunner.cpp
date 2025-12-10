@@ -316,8 +316,8 @@ extern const char gToolkitBuildID[];
 
 static nsIProfileLock* gProfileLock;
 #if defined(MOZ_HAS_REMOTE)
-MOZ_CONSTINIT static RefPtr<nsRemoteService> gRemoteService;
-MOZ_CONSTINIT static RefPtr<nsStartupLock> gStartupLock;
+constinit static RefPtr<nsRemoteService> gRemoteService;
+constinit static RefPtr<nsStartupLock> gStartupLock;
 #endif
 
 int gRestartArgc;
@@ -333,10 +333,10 @@ int gKioskMonitor = -1;
 
 bool gAllowContentAnalysisArgPresent = false;
 
-MOZ_CONSTINIT nsString gAbsoluteArgv0Path;
+constinit nsString gAbsoluteArgv0Path;
 
 #if defined(XP_WIN)
-MOZ_CONSTINIT nsString gProcessStartupShortcut;
+constinit nsString gProcessStartupShortcut;
 #endif
 
 #if defined(MOZ_WIDGET_GTK)
@@ -354,7 +354,7 @@ MOZ_CONSTINIT nsString gProcessStartupShortcut;
 #endif
 
 #if defined(MOZ_WAYLAND)
-MOZ_CONSTINIT std::unique_ptr<WaylandProxy> gWaylandProxy;
+constinit std::unique_ptr<WaylandProxy> gWaylandProxy;
 #endif
 
 #include "BinaryPath.h"
@@ -1279,8 +1279,8 @@ nsXULAppInfo::GetRemoteType(nsACString& aRemoteType) {
   return NS_OK;
 }
 
-MOZ_CONSTINIT static nsCString gLastAppVersion;
-MOZ_CONSTINIT static nsCString gLastAppBuildID;
+constinit static nsCString gLastAppVersion;
+constinit static nsCString gLastAppBuildID;
 
 NS_IMETHODIMP
 nsXULAppInfo::GetLastAppVersion(nsACString& aResult) {
@@ -3036,7 +3036,7 @@ static ReturnAbortOnError ShowProfileSelector(
 
 static bool gDoMigration = false;
 static bool gDoProfileReset = false;
-MOZ_CONSTINIT static nsCOMPtr<nsIToolkitProfile> gResetOldProfile;
+constinit static nsCOMPtr<nsIToolkitProfile> gResetOldProfile;
 
 static nsresult LockProfile(nsINativeAppSupport* aNative, nsIFile* aRootDir,
                             nsIFile* aLocalDir, nsIToolkitProfile* aProfile,

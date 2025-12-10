@@ -11,7 +11,11 @@ DIRS += [
 
 MOZ_SRC_FILES += [
     "ChatUtils.sys.mjs",
+    "Insights.sys.mjs",
+    "InsightsConstants.sys.mjs",
     "InsightsHistorySource.sys.mjs",
+    "InsightsManager.sys.mjs",
+    "InsightsSchemas.sys.mjs",
     "IntentClassifier.sys.mjs",
     "SearchBrowsingHistory.sys.mjs",
     "Tools.sys.mjs",
