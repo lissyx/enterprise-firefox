@@ -18,6 +18,7 @@ transforms = TransformSequence()
 PROVISIONING_PROFILE_FILENAMES = {
     "firefox": "orgmozillafirefox.provisionprofile",
     "devedition": "orgmozillafirefoxdeveloperedition.provisionprofile",
+    "enterprise": "orgmozillafirefoxenterprise.provisionprofile",
     "nightly": "orgmozillanightly.provisionprofile",
 }
 
@@ -90,6 +91,9 @@ def add_provisioning_profile_config(config, jobs):
             elif config.params["project"] == "mozilla-central":
                 # Nightly
                 filename = PROVISIONING_PROFILE_FILENAMES["nightly"]
+            elif config.params["project"] == "enterprise-firefox":
+                # Enterprise
+                filename = PROVISIONING_PROFILE_FILENAMES["enterprise"]
             else:
                 # Release, beta, esr and variants should all use default firefox app id
                 # For full list of projects, see RELEASE_PROJECTS in taskcluster/gecko_taskgraph/util/attributes.py
