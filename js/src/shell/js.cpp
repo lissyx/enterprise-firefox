@@ -1704,8 +1704,8 @@ class MOZ_RAII AutoLockTelemetry : public LockGuard<Mutex> {
 };
 
 using TelemetrySamples = mozilla::Vector<uint32_t, 0, js::SystemAllocPolicy>;
-MOZ_CONSTINIT static mozilla::Array<UniquePtr<TelemetrySamples>,
-                                    size_t(JSMetric::Count)>
+constinit static mozilla::Array<UniquePtr<TelemetrySamples>,
+                                size_t(JSMetric::Count)>
     recordedTelemetrySamples;
 
 static void AccumulateTelemetryDataCallback(JSMetric id, uint32_t sample) {
@@ -13319,10 +13319,13 @@ bool InitOptionParser(OptionParser& op) {
       !op.addBoolOption('\0', "enable-temporal", "Enable Temporal") ||
       !op.addBoolOption('\0', "enable-upsert", "Enable Upsert proposal") ||
       !op.addBoolOption('\0', "enable-import-bytes", "Enable import bytes") ||
+      !op.addBoolOption('\0', "enable-promise-allkeyed",
+                        "Enable Promise.allKeyed") ||
       !op.addBoolOption('\0', "enable-arraybuffer-immutable",
                         "Enable immutable ArrayBuffers") ||
       !op.addBoolOption('\0', "enable-iterator-chunking",
-                        "Enable Iterator Chunking")) {
+                        "Enable Iterator Chunking") ||
+      !op.addBoolOption('\0', "enable-iterator-join", "Enable Iterator.join")) {
     return false;
   }
 
@@ -13401,8 +13404,14 @@ bool SetGlobalOptionsPreJSInit(const OptionParser& op) {
   if (op.getBoolOption("enable-import-bytes")) {
     JS::Prefs::setAtStartup_experimental_import_bytes(true);
   }
+  if (op.getBoolOption("enable-promise-allkeyed")) {
+    JS::Prefs::setAtStartup_experimental_promise_allkeyed(true);
+  }
   if (op.getBoolOption("enable-iterator-chunking")) {
     JS::Prefs::setAtStartup_experimental_iterator_chunking(true);
+  }
+  if (op.getBoolOption("enable-iterator-join")) {
+    JS::Prefs::setAtStartup_experimental_iterator_join(true);
   }
 #endif
 #ifdef ENABLE_EXPLICIT_RESOURCE_MANAGEMENT
