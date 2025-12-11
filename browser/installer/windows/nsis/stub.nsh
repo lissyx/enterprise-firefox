@@ -993,6 +993,8 @@ Function SendPing
                       $\nWindows UBR = $WindowsUBR \
                       $\nStub Installer Build ID = $StubBuildID \
                       $\nLaunched by = $R4"
+!endif
+!if defined(STUB_DEBUG) | defined(DISABLE_INSTALLER_TELEMETRY)
     ; The following will exit the installer
     SetAutoClose true
     StrCpy $R9 "2"
