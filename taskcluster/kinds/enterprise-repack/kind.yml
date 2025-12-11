@@ -62,8 +62,8 @@ only-for-build-platforms:
 tasks:
     linux64-enterprise-shippable:
         treeherder:
-            platform: linux64/opt
-            symbol: Ent-Rpk(linux64)
+            platform: linux64-enterprise/opt
+            symbol: Rpk-Ent
         attributes:
             shippable: true
             build_platform: linux64-enterprise-shippable
@@ -71,8 +71,8 @@ tasks:
             artifact_prefix: public
     macosx64-enterprise-shippable:
         treeherder:
-            symbol: Ent-Rpk(macOS)
-            platform: osx-cross/opt
+            symbol: Rpk-Ent
+            platform: osx-cross-enterprise/opt
         attributes:
             shippable: true
             build_platform: macosx64-enterprise-shippable
@@ -80,8 +80,8 @@ tasks:
             artifact_prefix: public
     win64-enterprise-shippable:
         treeherder:
-            symbol: Ent-Rpk(win64)
-            platform: windows2012-64/opt
+            symbol: Rpk-Ent
+            platform: windows2012-64-enterprise/opt
         attributes:
             shippable: true
             build_platform: win64-enterprise-shippable

@@ -472,43 +472,67 @@ def make_job_description(config, jobs):
         treeherder = job.get("treeherder", {})
         treeherder.setdefault("symbol", "Rpk")
         if "enterprise" in attributes.get("build_platform", ""):
+            if "enterprise-repack" in dep_job.kind:
+                job["label"] = job["label"].replace(
+                    "repackage", "repackage-enterprise-repack"
+                )
+
             variant = (
                 (
-                    config.kind.replace("repackage", "").replace(
+                    config.kind.replace("repackage-", "").replace(
                         attributes.get("build_platform", ""), ""
                     )
                 )
                 if config.kind != "repackage"
                 else ""
             )
-            platform_simple = attributes.get("build_platform", "").replace(
-                "-enterprise-shippable", ""
-            )
 
-            if "repack" in dep_job.label:
-                variant = f"{variant}-ent"
+            if "enterprise-repack" in dep_job.label:
+                variant = f"{variant}-gcpEU"
+
+            family = "Rpk"
 
             repack_id = dep_job.task.get("extra").get("repack_id")
             if repack_id:
-                variant = f"-{repack_id}"
+                family = "Rpk-Ent"
+                variant = f"{repack_id}"
 
-            treeherder["symbol"] = f"Rpk({platform_simple}{variant})"
+            # Follow central behavior and have rs() on Windows
+            if "repackage-signing-win" in dep_job.label:
+                family = "rs"
 
-            if "enterprise-repack" in dep_job.kind:
-                job["label"] = job["label"].replace(
-                    "repackage", "repackage-enterprise-repack"
-                )
+            symbol = f"{family}({variant})"
+
+            # Mimic central behavior and show {BMS/BMN}-Ent() jobs with REPACK_ID
+            if ("repackage-mac" in job["label"] and "build-mac" in dep_job.label) or (
+                "repack-mac" in job["label"]
+            ):
+                bms_bmn = "BMS-Ent" if "signing" in dep_job.label else "BMN-Ent"
+                if not repack_id:
+                    symbol = bms_bmn
+
+            if "build-signing-win" in dep_job.label:
+                symbol = "Bs"
+
+            # We want Rpk Rpk-deb Rpk-REPACK_ID on Linux
+            if "linux" in job["label"]:
+                if variant:
+                    symbol = f"{family}-{variant}"
+                else:
+                    symbol = family
+
+            treeherder["symbol"] = symbol
 
         dep_th_platform = dep_job.task.get("extra", {}).get("treeherder-platform")
         # TODO: Hack because we loose the platform that was from enterprise-repack
         if not dep_th_platform and "enterprise-repack-repackage" in dep_job.kind:
             build_platform = attributes.get("build_platform")
             if "linux64" in build_platform:
-                dep_th_platform = "linux64/opt"
+                dep_th_platform = "linux64-enterprise/opt"
             elif "macosx64" in build_platform:
-                dep_th_platform = "osx-cross/opt"
+                dep_th_platform = "osx-cross-enterprise/opt"
             elif "win64" in build_platform:
-                dep_th_platform = "windows2012-64/opt"
+                dep_th_platform = "windows2012-64-enterprise/opt"
             else:
                 raise ValueError(f"Unsupported {build_platform}")
 
@@ -534,7 +558,8 @@ def make_job_description(config, jobs):
 
         if config.kind == "repackage-msi":
             if "enterprise-repack" in dep_job.label:
-                treeherder["symbol"] = "MSIEnt({})".format(locale or "N")
+                repack_id = dep_job.task.get("extra").get("repack_id")
+                treeherder["symbol"] = f"MSI-Ent({repack_id})"
             else:
                 treeherder["symbol"] = "MSI({})".format(locale or "N")
 
@@ -833,6 +858,8 @@ def _generate_download_config(
         if not enterprise_repacks:
             enterprise_repacks = [task.task.get("extra").get("repack_id")]
         # TODO: Only one repack, gcpEU for now
+        # HOW TO DEAL WITH MORE???
+        assert len(enterprise_repacks) == 1
         locale_path = f"{enterprise_repacks[0]}/"
 
     if repackage_signing_task and build_platform.startswith("win"):

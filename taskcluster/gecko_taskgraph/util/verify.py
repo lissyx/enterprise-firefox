@@ -178,6 +178,151 @@ def verify_task_graph_symbol(task, taskgraph, scratch_pad, graph_config, paramet
 
 
 @verifications.add("full_task_graph")
+def verify_task_graph_symbol_enterprise(
+    task, taskgraph, scratch_pad, graph_config, parameters
+):
+    """
+    This function verifies that treeherder data is sane for Enterprise.
+    """
+
+    def task_matcher_exception_generator(
+        description,
+        task_label,
+        label_contains,
+        group_symbol=None,
+        expected_group=None,
+        symbol=None,
+        expected_symbol=None,
+    ):
+        if expected_group and group_symbol:
+            if label_contains in task_label and not expected_group in group_symbol:
+                raise Exception(
+                    f"Enterprise {description} job `{task_label}` should have enterprise groupSymbol `{expected_group}`: {group_symbol}"
+                )
+        elif expected_symbol and symbol:
+            if label_contains in task_label and not expected_symbol in symbol:
+                raise Exception(
+                    f"Enterprise {description} job `{task_label}` should have enterprise symbol `{expected_symbol}`: {symbol}"
+                )
+        else:
+            raise Exception(
+                f"Enterprise {description} job verify with nothing `{task_label}`: group_symbol={group_symbol} expected_group={expected_group} symbol={symbol} expected_symbol={expected_symbol}"
+            )
+
+    if task is None:
+        return
+    task_dict = task.task
+    if "extra" in task_dict:
+        extra = task_dict["extra"]
+        if "treeherder" in extra:
+            treeherder = extra["treeherder"]
+            platform = treeherder.get("machine", {}).get("platform")
+            group_symbol = treeherder.get("groupSymbol")
+            symbol = treeherder.get("symbol")
+
+            if "enterprise" in task.label:
+                if not "enterprise" in platform:
+                    raise Exception(
+                        f"Enterprise job `{task.label}` should have enterprise platform: {platform}"
+                    )
+
+                if "win64" in task.label:
+                    if "-msi-" in task.label:
+                        task_matcher_exception_generator(
+                            "repacks MSI",
+                            task.label,
+                            "repackage-enterprise-repack-msi",
+                            group_symbol=group_symbol,
+                            expected_group="MSI-Ent",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks MSI",
+                            task.label,
+                            "repackage-enterprise-repack-msi",
+                            symbol=symbol,
+                            expected_symbol="sample/gcpEU/en-US",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks MSI signed",
+                            task.label,
+                            "repackage-signing-enterprise-repack-msi",
+                            group_symbol=group_symbol,
+                            expected_group="MSIs-Ent",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks MSI signed",
+                            task.label,
+                            "repackage-signing-enterprise-repack-msi",
+                            symbol=symbol,
+                            expected_symbol="sample/gcpEU/en-US",
+                        )
+
+                if "macosx64" in task.label:
+                    if "enterprise-repack-mac-" in task.label:
+                        task_matcher_exception_generator(
+                            "repacks mac signing",
+                            task.label,
+                            "enterprise-repack-mac-signing",
+                            group_symbol=group_symbol,
+                            expected_group="BMS-Ent",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks mac signing",
+                            task.label,
+                            "enterprise-repack-mac-signing",
+                            symbol=symbol,
+                            expected_symbol="sample/gcpEU/en-US",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks mac notarization",
+                            task.label,
+                            "enterprise-repack-mac-notarization",
+                            group_symbol=group_symbol,
+                            expected_group="BMN-Ent",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks mac notarization",
+                            task.label,
+                            "enterprise-repack-mac-notarization",
+                            symbol=symbol,
+                            expected_symbol="sample/gcpEU/en-US",
+                        )
+
+                    if "build-mac-" in task.label:
+                        task_matcher_exception_generator(
+                            "builds mac signing",
+                            task.label,
+                            "build-mac-signing",
+                            symbol=symbol,
+                            expected_symbol="BMS",
+                        )
+                        task_matcher_exception_generator(
+                            "builds mac notarization",
+                            task.label,
+                            "build-mac-notarization",
+                            symbol=symbol,
+                            expected_symbol="BMN",
+                        )
+
+                if "linux64" in task.label:
+                    if "-deb-" in task.label:
+                        task_matcher_exception_generator(
+                            "deb package",
+                            task.label,
+                            "repackage-deb",
+                            symbol=symbol,
+                            expected_symbol="Rpk-deb",
+                        )
+                        task_matcher_exception_generator(
+                            "repacks deb package",
+                            task.label,
+                            "repackage-enterprise-repack-deb",
+                            symbol=symbol,
+                            expected_symbol="Rpk-deb-gcpEU",
+                        )
+
+
+@verifications.add("full_task_graph")
 def verify_trust_domain_v2_routes(
     task, taskgraph, scratch_pad, graph_config, parameters
 ):

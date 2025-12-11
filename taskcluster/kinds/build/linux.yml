@@ -63,7 +63,7 @@ linux64-enterprise-shippable/opt:
     shipping-phase: build
     shipping-product: firefox
     treeherder:
-        platform: linux64/opt
+        platform: linux64-enterprise/opt
         symbol: Bent
         tier: 1
     worker-type: b-linux-docker-xlarge-amd
@@ -456,7 +456,7 @@ linux64-enterprise/debug:
     attributes:
         enable-full-crashsymbols: true
     treeherder:
-        platform: linux64/debug
+        platform: linux64-enterprise/debug
         symbol: Bent
     worker-type: b-linux-docker-xlarge-amd
     worker:
