@@ -243,21 +243,24 @@ def make_job_description(config, jobs):
                 .replace("shippable", "")
             )
             if "linux64" in platform:
-                th_platform = "linux64/opt"
+                th_platform = "linux64-enterprise/opt"
             elif "macosx64" in platform:
-                th_platform = "osx-cross/opt"
+                th_platform = "osx-cross-enterprise/opt"
             elif "win64" in platform:
-                th_platform = "windows2012-64/opt"
+                th_platform = "windows2012-64-enterprise/opt"
             else:
                 raise ValueError(f"Unsupported {platform}")
 
             repack_id = task["extra"]["repack_id"]
             task["extra"]["treeherder"] = {
-                "platform": th_platform,
+                "machine": {
+                    "platform": th_platform,
+                },
                 "tier": 1,
-                "kind": "build",
+                "kind": "other",
                 "collection": {"opt": True},
-                "symbol": f"Ent-Rpk({platform}-{repack_id})",
+                "symbol": f"{repack_id}",
+                "groupSymbol": "Rpk-Ent",
             }
 
         # we may have reduced the priority for partner jobs, otherwise task.py will set it

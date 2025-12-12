@@ -75,7 +75,7 @@ macosx64-enterprise/debug:
         enable-build-signing: true
         enable-full-crashsymbols: true
     treeherder:
-        platform: osx-cross/debug
+        platform: osx-cross-enterprise/debug
         symbol: Bent
         tier: 1
     worker-type: b-linux-docker-xlarge-amd
@@ -216,7 +216,7 @@ macosx64-enterprise-shippable/opt:
     shipping-phase: build
     shipping-product: firefox
     treeherder:
-        platform: osx-cross/opt
+        platform: osx-cross-enterprise/opt
         symbol: Bent
         tier: 1
     worker-type: b-linux-docker-xlarge-amd

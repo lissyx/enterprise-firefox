@@ -138,12 +138,21 @@ def make_task_description(config, jobs):
                 "tier",
                 dep_job.task.get("extra", {}).get("treeherder", {}).get("tier", 1),
             )
-            treeherder.setdefault(
-                "symbol",
-                _generate_treeherder_symbol(
+
+            th_symbol = None
+            if "enterprise-repack-mac" in config.kind:
+                # TODO: Only one repack, gcpEU for now
+                # HOW TO DEAL WITH MORE???
+                repack_ids = job.get("extra").get("repack_ids")
+                assert len(repack_ids) == 1
+                th_group = "BMS-Ent" if "signing" in config.kind else "BMN-Ent"
+                th_symbol = f"{th_group}({repack_ids[0]})"
+            else:
+                th_symbol = _generate_treeherder_symbol(
                     dep_job.task.get("extra", {}).get("treeherder", {}).get("symbol")
-                ),
-            )
+                )
+
+            treeherder.setdefault("symbol", th_symbol)
             treeherder.setdefault("kind", "build")
 
         label = job["label"]
