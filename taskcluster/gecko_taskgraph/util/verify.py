@@ -346,6 +346,55 @@ def verify_trust_domain_v2_routes(
 
 
 @verifications.add("full_task_graph")
+def verify_trust_domain_v2_routes_enterprise(
+    task, taskgraph, scratch_pad, graph_config, parameters
+):
+    """
+    This function ensures that enterprise specific shippable tasks have stable routes
+    """
+
+    def has_one_route_with(what):
+        found_one_route_with = False
+        for route in routes:
+            if what in route:
+                found_one_route_with = True
+        if not found_one_route_with:
+            raise Exception(
+                f"The following task is missing a route with `{what}`: {task.label} -- {routes}"
+            )
+
+    if not task or not "enterprise" in task.label or task.label.endswith("/debug"):
+        return
+
+    route_prefix = "index.{}.v2".format(graph_config["trust-domain"])
+    task_dict = task.task
+    routes = task_dict.get("routes", [])
+
+    # if "signing" in task.label:
+    #    has_one_route_with(".signed.")
+
+    for route in routes:
+        if not "tc-treeherder" in route and not route.startswith(route_prefix):
+            raise Exception(
+                f"The following task has a route with invalid index `{task.label}`: {route}"
+            )
+
+    if (
+        task.label.startswith("upload")
+        or task.label.startswith("enterprise-test")
+        or task.label.startswith("build-signing")
+        or task.label.startswith("build-mac-signing")
+        or task.label.startswith("enterprise-repack-mac-signing")
+        # or task.label.startswith("repackage-signing")
+        or task.label.startswith("repackage-msi")
+        or task.label.startswith("repackage-enterprise-repack-msi")
+    ):
+        return
+
+    has_one_route_with(".shippable-packages.latest.")
+
+
+@verifications.add("full_task_graph")
 def verify_routes_notification_filters(
     task, taskgraph, scratch_pad, graph_config, parameters
 ):
