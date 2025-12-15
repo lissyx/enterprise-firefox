@@ -29,7 +29,7 @@ export const EnterpriseHandler = {
    *    - Gets user information from the console and customizes the enterprise badge
    *    - Sets up Sync
    *    - Hides fxa toolbar button and app menu item (hamburger menu)
-   * 
+   *
    * @param {Window} window chrome window
    */
   async init(window) {
@@ -40,11 +40,11 @@ export const EnterpriseHandler = {
   },
 
   /**
-   * Check if the FxA state is initialised yet. 
-   *    - If the state is still undefined, listen for a state update 
-   *      and set up once the state update occurs. 
+   * Check if the FxA state is initialised yet.
+   *    - If the state is still undefined, listen for a state update
+   *      and set up once the state update occurs.
    *    - If the state is initialized, set up sync immediately.
-   * 
+   *
    * @param {Window} window chrome window
    */
   setupSyncOnceInitialized(window) {
@@ -57,9 +57,9 @@ export const EnterpriseHandler = {
   },
 
   /**
-   * Align sync state with expected state (ENTERPRISE_SYNC_ENABLED_PREF) 
+   * Align sync state with expected state (ENTERPRISE_SYNC_ENABLED_PREF)
    * by enabling or disabling sync.
-   * 
+   *
    * @param {Window} window chrome window
    */
   setUpSync(window) {
