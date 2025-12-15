@@ -18,7 +18,7 @@ transforms:
 
 
 task-defaults:
-    run-on-repo-type: [hg]
+    run-on-repo-type: ["hg", "git"]
     treeherder:
         symbol: Bpgo(run)
         kind: build
@@ -52,6 +52,39 @@ tasks:
             command: >
                 ./taskcluster/scripts/misc/run-profileserver.sh
         run-on-projects: ['release']
+        fetches:
+            toolchain:
+                - linux64-clang
+                - linux64-minidump-stackwalk
+
+    linux64-enterprise-shippable/opt:
+        description: "Linux64 Enterprise Profile Generation"
+        shipping-phase: build
+        shipping-product: firefox
+        index:
+            product: firefox
+            job-name: linux64-profile-enterprise
+        treeherder:
+            platform: linux64-enterprise-shippable/opt
+        worker-type: b-linux
+        worker:
+            chain-of-trust: true
+            env:
+                NEED_XVFB: "true"
+                MOZ_AUTOMATION: "1"
+                MOZ_BYPASS_FELT: "1"
+            max-run-time: 1200
+            docker-image: {in-tree: ubuntu2404-test}
+            artifacts:
+                - type: directory
+                  name: public/build
+                  path: /builds/worker/artifacts/
+        run:
+            using: run-task
+            cwd: '{checkout}'
+            command: >
+                ./taskcluster/scripts/misc/run-profileserver.sh
+        run-on-projects: ["enterprise-firefox"]
         fetches:
             toolchain:
                 - linux64-clang
@@ -252,6 +285,38 @@ tasks:
                 - win64-clang-toolchain
                 - win32-minidump-stackwalk
 
+    win64-enterprise-shippable/opt:
+        description: "Win64 Enterprise Profile Generation"
+        shipping-phase: build
+        shipping-product: firefox
+        index:
+            product: firefox
+            job-name: win64-profile-enterprise
+        treeherder:
+            platform: windows2012-64-enterprise-shippable/opt
+        worker-type: b-win2022
+        worker:
+            chain-of-trust: true
+            max-run-time: 2400
+            env:
+                UPLOAD_PATH: "artifacts"
+                MOZ_AUTOMATION: "1"
+                MOZ_BYPASS_FELT: "1"
+            artifacts:
+                - type: directory
+                  name: public/build
+                  path: build/src/artifacts/
+        run:
+            using: run-task
+            sparse-profile: profile-generate
+            cwd: '{checkout}'
+            command: ./taskcluster/scripts/misc/run-profileserver.sh
+        run-on-projects: ['enterprise-firefox']
+        fetches:
+            toolchain:
+                - win64-clang-toolchain
+                - win32-minidump-stackwalk
+
     win64-aarch64-shippable/opt:
         description: "Win64 AArch64 Profile Generation"
         shipping-phase: build
@@ -367,6 +432,38 @@ tasks:
             cwd: '{checkout}'
             command: ./taskcluster/scripts/misc/run-profileserver-macos.sh
         run-on-projects: ['release']
+        fetches:
+            toolchain:
+                - macosx64-aarch64-clang
+                - macosx64-aarch64-minidump-stackwalk
+
+    macosx64-enterprise-shippable/opt:
+        description: "macosx64 Enterprise Profile Generation"
+        shipping-phase: build
+        shipping-product: firefox
+        index:
+            product: firefox
+            job-name: macosx64-aarch64-profile-enterprise
+        treeherder:
+            platform: osx-aarch64-enterprise-shippable/opt
+        worker-type: b-osx-arm64
+        worker:
+            chain-of-trust: true
+            max-run-time: 7200
+            env:
+                SHELL: "/bin/bash"
+                MOZ_AUTOMATION: "1"
+                MOZ_BYPASS_FELT: "1"
+            artifacts:
+                - type: directory
+                  name: public/build
+                  path: artifacts/
+        run:
+            using: run-task
+            sparse-profile: profile-generate
+            cwd: '{checkout}'
+            command: ./taskcluster/scripts/misc/run-profileserver-macos.sh
+        run-on-projects: ['enterprise-firefox']
         fetches:
             toolchain:
                 - macosx64-aarch64-clang
