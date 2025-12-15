@@ -106,7 +106,7 @@ export const ConsoleClient = {
       WHOAMI: "/api/browser/whoami",
       LEARN_MORE: "/downloads/firefox.html",
       SYNC_ACCOUNT: "/api/browser/account",
-      FXACCOUNTS_OAUTH: "/api/fxa/api/v1",
+      FXACCOUNTS_OAUTH: "/api/fxa/oauth/v1",
       FXACCOUNTS_PROFILE: "/api/fxa/profile/v1",
       FXACCOUNTS_AUTH: "/api/fxa/api/v1",
     };
