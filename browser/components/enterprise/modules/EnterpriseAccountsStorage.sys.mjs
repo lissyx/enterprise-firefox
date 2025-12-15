@@ -10,12 +10,9 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 ChromeUtils.defineLazyGetter(lazy, "log", () => {
-  let { ConsoleAPI } = ChromeUtils.importESModule(
-    "resource://gre/modules/Console.sys.mjs"
-  );
-  return new ConsoleAPI({
+  return console.createInstance({
     prefix: "EnterpriseAccountStorage",
-    maxLogLevel: "debug",
+    maxLogLevel: "Debug",
     maxLogLevelPref: "browser.enterprise.loglevel",
   });
 });

@@ -6,7 +6,7 @@ import { CryptoUtils } from "moz-src:///services/crypto/modules/utils.sys.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 #ifdef MOZ_ENTERPRISE
-import { EnterpriseStorageManager } from "resource://gre/modules/EnterpriseAccountsStorage.sys.mjs";
+import { EnterpriseStorageManager } from "resource:///modules/enterprise/EnterpriseAccountsStorage.sys.mjs";
 #else
 import { FxAccountsStorageManager } from "resource://gre/modules/FxAccountsStorage.sys.mjs";
 #endif
