@@ -17,10 +17,10 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 /**
- * Acts as an FxAccountsStorage implementation, exposing the same APIs needed to setup FxA and Sync.
+ * Surfaces the same APIs as FxAccountsStorage and is needed to setup FxA and Sync.
  *
- * Unlike the standard FxA/Sync storage, which is read from the profile, EnterpriseStorageManager retrieves
- * required FxA and Sync account data from the console.
+ * Unlike the standard storage, which is read from the profile, EnterpriseStorageManager requests
+ * required FxA and Sync account data from the console and stores and udpated it in memory.
  */
 export class EnterpriseStorageManager {
   #getAccountDataPromise = Promise.reject(
@@ -28,27 +28,32 @@ export class EnterpriseStorageManager {
   );
 
   /**
-   * Gets the fxaccount data from the console and caches the promise.
+   * Initialize the storage by fetching account data from the remote console.
+   * This method swaps the internal #getAccountDataPromise with the promise
+   * returned by lazy.ConsoleClient.getFxAccountData(). Callers need to call
+   * this before invoking getAccountData() or updateAccountData().
    *
-   * @param {object} _
+   * @param {object} _ - Not used. Only kept for API parity.
    */
   initialize(_) {
     // If we just throw away our pre-rejected promise it is reported as an
     // unhandled exception when it is GCd - so add an empty .catch handler here
     // to prevent this.
-
     this.#getAccountDataPromise.catch(() => {});
     this.#getAccountDataPromise = lazy.ConsoleClient.getFxAccountData();
   }
 
+  /**
+   * Does nothing. Only kept for API parity.
+   */
   finalize() {}
 
   /**
-   * Gets the account data from the enterprise user
+   * Retrieve account data (or a subset of fields) from the cached console data.
    *
    * @param {Array<string>|string} [fieldNames=null]
    *
-   * @returns {object} account data
+   * @returns {Promise<object>} Promise which resolves to the cached account data.
    */
   async getAccountData(fieldNames = null) {
     lazy.log.debug("getAccountData");
@@ -69,17 +74,30 @@ export class EnterpriseStorageManager {
     return structuredClone(data);
   }
 
+  /**
+   * Update the cached account data object and replace the cached promise with 
+   * another resolved promise containing the modified account data.
+   * 
+   * @param {object} newFields - fields that need to be updated in the cache.
+   * 
+   * @throws {Error} If no user is logged in or if caller tries to change uid.
+   * 
+   * @returns {Promise<void>} Promise resolving once the in-memory cache is updated
+   */
   async updateAccountData(newFields) {
     const data = await this.#getAccountDataPromise;
     if (!("uid" in data)) {
-      // If this storage instance shows no logged in user, then you can't
-      // update fields.
+      // If there is no logged-in user, we cannot update fields.
       throw new Error("No user is logged in");
     }
+
     if (!newFields || "uid" in newFields) {
+      // Prevent callers from changing uid.
       throw new Error("Can't change uid");
     }
+
     lazy.log.debug("_updateAccountData with items", Object.keys(newFields));
+    
     for (let [name, value] of Object.entries(newFields)) {
       if (value == null) {
         delete data[name];
@@ -87,6 +105,9 @@ export class EnterpriseStorageManager {
       } else {
         data[name] = value;
         if (name === "device") {
+          // Keep track of the latest device id in the prefs. 
+          // It's used by the ConsoleClient to communicate 
+          // the device id to the console.
           const deviceId = data[name]?.id;
           if (deviceId) {
             Services.prefs.setStringPref(
@@ -100,6 +121,10 @@ export class EnterpriseStorageManager {
     this.#getAccountDataPromise = Promise.resolve(data);
   }
 
+  /**
+   * Clear current account data. By replacing the cached promise with a 
+   * rejected one we restore the initial uninitialized behavior.
+   */
   deleteAccountData() {
     this.#getAccountDataPromise = Promise.reject(
       "EnterpriseStorageManager: Initialize not called"
