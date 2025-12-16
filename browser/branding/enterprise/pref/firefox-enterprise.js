@@ -17,3 +17,5 @@ pref("enterprise.sync.enabledByDefault", true);
 
 pref("browser.profiles.enabled", false);
 pref("extensions.activeThemeID", "firefox-enterprise-light@mozilla.org");
+
+pref("enterprise.loglevel", "Debug");

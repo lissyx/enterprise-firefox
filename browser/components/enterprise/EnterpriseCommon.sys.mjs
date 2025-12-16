@@ -10,4 +10,5 @@ export const isTesting = () => {
 
 export const EnterpriseCommon = {
   ENTERPRISE_DEVICE_ID_PREF: "enterprise.sync.device_id",
+  ENTERPRISE_LOGLEVEL_PREF: "enterprise.loglevel",
 };

@@ -12,8 +12,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 ChromeUtils.defineLazyGetter(lazy, "log", () => {
   return console.createInstance({
     prefix: "EnterpriseAccountStorage",
-    maxLogLevel: "Debug",
-    maxLogLevelPref: "browser.enterprise.loglevel",
+    maxLogLevelPref: lazy.EnterpriseCommon.ENTERPRISE_LOGLEVEL_PREF,
   });
 });
 

@@ -102,7 +102,7 @@ if __name__ == "__main__":
         profile_root=sys.argv[3],
         env_vars={"MOZ_FELT_UI": "1"},
         test_prefs=[
-            ["browser.enterprise.loglevel", "debug"],
+            ["enterprise.loglevel", "Debug"],
             ["enterprise.sync.enabledByDefault", False],
         ],
     )
