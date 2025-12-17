@@ -528,11 +528,17 @@ def make_job_description(config, jobs):
         if not dep_th_platform and "enterprise-repack-repackage" in dep_job.kind:
             build_platform = attributes.get("build_platform")
             if "linux64" in build_platform:
-                dep_th_platform = "linux64-enterprise/opt"
+                if "aarch64" in build_platform:
+                    dep_th_platform = "linux64-aarch64-enterprise/opt"
+                else:
+                    dep_th_platform = "linux64-enterprise/opt"
             elif "macosx64" in build_platform:
                 dep_th_platform = "osx-cross-enterprise/opt"
             elif "win64" in build_platform:
-                dep_th_platform = "windows2012-64-enterprise/opt"
+                if "aarch64" in build_platform:
+                    dep_th_platform = "windows2012-aarch64-enterprise/opt"
+                else:
+                    dep_th_platform = "windows2012-64-enterprise/opt"
             else:
                 raise ValueError(f"Unsupported {build_platform}")
 
@@ -566,10 +572,16 @@ def make_job_description(config, jobs):
         elif config.kind == "repackage-msix":
             assert not locale
 
-            # Like "MSIXs(Bs)".
-            treeherder["symbol"] = "MSIX({})".format(
-                dep_job.task.get("extra", {}).get("treeherder", {}).get("symbol", "B")
-            )
+            if "enterprise-repack" in dep_job.label:
+                repack_id = dep_job.task.get("extra").get("repack_id")
+                treeherder["symbol"] = f"MSIX-Ent({repack_id})"
+            else:
+                # Like "MSIXs(Bs)".
+                treeherder["symbol"] = "MSIX({})".format(
+                    dep_job.task.get("extra", {})
+                    .get("treeherder", {})
+                    .get("symbol", "B")
+                )
 
         elif config.kind == "repackage-shippable-l10n-msix":
             assert not locale
@@ -862,6 +874,7 @@ def make_job_description(config, jobs):
                 locale=locale,
                 existing_fetch=task["fetches"],
                 enterprise_repack=repack,
+                repack_label=repack_task["label"],
             )
 
             yield repack_task
@@ -876,6 +889,7 @@ def _generate_download_config(
     locale=None,
     existing_fetch=None,
     enterprise_repack=None,
+    repack_label=None
 ):
     locale_path = f"{locale}/" if locale else ""
     fetch = {}
@@ -885,11 +899,7 @@ def _generate_download_config(
     if enterprise_repack:
         locale_path = f"{enterprise_repack}/"
 
-    if repackage_signing_task and build_platform.startswith("win"):
-        fetch.update({
-            repackage_signing_task: [f"{locale_path}target.installer.exe"],
-        })
-    elif build_platform.startswith("linux") or build_platform.startswith("macosx"):
+    if build_platform.startswith("linux") or build_platform.startswith("macosx"):
         signing_fetch = [
             {
                 "artifact": f"{locale_path}target{archive_format(build_platform)}",
@@ -903,15 +913,32 @@ def _generate_download_config(
             })
         fetch.update({signing_task: signing_fetch})
     elif build_platform.startswith("win"):
-        fetch.update({
-            signing_task: [
-                {
-                    "artifact": f"{locale_path}target.zip",
-                    "extract": False,
-                },
-                f"{locale_path}setup.exe",
-            ],
-        })
+        if repackage_signing_task and build_platform.startswith("win"):
+            if "-msi-" in repack_label:
+                fetch.update({
+                    repackage_signing_task: [f"{locale_path}target.installer.exe"],
+                })
+            elif "-msix-" in repack_label:
+                fetch.update({
+                    repackage_signing_task: [
+                        {
+                            "artifact": f"{locale_path}target.zip",
+                            "extract": False,
+                        }
+                    ],
+                })
+            else:
+                raise NotImplementedError(f"Unsupported enterprise repack {task.label}")
+        else:
+            fetch.update({
+                signing_task: [
+                    {
+                        "artifact": f"{locale_path}target.zip",
+                        "extract": False,
+                    },
+                    f"{locale_path}setup.exe",
+                ],
+            })
 
         use_stub = task.attributes.get("stub-installer")
         if use_stub:

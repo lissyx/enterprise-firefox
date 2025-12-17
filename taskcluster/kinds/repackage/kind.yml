@@ -49,6 +49,7 @@ only-for-build-platforms:
     - win64-asan-reporter-shippable/opt
     - win64-enterprise/opt
     - win64-enterprise-shippable/opt
+    - win64-aarch64-enterprise-shippable/opt
 
 tasks:
     repackage:

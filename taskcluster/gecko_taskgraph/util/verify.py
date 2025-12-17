@@ -397,6 +397,29 @@ def verify_trust_domain_v2_routes_enterprise(
                 f"The following task has a route with invalid index `{task.label}`: {route}"
             )
 
+@verifications.add("full_task_graph")
+def verify_no_shippable_enterprise(
+    task, taskgraph, scratch_pad, graph_config, parameters
+):
+    """
+    This function ensures that enterprise tasks for PR (level 1) are not shippable
+    """
+
+    if not task or not "enterprise" in task.label or task.label.endswith("/debug"):
+        return
+
+    level = int(parameters["level"])
+
+    if level not in [1, 3]:
+        raise Exception(f"Unexpected level `{level}` for task `{task.label}`")
+
+    is_shippable = task.attributes.get("shippable", False)
+
+    if level == 1:
+        if is_shippable or "shippable" in task.label:
+            raise Exception(f"Unexpected shippable status for task of level `{level}` `{task.label}`: {is_shippable}")
+        
+
 
 @verifications.add("full_task_graph")
 def verify_routes_notification_filters(
