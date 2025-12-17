@@ -364,6 +364,10 @@ export class UrlbarInput extends HTMLElement {
       this.#initOnce();
     }
 
+    if (this.sapName == "searchbar") {
+      this.parentNode.setAttribute("overflows", "false");
+    }
+
     // Don't attach event listeners if the toolbar is not visible
     // in this window or the urlbar is readonly.
     if (
@@ -454,6 +458,10 @@ export class UrlbarInput extends HTMLElement {
   }
 
   #uninit() {
+    if (this.sapName == "searchbar") {
+      this.parentNode.removeAttribute("overflows");
+    }
+
     if (this._copyCutController) {
       this.inputField.controllers.removeController(this._copyCutController);
       delete this._copyCutController;
@@ -3533,6 +3541,7 @@ export class UrlbarInput extends HTMLElement {
     // Only add the suffix when the URL bar value isn't already "URL-like",
     // and only if we get a keyboard event, to match user expectations.
     if (
+      this.sapName == "searchbar" ||
       !this.#isCanonizeKeyboardEvent(event) ||
       !/^\s*[^.:\/\s]+(?:\/.*|\s*)$/i.test(value)
     ) {
@@ -3849,7 +3858,7 @@ export class UrlbarInput extends HTMLElement {
       this.inputField.setSelectionRange(0, 0);
     }
 
-    if (openUILinkWhere != "current") {
+    if (openUILinkWhere != "current" && this.sapName != "searchbar") {
       this.handleRevert();
     }
 

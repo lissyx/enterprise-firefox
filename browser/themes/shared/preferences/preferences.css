@@ -1530,6 +1530,11 @@ setting-group[groupid="home"] {
   --promo-image-position: top;
 }
 
+#addresses-list-header,
+#payments-list-header {
+  --box-label-font-weight: var(--heading-font-weight);
+}
+
 #fxaUnlinkButton[restricted-enterprise-view],
 #verifiedManage[restricted-enterprise-view],
 #connect-another-device[restricted-enterprise-view] {
