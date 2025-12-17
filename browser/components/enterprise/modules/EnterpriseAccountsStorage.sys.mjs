@@ -17,10 +17,12 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 /**
- * Surfaces the same APIs as FxAccountsStorage and is needed to setup FxA and Sync.
+ * EnterpriseStorageManager maintains and updates the FxA and Sync account data.
  *
- * Unlike the standard storage, which is read from the profile, EnterpriseStorageManager requests
- * required FxA and Sync account data from the console and stores and udpated it in memory.
+ * Its implementation is mirroring the one from FxAccountsStorage, hence it surfaces the same
+ * APIs that are necessary to sign the user into FxA and to enable Sync.
+ * Unlike FxAccountsStorage, which reads the storage data from the profile, EnterpriseStorageManager
+ * requests the required data once from the console and stores and udpates it in memory only.
  */
 export class EnterpriseStorageManager {
   #getAccountDataPromise = Promise.reject(
@@ -30,12 +32,13 @@ export class EnterpriseStorageManager {
   /**
    * Initialize the storage by fetching account data from the remote console.
    * This method swaps the internal #getAccountDataPromise with the promise
-   * returned by lazy.ConsoleClient.getFxAccountData(). Callers need to call
-   * this before invoking getAccountData() or updateAccountData().
+   * returned by lazy.ConsoleClient.getFxAccountData().
+   * Callers need to call initialize before invoking getAccountData() or updateAccountData().
    *
    * @param {object} _ - Not used. Only kept for API parity.
    */
   initialize(_) {
+    lazy.log.debug("Initializing the storage.");
     // If we just throw away our pre-rejected promise it is reported as an
     // unhandled exception when it is GCd - so add an empty .catch handler here
     // to prevent this.
@@ -56,8 +59,6 @@ export class EnterpriseStorageManager {
    * @returns {Promise<object>} Promise which resolves to the cached account data.
    */
   async getAccountData(fieldNames = null) {
-    lazy.log.debug("getAccountData");
-
     const data = await this.#getAccountDataPromise;
 
     if (fieldNames) {
