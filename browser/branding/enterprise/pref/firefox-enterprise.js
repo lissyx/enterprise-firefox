@@ -12,9 +12,6 @@ pref(
   "https://ent-dev-tokenserver.sync.nonprod.webservices.mozgcp.net/1.0/sync/1.5"
 );
 
-// Sync enabled by default.
-pref("enterprise.sync.enabledByDefault", true);
-
 pref("browser.profiles.enabled", false);
 pref("extensions.activeThemeID", "firefox-enterprise-light@mozilla.org");
 
