@@ -11,8 +11,16 @@ ChromeUtils.defineLazyGetter(lazy, "localization", () => {
 ChromeUtils.defineESModuleGetters(lazy, {
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
   ConsoleClient: "resource:///modules/enterprise/ConsoleClient.sys.mjs",
+  EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
   UIState: "resource://services-sync/UIState.sys.mjs",
   Weave: "resource://services-sync/main.sys.mjs",
+});
+
+ChromeUtils.defineLazyGetter(lazy, "log", () => {
+  return console.createInstance({
+    prefix: "EnterpriseHandler",
+    maxLogLevelPref: lazy.EnterpriseCommon.ENTERPRISE_LOGLEVEL_PREF,
+  });
 });
 
 const PROMPT_ON_SIGNOUT_PREF = "enterprise.promptOnSignout";
@@ -25,25 +33,30 @@ export const EnterpriseHandler = {
   _signedInUser: null,
 
   /**
-   * @type {Window}
+   * Whether the handler is initialized, hence we have retrieved the
+   * user information and initialized the sync state.
    */
-  _chromeWindow: null,
+  _isInitialized: false,
 
   /**
-   * Customize Firefox Enterprise on startup
-   *    - Gets user information from the console and customizes the enterprise badge
-   *    - Sets up Sync
-   *    - Hides fxa toolbar button and app menu item (hamburger menu)
+   * Handles the enterprise state for each new browser window.
+   * On first call:
+   *    - Make a request to the console to retrieve the user information of the signed in user.
+   *    - Configure sync to be enabled or disable (depending on ENTERPRISE_SYNC_ENABLED_PREF)
+   * On every call:
+   *    - Hide FxA toolbar button and FxA item in app menu (hamburger menu)
    *
    * @param {Window} window chrome window
    */
   async init(window) {
-    this._chromeWindow = window;
-
-    await this.initUser();
-    this.updateBadge();
-    this.setupSyncOnceInitialized();
-    this.restrictEnterpriseView();
+    if (!this._isInitialized) {
+      lazy.log.debug("Initializing...");
+      await this.initUser();
+      this.setupSyncOnceInitialized(window);
+    }
+    this.updateBadge(window);
+    this.restrictEnterpriseView(window);
+    this._isInitialized = true;
   },
 
   /**
@@ -51,11 +64,29 @@ export const EnterpriseHandler = {
    *    - If the state is still undefined, listen for a state update
    *      and set up once the state update occurs.
    *    - If the state is initialized, set up sync immediately.
+   *
+   * @param {Window} window chrome window
    */
-  setupSyncOnceInitialized() {
-    if (lazy.UIState.get().syncEnabled === undefined) {
-      // Sync state not initialized yet.
-      Services.obs.addObserver(this, lazy.UIState.ON_UPDATE);
+  setupSyncOnceInitialized(window) {
+    const status = lazy.UIState.get().status;
+    if (status === lazy.UIState.get().STATUS_NOT_CONFIGURED) {
+      // State not configured yet.
+      lazy.log.debug("Waiting for FxA/Sync status to be updated");
+      const syncStateObserver = (_, topic) => {
+        switch (topic) {
+          case lazy.UIState.ON_UPDATE:
+            lazy.log.debug("Sync state has been initialized");
+            this.setUpSync(window);
+            Services.obs.removeObserver(
+              syncStateObserver,
+              lazy.UIState.ON_UPDATE
+            );
+            break;
+          default:
+            break;
+        }
+      };
+      Services.obs.addObserver(syncStateObserver, lazy.UIState.ON_UPDATE);
       return;
     }
     this.setUpSync();
@@ -64,8 +95,11 @@ export const EnterpriseHandler = {
   /**
    * Align sync state with expected state (ENTERPRISE_SYNC_ENABLED_PREF)
    * by enabling or disabling sync.
+   *
+   * @param {Window} window chrome window
    */
-  setUpSync() {
+  setUpSync(window) {
+    lazy.log.debug("Handling sync state.");
     const isSyncCurrentlyEnabled = lazy.UIState.get().syncEnabled;
     const isEnableSync = Services.prefs.getBoolPref(
       ENTERPRISE_SYNC_ENABLED_PREF,
@@ -74,29 +108,21 @@ export const EnterpriseHandler = {
 
     if (isSyncCurrentlyEnabled === isEnableSync) {
       // Nothing to do
+      lazy.log.debug(
+        `Not changing sync state. It was already ${isSyncCurrentlyEnabled ? "enabled" : "disabled"}`
+      );
       return;
     }
 
     if (isEnableSync) {
-      // Connect sync
+      lazy.log.debug(`Connect sync.`);
       lazy.Weave.Service.configure();
     } else {
-      // Disconnect sync
-      this._chromeWindow.gSync.disconnect({
+      lazy.log.debug(`Disconnect sync.`);
+      window.gSync.disconnect({
         confirm: false,
         disconnectAccount: false,
       });
-    }
-  },
-
-  observe(_, topic) {
-    switch (topic) {
-      case lazy.UIState.ON_UPDATE:
-        this.setUpSync();
-        Services.obs.removeObserver(this, lazy.UIState.ON_UPDATE);
-        break;
-      default:
-        break;
     }
   },
 
@@ -114,10 +140,13 @@ export const EnterpriseHandler = {
     }
   },
 
-  updateBadge() {
-    const userIcon = this._chromeWindow.document.querySelector(
-      "#enterprise-user-icon"
-    );
+  /**
+   * Updates the user icon
+   *
+   * @param {Window} window chrome window
+   */
+  updateBadge(window) {
+    const userIcon = window.document.querySelector("#enterprise-user-icon");
 
     if (!this._signedInUser) {
       // Hide user icon from enterprise badge until we have user information
@@ -175,19 +204,18 @@ export const EnterpriseHandler = {
 
   /**
    * Hide away FxA appearances in the toolbar and the app menu (hamburger menu)
+   *
+   * @param {Window} window chrome window
    */
-  restrictEnterpriseView() {
+  restrictEnterpriseView(window) {
     // Hides fxa toolbar button
     Services.prefs.setBoolPref("identity.fxaccounts.toolbar.enabled", false);
 
     // Hides fxa item and separator in main view (hamburg menu)
-    this._chromeWindow.PanelUI.mainView.setAttribute(
-      "restricted-enterprise-view",
-      true
-    );
+    window.PanelUI.mainView.setAttribute("restricted-enterprise-view", true);
   },
 
-  async onSignOut() {
+  async onSignOut(window) {
     const shouldInformOnSignout = Services.prefs.getBoolPref(
       PROMPT_ON_SIGNOUT_PREF,
       true
@@ -213,7 +241,7 @@ export const EnterpriseHandler = {
 
     // buttonPressed will be 0 for Signout and 1 for Cancel
     const result = await Services.prompt.asyncConfirmEx(
-      this._chromeWindow.browsingContext,
+      window.browsingContext,
       Services.prompt.MODAL_TYPE_INTERNAL_WINDOW,
       title,
       message,
@@ -248,5 +276,10 @@ export const EnterpriseHandler = {
     } finally {
       Services.startup.quit(Ci.nsIAppStartup.eForceQuit);
     }
+  },
+
+  uninit() {
+    this._signedInUser = {};
+    this._isInitialized = false;
   },
 };

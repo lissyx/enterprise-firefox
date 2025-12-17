@@ -105,7 +105,7 @@ export const ConsoleClient = {
       DEVICE_POSTURE: "/sso/device_posture",
       WHOAMI: "/api/browser/whoami",
       LEARN_MORE: "/downloads/firefox.html",
-      SYNC_ACCOUNT: "/api/browser/account",
+      FXACCOUNT: "/api/browser/account",
       FXACCOUNTS_OAUTH: "/api/fxa/oauth/v1",
       FXACCOUNTS_PROFILE: "/api/fxa/profile/v1",
       FXACCOUNTS_AUTH: "/api/fxa/api/v1",
@@ -228,14 +228,14 @@ export const ConsoleClient = {
    */
   async getFxAccountData() {
     const deviceId = Services.prefs.getStringPref(
-        lazy.EnterpriseCommon.ENTERPRISE_DEVICE_ID_PREF,
+      lazy.EnterpriseCommon.ENTERPRISE_DEVICE_ID_PREF,
       ""
     );
     const body = {};
     if (deviceId !== "") {
       body.device_id = deviceId;
     }
-    const payload = await this._post(this._paths.SYNC_ACCOUNT, body);
+    const payload = await this._post(this._paths.FXACCOUNT, body);
     return payload;
   },
 
