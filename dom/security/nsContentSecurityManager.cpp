@@ -28,6 +28,10 @@
 #include "mozilla/dom/nsMixedContentBlocker.h"
 #include "mozilla/extensions/WebExtensionPolicy.h"
 #include "mozilla/glean/DomSecurityMetrics.h"
+#if defined(MOZ_ENTERPRISE)
+#include "mozilla/glean/EnterprisepoliciesMetrics.h"
+#include "mozilla/glean/GleanPings.h"
+#endif
 #include "nsAboutProtocolUtils.h"
 #include "nsArray.h"
 #include "nsCORSListenerProxy.h"
@@ -415,6 +419,24 @@ static nsresult DoCORSChecks(nsIChannel* aChannel, nsILoadInfo* aLoadInfo,
   return NS_OK;
 }
 
+#if defined(MOZ_ENTERPRISE)
+static void GetReferrerSpec(nsIChannel* aChannel, nsACString& aReferrer) {
+  nsCOMPtr<nsIHttpChannel> httpChan = do_QueryInterface(aChannel);
+  if (!httpChan) {
+    return;
+  }
+  nsCOMPtr<nsIReferrerInfo> referrer = httpChan->GetReferrerInfo();
+  if (!referrer) {
+    return;
+  }
+  nsCOMPtr<nsIURI> original = referrer->GetOriginalReferrer();
+  if (!original) {
+    return;
+  }
+  original->GetSpec(aReferrer);
+}
+#endif
+
 static nsresult DoContentSecurityChecks(nsIChannel* aChannel,
                                         nsILoadInfo* aLoadInfo) {
   ExtContentPolicyType contentPolicyType =
@@ -537,6 +559,23 @@ static nsresult DoContentSecurityChecks(nsIChannel* aChannel,
         return NS_ERROR_CONTENT_BLOCKED_SHOW_ALT;
       }
       if (shouldLoad == nsIContentPolicy::REJECT_POLICY) {
+#if defined(MOZ_ENTERPRISE)
+        nsCString uriSpec;
+        uri->GetSpec(uriSpec);
+        nsCString referrerSpec;
+        GetReferrerSpec(aChannel, referrerSpec);
+        glean::content_policy::BlocklistDomainBrowsedExtra extra = {
+            .url = Some(uriSpec),
+            .referrer = Some(referrerSpec),
+        };
+        glean::content_policy::blocklist_domain_browsed.Record(Some(extra));
+        bool disableEnterprisePingForTesting = Preferences::GetBool(
+            "browser.download.enterprise.telemetry.testing.disableSubmit");
+        if (!disableEnterprisePingForTesting) {
+          glean_pings::Enterprise.Submit();
+        }
+#endif
+
         return NS_ERROR_BLOCKED_BY_POLICY;
       }
       if (shouldLoad == nsIContentPolicy::REJECT_RESTARTFORCED) {

@@ -34,4 +34,8 @@ content_policy:
         description: >
           The blocked url that was browsed.
         type: string
+      referrer:
+        description: >
+          The referrer address from which the url was requested, if any.
+        type: string
 #endif

@@ -181,6 +181,7 @@ export let WebsiteFilter = {
   /* eslint-disable */
 #ifdef MOZ_ENTERPRISE
   _recordBlocklistDomainBrowsed(url) {
+    console.warn(`[WebsiteFilter] LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME`);
     const isEnabled = Services.prefs.getBoolPref(
       "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.enabled",
       true
@@ -194,7 +195,14 @@ export let WebsiteFilter = {
       Glean.contentPolicy.blocklistDomainBrowsed.record({
         url: processedUrl,
       });
+      if (
+        !Services.prefs.getBoolPref(
+          "browser.download.enterprise.telemetry.testing.disableSubmit",
+          false
+        )
+      ) {
       GleanPings.enterprise.submit();
+      }
     } catch (ex) {
       // Silently fail - telemetry errors should not break website filtering
       console.error(
