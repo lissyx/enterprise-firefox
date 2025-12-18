@@ -91,7 +91,6 @@ async function checkBlockedPage(url, expectedBlocked, { referrerURL } = {}) {
 
     if (expectedBlocked) {
       let promise = BrowserTestUtils.waitForErrorPage(browser);
-      let stoppedPromise = BrowserTestUtils.browserStopped(browser);
       if (referrerURL) {
         await SpecialPowers.spawn(browser, [url], async targetURL => {
           let a = content.document.createElement("a");
@@ -103,7 +102,6 @@ async function checkBlockedPage(url, expectedBlocked, { referrerURL } = {}) {
         BrowserTestUtils.startLoadingURIString(browser, url);
       }
       await promise;
-      await stoppedPromise;
       is(
         browser.documentURI.spec.startsWith("about:neterror?e=blockedByPolicy"),
         true,
