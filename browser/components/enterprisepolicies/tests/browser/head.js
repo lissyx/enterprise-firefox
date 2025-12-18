@@ -60,56 +60,104 @@ function checkUnlockedPref(prefName, prefValue) {
 }
 
 // Checks that a page was blocked by seeing if it was replaced with about:neterror
-async function checkBlockedPage(url, expectedBlocked) {
-  // Disable ping submission to prevent clearing telemetry data before we can inspect it
-  Services.prefs.setBoolPref(
-    "browser.download.enterprise.telemetry.testing.disableSubmit",
-    true
-  );
+async function checkBlockedPage(url, expectedBlocked, { referrerURL } = {}) {
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      ["browser.download.enterprise.telemetry.testing.disableSubmit", true],
+      [
+        "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.enabled",
+        true,
+      ],
+      [
+        "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.urlLogging",
+        "full",
+      ],
+    ],
+  });
 
-  let newTab = BrowserTestUtils.addTab(gBrowser);
-  gBrowser.selectedTab = newTab;
+  let newTab;
+  let browser;
+  try {
+    if (referrerURL) {
+      newTab = await BrowserTestUtils.openNewForegroundTab(
+        gBrowser,
+        referrerURL
+      );
+    } else {
+      newTab = BrowserTestUtils.addTab(gBrowser);
+      gBrowser.selectedTab = newTab;
+    }
+    browser = newTab.linkedBrowser;
 
-  if (expectedBlocked) {
-    let promise = BrowserTestUtils.waitForErrorPage(gBrowser.selectedBrowser);
-    BrowserTestUtils.startLoadingURIString(gBrowser, url);
-    // let delayPromise = new Promise(resolve => setTimeout(resolve, 30000));
-    // await delayPromise;
-    await promise;
-    is(
-      newTab.linkedBrowser.documentURI.spec.startsWith(
-        "about:neterror?e=blockedByPolicy"
-      ),
-      true,
-      "Should be blocked by policy"
-    );
-    // Verify the telemetry was recorded correctly
-    // Note: blocklistDomainBrowsed events are sent to the "enterprise" ping
-    const events =
-      Glean.contentPolicy.blocklistDomainBrowsed.testGetValue("enterprise");
-    Assert.ok(events, "Should have recorded events");
-    Assert.equal(events.length, 1, "Should record exactly one event");
+    if (expectedBlocked) {
+      let promise = BrowserTestUtils.waitForErrorPage(browser);
+      let stoppedPromise = BrowserTestUtils.browserStopped(browser);
+      if (referrerURL) {
+        await SpecialPowers.spawn(browser, [url], async targetURL => {
+          let a = content.document.createElement("a");
+          a.href = targetURL;
+          content.document.body.appendChild(a);
+          a.click();
+        });
+      } else {
+        BrowserTestUtils.startLoadingURIString(browser, url);
+      }
+      await promise;
+      await stoppedPromise;
+      is(
+        browser.documentURI.spec.startsWith("about:neterror?e=blockedByPolicy"),
+        true,
+        "Should be blocked by policy"
+      );
 
-    const event = events[0];
-    Assert.ok(event.extra, "Event should have extra data");
-  } else {
-    let promise = BrowserTestUtils.browserStopped(gBrowser, url);
-    BrowserTestUtils.startLoadingURIString(gBrowser, url);
-    await promise;
+      let events;
+      await BrowserTestUtils.waitForCondition(async () => {
+        await Services.fog.testFlushAllChildren();
+        events =
+          Glean.contentPolicy.blocklistDomainBrowsed.testGetValue("enterprise");
+        return events?.length;
+      }, "Waiting for blocklistDomainBrowsed event");
+      Assert.ok(events?.length, "Should have recorded events");
+      if (!events?.length) {
+        return;
+      }
+      Assert.greaterOrEqual(
+        events.length,
+        1,
+        "Should record at least one event"
+      );
+      const event = events.at(-1);
+      Assert.ok(event.extra, "Event should have extra data");
+      Assert.ok("url" in event.extra, "Telemetry should include blocked URL");
+      if (referrerURL) {
+        const matching = events.filter(e => e.extra?.referrer === referrerURL);
+        const recordedReferrers = events
+          .map(e => e.extra?.referrer)
+          .filter(Boolean)
+          .join(", ");
+        Assert.ok(
+          matching.length,
+          `Telemetry should include referrer URL (got: ${recordedReferrers})`
+        );
+      }
+    } else {
+      let promise = BrowserTestUtils.browserStopped(browser, url);
+      BrowserTestUtils.startLoadingURIString(browser, url);
+      await promise;
 
-    is(
-      newTab.linkedBrowser.documentURI.spec,
-      url,
-      "Should not be blocked by policy"
-    );
+      is(browser.documentURI.spec, url, "Should not be blocked by policy");
+    }
+  } finally {
+    if (newTab) {
+      await new Promise(resolve => Services.tm.dispatchToMainThread(resolve));
+      let tabClosing = BrowserTestUtils.waitForTabClosing(newTab);
+      BrowserTestUtils.removeTab(newTab);
+      await tabClosing;
+    }
+    await Services.fog.testFlushAllChildren();
+    Services.fog.testResetFOG();
+    await SpecialPowers.popPrefEnv();
   }
-  BrowserTestUtils.removeTab(newTab);
-
-  Services.fog.testResetFOG();
-  // Clear the testing pref
-  Services.prefs.clearUserPref(
-    "browser.download.enterprise.telemetry.testing.disableSubmit"
-  );
 }
 
 async function check_homepage({

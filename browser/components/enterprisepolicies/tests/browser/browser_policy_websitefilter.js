@@ -20,7 +20,6 @@ async function clearWebsiteFilter() {
 }
 
 add_task(async function test_http() {
-  return;
   await setupPolicyEngineWithJson({
     policies: {
       WebsiteFilter: {
@@ -30,20 +29,23 @@ add_task(async function test_http() {
     },
   });
 
-  // await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true);
-  // await checkBlockedPage(
-  //   "view-source:" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(
-  //   "about:reader?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(
-  //   "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(SUPPORT_FILES_PATH + EXCEPTION_PAGE, false);
+  await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true);
+  await checkBlockedPage(
+    "view-source:" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(
+    "about:reader?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(
+    "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(SUPPORT_FILES_PATH + EXCEPTION_PAGE, false);
+  await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true, {
+    referrerURL: SUPPORT_FILES_PATH + EXCEPTION_PAGE,
+  });
 
   await checkBlockedPage(SUPPORT_FILES_PATH + "301.sjs", true);
 
@@ -52,7 +54,6 @@ add_task(async function test_http() {
 });
 
 add_task(async function test_http_mixed_case() {
-  return;
   await setupPolicyEngineWithJson({
     policies: {
       WebsiteFilter: {
@@ -71,7 +72,6 @@ add_task(async function test_http_mixed_case() {
 });
 
 add_task(async function test_file() {
-  return;
   await setupPolicyEngineWithJson({
     policies: {
       WebsiteFilter: {
@@ -85,7 +85,6 @@ add_task(async function test_file() {
 });
 
 add_task(async function test_savelink() {
-  return;
   await setupPolicyEngineWithJson({
     policies: {
       WebsiteFilter: {
@@ -168,23 +167,23 @@ add_task(async function test_http_json_policy() {
     },
   });
 
-  // await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true);
-  // await checkBlockedPage(
-  //   "view-source:" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(
-  //   "about:reader?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(
-  //   "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
-  //   true
-  // );
-  // await checkBlockedPage(SUPPORT_FILES_PATH + EXCEPTION_PAGE, false);
+  await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true);
+  await checkBlockedPage(
+    "view-source:" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(
+    "about:reader?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(
+    "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE,
+    true
+  );
+  await checkBlockedPage(SUPPORT_FILES_PATH + EXCEPTION_PAGE, false);
 
   await checkBlockedPage(SUPPORT_FILES_PATH + "301.sjs", true);
 
-  // await checkBlockedPage(SUPPORT_FILES_PATH + "302.sjs", true);
+  await checkBlockedPage(SUPPORT_FILES_PATH + "302.sjs", true);
   await clearWebsiteFilter();
 });

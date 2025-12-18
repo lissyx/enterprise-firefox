@@ -124,9 +124,6 @@ export let WebsiteFilter = {
       contentType == Ci.nsIContentPolicy.TYPE_SUBDOCUMENT
     ) {
       if (!this.isAllowed(url)) {
-#ifdef MOZ_ENTERPRISE
-        this._recordBlocklistDomainBrowsed(url);
-#endif
         return Ci.nsIContentPolicy.REJECT_POLICY;
       }
     }
@@ -152,6 +149,19 @@ export let WebsiteFilter = {
         url = URL.parse(location, channel.URI.spec);
       }
       if (url && !this.isAllowed(url.href)) {
+#ifdef MOZ_ENTERPRISE
+        let referrerSpec = "";
+        try {
+          let referrerInfo = channel.referrerInfo;
+          if (referrerInfo) {
+            let originalReferrer = referrerInfo.originalReferrer;
+            if (originalReferrer) {
+              referrerSpec = originalReferrer.spec;
+            }
+          }
+        } catch (e) {}
+        this._recordBlocklistDomainBrowsed(url.href, referrerSpec);
+#endif
         channel.cancel(Cr.NS_ERROR_BLOCKED_BY_POLICY);
       }
     } catch (e) {}
@@ -180,8 +190,7 @@ export let WebsiteFilter = {
   },
   /* eslint-disable */
 #ifdef MOZ_ENTERPRISE
-  _recordBlocklistDomainBrowsed(url) {
-    console.warn(`[WebsiteFilter] LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME LOOK AT ME`);
+  _recordBlocklistDomainBrowsed(url, referrer) {
     const isEnabled = Services.prefs.getBoolPref(
       "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.enabled",
       true
@@ -192,16 +201,26 @@ export let WebsiteFilter = {
 
     try {
       const processedUrl = this._processTelemetryUrl(url);
-      Glean.contentPolicy.blocklistDomainBrowsed.record({
-        url: processedUrl,
-      });
+      const processedReferrer = this._processTelemetryUrl(referrer);
+      const extra = {};
+      if (processedUrl) {
+        extra.url = processedUrl;
+      }
+      if (processedReferrer) {
+        extra.referrer = processedReferrer;
+      }
+      if (Object.keys(extra).length) {
+        Glean.contentPolicy.blocklistDomainBrowsed.record(extra);
+      } else {
+        Glean.contentPolicy.blocklistDomainBrowsed.record();
+      }
       if (
         !Services.prefs.getBoolPref(
           "browser.download.enterprise.telemetry.testing.disableSubmit",
           false
         )
       ) {
-      GleanPings.enterprise.submit();
+        GleanPings.enterprise.submit();
       }
     } catch (ex) {
       // Silently fail - telemetry errors should not break website filtering

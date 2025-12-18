@@ -29,8 +29,8 @@
 #include "mozilla/extensions/WebExtensionPolicy.h"
 #include "mozilla/glean/DomSecurityMetrics.h"
 #if defined(MOZ_ENTERPRISE)
-#include "mozilla/glean/EnterprisepoliciesMetrics.h"
-#include "mozilla/glean/GleanPings.h"
+#  include "mozilla/glean/EnterprisepoliciesMetrics.h"
+#  include "mozilla/glean/GleanPings.h"
 #endif
 #include "nsAboutProtocolUtils.h"
 #include "nsArray.h"
@@ -67,6 +67,117 @@ NS_IMPL_ISUPPORTS(nsContentSecurityManager, nsIContentSecurityManager,
 
 mozilla::LazyLogModule sCSMLog("CSMLog");
 mozilla::LazyLogModule sUELLog("UnexpectedLoad");
+
+#if defined(MOZ_ENTERPRISE)
+static bool BlocklistDomainBrowsedTelemetryIsEnabled() {
+  return Preferences::GetBool(
+      "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.enabled",
+      true);
+}
+
+static nsCString BlocklistDomainBrowsedTelemetryUrlLoggingPolicy() {
+  nsCString urlLogging;
+  if (NS_FAILED(Preferences::GetCString("browser.policies.enterprise.telemetry."
+                                        "blocklistDomainBrowsed.urlLogging",
+                                        urlLogging)) ||
+      urlLogging.IsEmpty()) {
+    urlLogging.AssignLiteral("full");
+  }
+  return urlLogging;
+}
+
+static Maybe<nsCString> ProcessBlocklistDomainBrowsedTelemetryUrl(
+    nsIURI* aURI, const nsCString& aPolicy) {
+  if (!aURI || aPolicy.EqualsLiteral("none")) {
+    return Nothing();
+  }
+
+  if (aPolicy.EqualsLiteral("domain")) {
+    nsCString host;
+    if (NS_FAILED(aURI->GetHost(host)) || host.IsEmpty()) {
+      return Nothing();
+    }
+    return Some(host);
+  }
+
+  nsCString spec;
+  aURI->GetSpec(spec);
+  return spec.IsEmpty() ? Nothing() : Some(spec);
+}
+
+static Maybe<nsCString> ProcessBlocklistDomainBrowsedTelemetryUrlSpec(
+    const nsCString& aSpec, const nsCString& aPolicy) {
+  if (aSpec.IsEmpty() || aPolicy.EqualsLiteral("none")) {
+    return Nothing();
+  }
+
+  if (!aPolicy.EqualsLiteral("domain")) {
+    return Some(aSpec);
+  }
+
+  nsCOMPtr<nsIURI> parsed;
+  if (NS_FAILED(NS_NewURI(getter_AddRefs(parsed), aSpec)) || !parsed) {
+    return Nothing();
+  }
+  return ProcessBlocklistDomainBrowsedTelemetryUrl(parsed, aPolicy);
+}
+
+static nsCString GetBlocklistDomainBrowsedReferrerSpec(nsIChannel* aChannel) {
+  nsCString referrerSpec;
+  nsCOMPtr<nsIHttpChannel> httpChan = do_QueryInterface(aChannel);
+  if (!httpChan) {
+    return referrerSpec;
+  }
+
+  nsCOMPtr<nsIReferrerInfo> referrerInfo = httpChan->GetReferrerInfo();
+  if (!referrerInfo) {
+    return referrerSpec;
+  }
+
+  referrerInfo->GetComputedReferrerSpec(referrerSpec);
+  if (!referrerSpec.IsEmpty()) {
+    return referrerSpec;
+  }
+
+  nsCOMPtr<nsIURI> originalReferrer;
+  referrerInfo->GetOriginalReferrer(getter_AddRefs(originalReferrer));
+  if (!originalReferrer) {
+    return referrerSpec;
+  }
+
+  originalReferrer->GetSpec(referrerSpec);
+  return referrerSpec;
+}
+
+static void RecordBlocklistDomainBrowsedTelemetry(nsIChannel* aChannel,
+                                                  nsIURI* aURI) {
+  if (!BlocklistDomainBrowsedTelemetryIsEnabled()) {
+    return;
+  }
+
+  const nsCString urlLogging =
+      BlocklistDomainBrowsedTelemetryUrlLoggingPolicy();
+  const Maybe<nsCString> urlTelemetry =
+      ProcessBlocklistDomainBrowsedTelemetryUrl(aURI, urlLogging);
+
+  const nsCString referrerSpec =
+      GetBlocklistDomainBrowsedReferrerSpec(aChannel);
+  const Maybe<nsCString> referrerTelemetry =
+      ProcessBlocklistDomainBrowsedTelemetryUrlSpec(referrerSpec, urlLogging);
+
+  glean::content_policy::BlocklistDomainBrowsedExtra extra = {
+      .referrer = referrerTelemetry,
+      .url = urlTelemetry,
+  };
+  glean::content_policy::blocklist_domain_browsed.Record(Some(extra));
+
+  if (!Preferences::GetBool(
+          "browser.download.enterprise.telemetry.testing.disableSubmit",
+          false)) {
+    glean_pings::Enterprise.Submit();
+  }
+}
+#endif
 
 // These first two are used for off-the-main-thread checks of
 // general.config.filename
@@ -419,24 +530,6 @@ static nsresult DoCORSChecks(nsIChannel* aChannel, nsILoadInfo* aLoadInfo,
   return NS_OK;
 }
 
-#if defined(MOZ_ENTERPRISE)
-static void GetReferrerSpec(nsIChannel* aChannel, nsACString& aReferrer) {
-  nsCOMPtr<nsIHttpChannel> httpChan = do_QueryInterface(aChannel);
-  if (!httpChan) {
-    return;
-  }
-  nsCOMPtr<nsIReferrerInfo> referrer = httpChan->GetReferrerInfo();
-  if (!referrer) {
-    return;
-  }
-  nsCOMPtr<nsIURI> original = referrer->GetOriginalReferrer();
-  if (!original) {
-    return;
-  }
-  original->GetSpec(aReferrer);
-}
-#endif
-
 static nsresult DoContentSecurityChecks(nsIChannel* aChannel,
                                         nsILoadInfo* aLoadInfo) {
   ExtContentPolicyType contentPolicyType =
@@ -560,22 +653,8 @@ static nsresult DoContentSecurityChecks(nsIChannel* aChannel,
       }
       if (shouldLoad == nsIContentPolicy::REJECT_POLICY) {
 #if defined(MOZ_ENTERPRISE)
-        nsCString uriSpec;
-        uri->GetSpec(uriSpec);
-        nsCString referrerSpec;
-        GetReferrerSpec(aChannel, referrerSpec);
-        glean::content_policy::BlocklistDomainBrowsedExtra extra = {
-            .url = Some(uriSpec),
-            .referrer = Some(referrerSpec),
-        };
-        glean::content_policy::blocklist_domain_browsed.Record(Some(extra));
-        bool disableEnterprisePingForTesting = Preferences::GetBool(
-            "browser.download.enterprise.telemetry.testing.disableSubmit");
-        if (!disableEnterprisePingForTesting) {
-          glean_pings::Enterprise.Submit();
-        }
+        RecordBlocklistDomainBrowsedTelemetry(aChannel, uri);
 #endif
-
         return NS_ERROR_BLOCKED_BY_POLICY;
       }
       if (shouldLoad == nsIContentPolicy::REJECT_RESTARTFORCED) {
