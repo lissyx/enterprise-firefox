@@ -112,7 +112,6 @@ async function checkBlockedPage(url, expectedBlocked, { referrerURL } = {}) {
 
       let events;
       await BrowserTestUtils.waitForCondition(async () => {
-        await Services.fog.testFlushAllChildren();
         events =
           Glean.contentPolicy.blocklistDomainBrowsed.testGetValue("enterprise");
         return events?.length;
@@ -154,7 +153,6 @@ async function checkBlockedPage(url, expectedBlocked, { referrerURL } = {}) {
       BrowserTestUtils.removeTab(newTab);
       await tabClosing;
     }
-    await Services.fog.testFlushAllChildren();
     Services.fog.testResetFOG();
     await SpecialPowers.popPrefEnv();
   }
