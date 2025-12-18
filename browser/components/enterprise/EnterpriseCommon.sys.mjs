@@ -8,4 +8,7 @@ export const isTesting = () => {
   return Services.prefs.getBoolPref(IS_TESTING_ENVIRONMENT, false);
 };
 
-export const EnterpriseCommon = {};
+export const EnterpriseCommon = {
+  ENTERPRISE_DEVICE_ID_PREF: "enterprise.sync.device_id",
+  ENTERPRISE_LOGLEVEL_PREF: "enterprise.loglevel",
+};

@@ -4,7 +4,11 @@
 
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
+#ifdef MOZ_ENTERPRISE
+import { EnterpriseStorageManager } from "resource:///modules/enterprise/EnterpriseAccountsStorage.sys.mjs";
+#else
 import { FxAccountsStorageManager } from "resource://gre/modules/FxAccountsStorage.sys.mjs";
+#endif
 
 import {
   ATTACHED_CLIENTS_CACHE_DURATION,
@@ -929,7 +933,14 @@ FxAccountsInternal.prototype = {
 
   // A hook-point for tests who may want a mocked AccountState or mocked storage.
   newAccountState(credentials) {
-    let storage = new FxAccountsStorageManager();
+    let storage =
+#ifdef MOZ_ENTERPRISE
+      new EnterpriseStorageManager()
+#else
+      new FxAccountsStorageManager()
+#endif
+    ;
+
     storage.initialize(credentials);
     return new AccountState(storage);
   },

@@ -531,6 +531,9 @@ class FeltTests(EnterpriseTestsBase):
     def find_elem_by_id(self, e):
         return self._driver.find_element(By.ID, e)
 
+    def find_elem_child(self, e):
+        return self._child_driver.find_element(By.CSS_SELECTOR, e)
+
     def get_elem_child(self, e):
         # Windows is slower?
         if sys.platform == "win32":

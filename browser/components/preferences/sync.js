@@ -27,6 +27,7 @@ const BACKUP_ARCHIVE_ENABLED_PREF_NAME = "browser.backup.archive.enabled";
 const BACKUP_RESTORE_ENABLED_PREF_NAME = "browser.backup.restore.enabled";
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AppConstants: "resource://gre/modules/AppConstants.sys.mjs",
   BackupService: "resource:///modules/backup/BackupService.sys.mjs",
 });
 
@@ -619,6 +620,10 @@ var gSyncPane = {
     this.setupEnginesUI();
     this.updateSyncUI();
 
+    if (lazy.AppConstants.MOZ_ENTERPRISE) {
+      this.restrictEnterpriseView();
+    }
+
     document
       .getElementById("weavePrefsDeck")
       .removeAttribute("data-hidden-from-search");
@@ -888,6 +893,22 @@ var gSyncPane = {
       syncConfiguredEl.hidden = true;
       syncNotConfiguredEl.hidden = false;
     }
+  },
+
+  restrictEnterpriseView() {
+    // "Sign out" button
+    const fxaUnlinkButton = document.getElementById("fxaUnlinkButton");
+    fxaUnlinkButton.setAttribute("restricted-enterprise-view", true);
+
+    // "Manage accounts link"
+    const manageAccountsLink = document.getElementById("verifiedManage");
+    manageAccountsLink.setAttribute("restricted-enterprise-view", true);
+
+    // Connect another device link
+    const connectAnotherDeviceLink = document.getElementById(
+      "connect-another-device"
+    );
+    connectAnotherDeviceLink.setAttribute("restricted-enterprise-view", true);
   },
 
   _updateSyncNow(syncing) {

@@ -6,6 +6,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   TelemetryEnvironment: "resource://gre/modules/TelemetryEnvironment.sys.mjs",
+  EnterpriseCommon: "resource:///modules/enterprise/EnterpriseCommon.sys.mjs",
 });
 
 /**
@@ -104,6 +105,10 @@ export const ConsoleClient = {
       DEVICE_POSTURE: "/sso/device_posture",
       WHOAMI: "/api/browser/whoami",
       LEARN_MORE: "/downloads/firefox.html",
+      FXACCOUNT: "/api/browser/account",
+      FXACCOUNTS_OAUTH: "/api/fxa/oauth/v1",
+      FXACCOUNTS_PROFILE: "/api/fxa/profile/v1",
+      FXACCOUNTS_AUTH: "/api/fxa/api/v1",
     };
   },
 
@@ -149,6 +154,33 @@ export const ConsoleClient = {
   },
 
   /**
+   * Get the FxAccounts OAuth endpoint of the console
+   *
+   * returns {string} URI of the endpoint
+   */
+  get fxAccountsOAuth() {
+    return this.constructURI(this._paths.FXACCOUNTS_OAUTH);
+  },
+
+  /**
+   * Get the FxAccounts Profile endpoint of the console
+   *
+   * returns {string} URI of the endpoint
+   */
+  get fxAccountsProfile() {
+    return this.constructURI(this._paths.FXACCOUNTS_PROFILE);
+  },
+
+  /**
+   * Get the FxAccounts Auth endpoint of the console
+   *
+   * returns {string} URI of the endpoint
+   */
+  get fxAccountsAuth() {
+    return this.constructURI(this._paths.FXACCOUNTS_AUTH);
+  },
+
+  /**
    * SSO callback uri that we match to create Felt actors on
    *
    * @returns {string}
@@ -186,6 +218,24 @@ export const ConsoleClient = {
    */
   async getRemotePolicies() {
     const payload = await this._get(this._paths.REMOTE_POLICIES);
+    return payload;
+  },
+
+  /**
+   * Fetch the account data used for fxa and sync.
+   *
+   * @returns {Promise<object>}
+   */
+  async getFxAccountData() {
+    const deviceId = Services.prefs.getStringPref(
+      lazy.EnterpriseCommon.ENTERPRISE_DEVICE_ID_PREF,
+      ""
+    );
+    const body = {};
+    if (deviceId !== "") {
+      body.device_id = deviceId;
+    }
+    const payload = await this._post(this._paths.FXACCOUNT, body);
     return payload;
   },
 
