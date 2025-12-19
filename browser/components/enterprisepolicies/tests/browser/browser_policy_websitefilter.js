@@ -192,15 +192,14 @@ add_task(async function test_policy_enterprise_telemetry() {
   await setupPolicyEngineWithJson({
     policies: {
       WebsiteFilter: `{
-        "Block": ["*://mochi.test/*policy_websitefilter_*"],
-        "Exceptions": ["*://mochi.test/*_websitefilter_exception*"]
+        "Block": ["*://mochi.test/*policy_websitefilter_block*"]
       }`,
     },
   });
 
   await checkTelemetryTestCases();
   await checkTelemetryTestCases({
-    referrerURL: SUPPORT_FILES_PATH + EXCEPTION_PAGE,
+    referrerURL: SUPPORT_FILES_PATH + SAVELINKAS_PAGE,
   });
 
   await clearWebsiteFilter();
@@ -229,8 +228,16 @@ async function checkTelemetryTestCases({ referrerURL } = {}) {
   await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "302.sjs", referrerURL);
 }
 
+function logStuff(message) {
+  console.warn(
+    "*************************************************************************************"
+  );
+  console.warn(message);
+}
+
 // Checks that a page was blocked by seeing if it was replaced with about:neterror
 async function checkBlockedPageTelemetry(url, referrerURL) {
+  logStuff("Starting test for " + url);
   await SpecialPowers.pushPrefEnv({
     set: [
       ["browser.policies.enterprise.telemetry.testing.disableSubmit", true],
@@ -245,6 +252,7 @@ async function checkBlockedPageTelemetry(url, referrerURL) {
     ],
   });
 
+  logStuff("Pushed prefs");
   let newTab;
   try {
     if (referrerURL) {
@@ -252,24 +260,28 @@ async function checkBlockedPageTelemetry(url, referrerURL) {
         gBrowser,
         referrerURL
       );
+      logStuff("Created new tab for referring url: " + referrerURL);
     } else {
       newTab = BrowserTestUtils.addTab(gBrowser);
       gBrowser.selectedTab = newTab;
+      logStuff("Created new (blank) tab in prep for for normal url: " + url);
     }
     let browser = newTab.linkedBrowser;
 
     let promise = BrowserTestUtils.waitForErrorPage(browser);
     if (referrerURL) {
-      await SpecialPowers.spawn(browser, [url], async targetURL => {
-        let a = content.document.createElement("a");
-        a.href = targetURL;
-        content.document.body.appendChild(a);
-        a.click();
-      });
+      await BrowserTestUtils.synthesizeMouseAtCenter(
+        "#savelink_blocked",
+        {},
+        browser
+      );
+      logStuff("Clicked link in referring URL");
     } else {
       BrowserTestUtils.startLoadingURIString(browser, url);
+      logStuff("Loaded normal URL");
     }
     await promise;
+    logStuff("Resolved promise for error page");
 
     let events =
       Glean.contentPolicy.blocklistDomainBrowsed.testGetValue("enterprise");
