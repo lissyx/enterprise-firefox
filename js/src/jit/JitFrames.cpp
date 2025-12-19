@@ -1416,8 +1416,7 @@ static void TraceJitActivation(JSTracer* trc, JitActivation* activation) {
   }
 #endif
 
-  activation->traceRematerializedFrames(trc);
-  activation->traceIonRecovery(trc);
+  activation->trace(trc);
 
   // This is used for sanity checking continuity of the sequence of wasm stack
   // maps as we unwind.  It has no functional purpose.
@@ -1485,7 +1484,7 @@ void TraceJitActivations(JSContext* cx, JSTracer* trc) {
     TraceJitActivation(trc, activations->asJit());
   }
 #ifdef ENABLE_WASM_JSPI
-  cx->wasm().promiseIntegration.traceRoots(trc);
+  cx->wasm().traceRoots(trc);
 #endif
 }
 
