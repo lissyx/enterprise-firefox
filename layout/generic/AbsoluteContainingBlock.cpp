@@ -971,7 +971,7 @@ void AbsoluteContainingBlock::ResolveAutoMarginsAfterLayout(
   const auto anchorResolutionParams =
       AnchorPosResolutionParams::From(&aKidReflowInput);
 
-  auto ResolveMarginsInAxis = [&](LogicalAxis aAxis, bool aAnchorCenter) {
+  auto ResolveMarginsInAxis = [&](LogicalAxis aAxis) {
     const auto startSide = MakeLogicalSide(aAxis, LogicalEdge::Start);
     const auto endSide = MakeLogicalSide(aAxis, LogicalEdge::End);
 
@@ -1000,20 +1000,18 @@ void AbsoluteContainingBlock::ResolveAutoMarginsAfterLayout(
             ->IsAuto();
 
     if (aAxis == LogicalAxis::Inline) {
-      ReflowInput::ComputeAbsPosInlineAutoMargin(
-          availMarginSpace, outerWM, startSideMarginIsAuto, endSideMarginIsAuto,
-          aAnchorCenter, aMargin);
+      ReflowInput::ComputeAbsPosInlineAutoMargin(availMarginSpace, outerWM,
+                                                 startSideMarginIsAuto,
+                                                 endSideMarginIsAuto, aMargin);
     } else {
-      ReflowInput::ComputeAbsPosBlockAutoMargin(
-          availMarginSpace, outerWM, startSideMarginIsAuto, endSideMarginIsAuto,
-          aAnchorCenter, aMargin);
+      ReflowInput::ComputeAbsPosBlockAutoMargin(availMarginSpace, outerWM,
+                                                startSideMarginIsAuto,
+                                                endSideMarginIsAuto, aMargin);
     }
   };
 
-  ResolveMarginsInAxis(LogicalAxis::Inline,
-                       aKidReflowInput.mFlags.mIAnchorCenter);
-  ResolveMarginsInAxis(LogicalAxis::Block,
-                       aKidReflowInput.mFlags.mBAnchorCenter);
+  ResolveMarginsInAxis(LogicalAxis::Inline);
+  ResolveMarginsInAxis(LogicalAxis::Block);
   aKidReflowInput.SetComputedLogicalMargin(outerWM, aMargin);
 
   nsMargin* propValue =
@@ -1166,15 +1164,15 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
       nextFallbackStyle = aPresContext->StyleSet()->ResolvePositionTry(
           *aKidFrame->GetContent()->AsElement(), *aKidFrame->Style(),
           *nextFallback);
-      if (!nextFallbackStyle) {
-        // No @position-try rule for this name was found, per spec we should
-        // skip it.
-        aIndex++;
-        if (aIndex >= fallbacks.Length()) {
-          return false;
-        }
+      if (nextFallbackStyle) {
+        break;
       }
-      break;
+      // No @position-try rule for this name was found, per spec we should
+      // skip it.
+      aIndex++;
+      if (aIndex >= fallbacks.Length()) {
+        return false;
+      }
     }
     currentFallbackIndex = Some(aIndex);
     currentFallback = nextFallback;
@@ -1193,17 +1191,13 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
 
   Maybe<uint32_t> firstTryIndex;
   Maybe<nsPoint> firstTryNormalPosition;
-  // TODO(emilio): Right now fallback only applies to position-area, which only
-  // makes a difference with a default anchor... Generalize it?
-  if (aAnchorPosResolutionCache) {
-    const auto* lastSuccessfulPosition =
-        aKidFrame->GetProperty(nsIFrame::LastSuccessfulPositionFallback());
-    if (lastSuccessfulPosition) {
-      if (!SeekFallbackTo(lastSuccessfulPosition->mIndex)) {
-        aKidFrame->RemoveProperty(nsIFrame::LastSuccessfulPositionFallback());
-      } else {
-        firstTryIndex = Some(lastSuccessfulPosition->mIndex);
-      }
+  const auto* lastSuccessfulPosition =
+      aKidFrame->GetProperty(nsIFrame::LastSuccessfulPositionFallback());
+  if (lastSuccessfulPosition) {
+    if (!SeekFallbackTo(lastSuccessfulPosition->mIndex)) {
+      aKidFrame->RemoveProperty(nsIFrame::LastSuccessfulPositionFallback());
+    } else {
+      firstTryIndex = Some(lastSuccessfulPosition->mIndex);
     }
   }
 
@@ -1468,10 +1462,9 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
       const auto* placeholderContainer =
           GetPlaceholderContainer(kidReflowInput.mFrame);
 
-      if (!iInsetAuto || kidReflowInput.mFlags.mIAnchorCenter) {
+      if (!iInsetAuto) {
         MOZ_ASSERT(
-            !kidReflowInput.mFlags.mIOffsetsNeedCSSAlign ||
-                kidReflowInput.mFlags.mIAnchorCenter,
+            !kidReflowInput.mFlags.mIOffsetsNeedCSSAlign,
             "Non-auto inline inset but requires CSS alignment for static "
             "position?");
         auto alignOffset = OffsetToAlignedStaticPos(
@@ -1488,9 +1481,8 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
             cbSize.ISize(outerWM) -
             (offsets.IStart(outerWM) + kidMarginBox.ISize(outerWM));
       }
-      if (!bInsetAuto || kidReflowInput.mFlags.mBAnchorCenter) {
-        MOZ_ASSERT(!kidReflowInput.mFlags.mBOffsetsNeedCSSAlign ||
-                       kidReflowInput.mFlags.mBAnchorCenter,
+      if (!bInsetAuto) {
+        MOZ_ASSERT(!kidReflowInput.mFlags.mBOffsetsNeedCSSAlign,
                    "Non-auto block inset but requires CSS alignment for static "
                    "position?");
         auto alignOffset = OffsetToAlignedStaticPos(
@@ -1607,8 +1599,9 @@ void AbsoluteContainingBlock::ReflowAbsoluteFrame(
 
   if (currentFallbackIndex) {
     aKidFrame->SetOrUpdateDeletableProperty(
-        nsIFrame::LastSuccessfulPositionFallback(), *currentFallbackIndex,
-        isOverflowingCB);
+        nsIFrame::LastSuccessfulPositionFallback(),
+        LastSuccessfulPositionData{currentFallbackStyle, *currentFallbackIndex,
+                                   isOverflowingCB});
   }
 
 #ifdef DEBUG
