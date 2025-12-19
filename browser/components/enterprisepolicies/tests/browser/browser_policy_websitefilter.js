@@ -211,11 +211,11 @@ add_task(async function test_policy_enterprise_telemetry() {
   });
 
   const referrerURL = SUPPORT_FILES_PATH + SAVELINKAS_PAGE;
+  const resolvedURL = SUPPORT_FILES_PATH + BLOCKED_PAGE;
   await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + BLOCKED_PAGE);
-  await checkBlockedPageTelemetry(
-    SUPPORT_FILES_PATH + BLOCKED_PAGE,
-    referrerURL
-  );
+  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + BLOCKED_PAGE, {
+    referrerURL,
+  });
   await checkBlockedPageTelemetry(
     "view-source:" + SUPPORT_FILES_PATH + BLOCKED_PAGE
   );
@@ -226,27 +226,32 @@ add_task(async function test_policy_enterprise_telemetry() {
     "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE
   );
 
-  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "301.sjs");
-  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "301.sjs", referrerURL);
+  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "301.sjs", {
+    resolvedURL,
+  });
+  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "301.sjs", {
+    resolvedURL,
+    referrerURL,
+  });
 
-  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "302.sjs");
-  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "302.sjs", referrerURL);
+  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "302.sjs", {
+    resolvedURL,
+  });
+  await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "302.sjs", {
+    resolvedURL,
+    referrerURL,
+  });
 
   await clearWebsiteFilter();
 });
 
-function logStuff(message) {
-  console.warn(
-    "*************************************************************************************"
-  );
-  console.warn(message);
-}
-
 // Checks that a page was blocked by seeing if it was replaced with about:neterror
-async function checkBlockedPageTelemetry(url, referrerURL) {
-  logStuff("Starting test for " + url);
+async function checkBlockedPageTelemetry(
+  url,
+  { resolvedURL, referrerURL } = {}
+) {
+  const expectedBlockedUrl = resolvedURL ?? url;
 
-  logStuff("Pushed prefs");
   let newTab;
   try {
     if (referrerURL) {
@@ -259,11 +264,9 @@ async function checkBlockedPageTelemetry(url, referrerURL) {
         let link = content.document.getElementById("savelink_blocked");
         link.href = href;
       });
-      logStuff("Created new tab for referring url: " + referrerURL);
     } else {
       newTab = BrowserTestUtils.addTab(gBrowser);
       gBrowser.selectedTab = newTab;
-      logStuff("Created new (blank) tab in prep for for normal url: " + url);
     }
     let browser = newTab.linkedBrowser;
 
@@ -274,13 +277,10 @@ async function checkBlockedPageTelemetry(url, referrerURL) {
         {},
         browser
       );
-      logStuff("Clicked link in referring URL");
     } else {
       BrowserTestUtils.startLoadingURIString(browser, url);
-      logStuff("Loaded normal URL");
     }
     await promise;
-    logStuff("Resolved promise for error page");
 
     let events =
       Glean.contentPolicy.blocklistDomainBrowsed.testGetValue("enterprise");
@@ -291,7 +291,18 @@ async function checkBlockedPageTelemetry(url, referrerURL) {
     Assert.greaterOrEqual(events.length, 1, "Should record at least one event"); // TODO this should eventually be exactly 1
     const event = events.at(-1);
     Assert.ok(event.extra, "Event should have extra data");
-    Assert.equal(event.extra.url, url, "Telemetry should include blocked URL");
+    Assert.equal(
+      event.extra.blocked_url,
+      expectedBlockedUrl,
+      "Telemetry should include blocked URL"
+    );
+    if (resolvedURL) {
+      Assert.equal(
+        event.extra.original_url,
+        url,
+        "Telemetry should include original requested URL"
+      );
+    }
     if (referrerURL) {
       Assert.equal(
         event.extra.referrer,

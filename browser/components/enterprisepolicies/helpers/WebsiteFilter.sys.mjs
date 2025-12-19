@@ -160,7 +160,7 @@ export let WebsiteFilter = {
             }
           }
         } catch (e) {}
-        this._recordBlocklistDomainBrowsed(channel.originalURI.spec, referrerSpec);
+        this._recordBlocklistDomainBrowsed(channel.originalURI.spec, url.href, referrerSpec);
 #endif
         channel.cancel(Cr.NS_ERROR_BLOCKED_BY_POLICY);
       }
@@ -190,7 +190,7 @@ export let WebsiteFilter = {
   },
   /* eslint-disable */
 #ifdef MOZ_ENTERPRISE
-  _recordBlocklistDomainBrowsed(url, referrer) {
+  _recordBlocklistDomainBrowsed(originalUrl, resolvedUrl, referrer) {
     const isEnabled = Services.prefs.getBoolPref(
       "browser.policies.enterprise.telemetry.blocklistDomainBrowsed.enabled",
       true
@@ -200,10 +200,12 @@ export let WebsiteFilter = {
     }
 
     try {
-      const processedUrl = this._processTelemetryUrl(url);
+      const processedOrigUrl = this._processTelemetryUrl(originalUrl);
+      const processedResolvedUrl = this._processTelemetryUrl(resolvedUrl);
       const processedReferrer = this._processTelemetryUrl(referrer);
       const telemetryData = {
-        url: processedUrl || "",
+        original_url: processedOrigUrl || "",
+        blocked_url: processedResolvedUrl || "",
         referrer: processedReferrer || "",
       };
       Glean.contentPolicy.blocklistDomainBrowsed.record(telemetryData);

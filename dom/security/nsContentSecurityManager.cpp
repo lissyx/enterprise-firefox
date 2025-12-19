@@ -201,10 +201,8 @@ static void RecordBlocklistDomainBrowsedTelemetry(nsIChannel* aChannel,
   const nsCString urlLogging =
       BlocklistDomainBrowsedTelemetryUrlLoggingPolicy();
 
-  nsCOMPtr<nsIURI> originalURI;
-  aChannel->GetOriginalURI(getter_AddRefs(originalURI));
-  const Maybe<nsCString> urlTelemetry =
-      ProcessBlocklistDomainBrowsedTelemetryUrl(originalURI, urlLogging);
+  const Maybe<nsCString> blockedUrlTelemetry =
+      ProcessBlocklistDomainBrowsedTelemetryUrl(aURI, urlLogging);
 
   const nsCString referrerSpec =
       GetBlocklistDomainBrowsedReferrerSpec(aChannel);
@@ -212,8 +210,8 @@ static void RecordBlocklistDomainBrowsedTelemetry(nsIChannel* aChannel,
       ProcessBlocklistDomainBrowsedTelemetryUrlSpec(referrerSpec, urlLogging);
 
   glean::content_policy::BlocklistDomainBrowsedExtra extra = {
+      .blockedUrl = blockedUrlTelemetry,
       .referrer = referrerTelemetry,
-      .url = urlTelemetry,
   };
   glean::content_policy::blocklist_domain_browsed.Record(Some(extra));
 
