@@ -154,10 +154,7 @@ export let WebsiteFilter = {
         try {
           let referrerInfo = channel.referrerInfo;
           if (referrerInfo) {
-            let originalReferrer = referrerInfo.originalReferrer;
-            if (originalReferrer) {
-              referrerSpec = originalReferrer.spec;
-            }
+            referrerSpec = referrerInfo.computedReferrerSpec;
           }
         } catch (e) {}
         this._recordBlocklistDomainBrowsed(channel.originalURI.spec, url.href, referrerSpec);

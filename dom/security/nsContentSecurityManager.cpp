@@ -43,11 +43,6 @@
 #include "nsIChannel.h"
 #include "nsIContentPolicy.h"
 #include "nsIHttpChannelInternal.h"
-#if defined(MOZ_ENTERPRISE)
-#  include "nsIInterfaceRequestorUtils.h"
-#  include "nsILoadContext.h"
-#  include "nsPIDOMWindow.h"
-#endif
 #include "nsILoadInfo.h"
 #include "nsIMIMEService.h"
 #include "nsINode.h"
@@ -74,40 +69,6 @@ mozilla::LazyLogModule sCSMLog("CSMLog");
 mozilla::LazyLogModule sUELLog("UnexpectedLoad");
 
 #if defined(MOZ_ENTERPRISE)
-static nsCString GetChannelAssociatedWindowDocumentURISpec(
-    nsIChannel* aChannel) {
-  nsCString spec;
-
-  nsCOMPtr<nsILoadContext> loadContext;
-  NS_QueryNotificationCallbacks(aChannel, loadContext);
-  if (!loadContext) {
-    return spec;
-  }
-
-  nsCOMPtr<mozIDOMWindowProxy> domWindow;
-  loadContext->GetAssociatedWindow(getter_AddRefs(domWindow));
-  if (!domWindow) {
-    return spec;
-  }
-
-  nsPIDOMWindowOuter* outerWindow = nsPIDOMWindowOuter::From(domWindow);
-  if (!outerWindow) {
-    return spec;
-  }
-
-  RefPtr<Document> doc = outerWindow->GetExtantDoc();
-  if (!doc) {
-    return spec;
-  }
-
-  nsIURI* docURI = doc->GetDocumentURI();
-  if (!docURI) {
-    return spec;
-  }
-
-  docURI->GetSpec(spec);
-  return spec;
-}
 
 static bool BlocklistDomainBrowsedTelemetryIsEnabled() {
   return Preferences::GetBool(
@@ -171,25 +132,11 @@ static nsCString GetBlocklistDomainBrowsedReferrerSpec(nsIChannel* aChannel) {
 
   nsCOMPtr<nsIReferrerInfo> referrerInfo = httpChan->GetReferrerInfo();
   if (!referrerInfo) {
-    return GetChannelAssociatedWindowDocumentURISpec(aChannel);
+    return referrerSpec;
   }
 
   referrerInfo->GetComputedReferrerSpec(referrerSpec);
-  if (!referrerSpec.IsEmpty()) {
-    return referrerSpec;
-  }
-
-  nsCOMPtr<nsIURI> originalReferrer;
-  referrerInfo->GetOriginalReferrer(getter_AddRefs(originalReferrer));
-  if (!originalReferrer) {
-    return GetChannelAssociatedWindowDocumentURISpec(aChannel);
-  }
-
-  originalReferrer->GetSpec(referrerSpec);
-  if (!referrerSpec.IsEmpty()) {
-    return referrerSpec;
-  }
-  return GetChannelAssociatedWindowDocumentURISpec(aChannel);
+  return referrerSpec;
 }
 
 static void RecordBlocklistDomainBrowsedTelemetry(nsIChannel* aChannel,
