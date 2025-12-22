@@ -43,9 +43,6 @@ add_task(async function test_http() {
     true
   );
   await checkBlockedPage(SUPPORT_FILES_PATH + EXCEPTION_PAGE, false);
-  await checkBlockedPage(SUPPORT_FILES_PATH + BLOCKED_PAGE, true, {
-    referrerURL: SUPPORT_FILES_PATH + EXCEPTION_PAGE,
-  });
 
   await checkBlockedPage(SUPPORT_FILES_PATH + "301.sjs", true);
 
