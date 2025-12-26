@@ -76,9 +76,7 @@ class ShadowRoot final : public DocumentFragment, public DocumentOrShadowRoot {
   void MaybeSlotHostChild(nsIContent&);
   // Called when a direct child of our host is removed. Tries to un-slot the
   // child from the currently-assigned slot, if any.
-  // If aInBatch is true, we know all the host kids are getting removed (and
-  // thus we can just unassign all the kids at once).
-  void MaybeUnslotHostChild(nsIContent&, bool aInBatch);
+  void MaybeUnslotHostChild(nsIContent&);
 
   // Shadow DOM v1
   Element* Host() const {
@@ -194,7 +192,7 @@ class ShadowRoot final : public DocumentFragment, public DocumentOrShadowRoot {
   bool HasSlots() const { return !mSlotMap.IsEmpty(); };
   HTMLSlotElement* GetDefaultSlot() const {
     SlotArray* list = mSlotMap.Get(u""_ns);
-    return list ? (*list)->ElementAt(0) : nullptr;
+    return list ? (*list).AsSpan()[0] : nullptr;
   }
 
   void PartAdded(const Element&);

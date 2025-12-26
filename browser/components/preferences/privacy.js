@@ -200,7 +200,7 @@ Preferences.addAll([
   { id: "privacy.globalprivacycontrol.enabled", type: "bool" },
 
   // Firefox VPN
-  { id: "browser.ipProtection.variant", type: "string" },
+  { id: "browser.ipProtection.enabled", type: "bool" },
   { id: "browser.ipProtection.features.siteExceptions", type: "bool" },
   { id: "browser.ipProtection.features.autoStart", type: "bool" },
   { id: "browser.ipProtection.autoStartEnabled", type: "bool" },
@@ -267,10 +267,6 @@ Preferences.addAll([
 
   // Windows SSO
   { id: "network.http.windows-sso.enabled", type: "bool" },
-
-  // Quick Actions
-  { id: "browser.urlbar.quickactions.showPrefs", type: "bool" },
-  { id: "browser.urlbar.suggest.quickactions", type: "bool" },
 
   // Cookie Banner Handling
   { id: "cookiebanners.ui.desktop.enabled", type: "bool" },
@@ -1417,8 +1413,7 @@ Preferences.addSetting({
 
 Preferences.addSetting({
   id: "ipProtectionVisible",
-  pref: "browser.ipProtection.variant",
-  get: prefVal => prefVal == "beta",
+  pref: "browser.ipProtection.enabled",
 });
 Preferences.addSetting({
   id: "ipProtectionSiteExceptionsFeatureEnabled",
@@ -2880,6 +2875,9 @@ Preferences.addSetting({
 Preferences.addSetting({
   id: "etpAllowListConvenienceEnabled",
   pref: "privacy.trackingprotection.allow_list.convenience.enabled",
+  onUserChange() {
+    gPrivacyPane.maybeNotifyUserToReload();
+  },
 });
 
 Preferences.addSetting({
@@ -2887,6 +2885,24 @@ Preferences.addSetting({
   onUserClick(e) {
     e.preventDefault();
     gotoPref("etpCustomize");
+  },
+});
+
+Preferences.addSetting({
+  id: "reloadTabsHint",
+  _showHint: false,
+  set(value, _, setting) {
+    this._showHint = value;
+    setting.emit("change");
+  },
+  get() {
+    return this._showHint;
+  },
+  visible(_, setting) {
+    return setting.value;
+  },
+  onUserClick() {
+    gPrivacyPane.reloadAllOtherTabs();
   },
 });
 
@@ -2976,6 +2992,9 @@ Preferences.addSetting({
 Preferences.addSetting({
   id: "etpAllowListConvenienceEnabledCustom",
   pref: "privacy.trackingprotection.allow_list.convenience.enabled",
+  onUserChange() {
+    gPrivacyPane.maybeNotifyUserToReload();
+  },
 });
 
 Preferences.addSetting({
@@ -4708,6 +4727,8 @@ var gPrivacyPane = {
     for (let notification of document.querySelectorAll(".reload-tabs")) {
       notification.hidden = true;
     }
+
+    Preferences.getSetting("reloadTabsHint").value = false;
   },
 
   /**
@@ -4729,6 +4750,8 @@ var gPrivacyPane = {
         notification.hidden = false;
       }
     }
+
+    Preferences.getSetting("reloadTabsHint").value = true;
   },
 
   /**
