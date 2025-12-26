@@ -138,7 +138,6 @@
 #include "nsILoadURIDelegate.h"
 #include "nsIMultiPartChannel.h"
 #include "nsINestedURI.h"
-#include "nsINetworkPredictor.h"
 #include "nsINode.h"
 #include "nsINSSErrorsService.h"
 #include "nsIObserverService.h"
@@ -6617,10 +6616,6 @@ nsresult nsDocShell::EndPageLoad(nsIWebProgress* aProgress,
           nsContentUtils::eDOM_PROPERTIES, "UnknownProtocolNavigationPrevented",
           params);
     }
-  } else {
-    // If we have a host
-    nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
-    PredictorLearnRedirect(url, aChannel, loadInfo->GetOriginAttributes());
   }
 
   if (hadErrorStatus) {
@@ -10097,11 +10092,6 @@ nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState,
 
   OriginAttributes attrs = GetOriginAttributes();
   attrs.SetFirstPartyDomain(isTopLevelDoc, aLoadState->URI());
-
-  PredictorLearn(aLoadState->URI(), nullptr,
-                 nsINetworkPredictor::LEARN_LOAD_TOPLEVEL, attrs);
-  PredictorPredict(aLoadState->URI(), nullptr,
-                   nsINetworkPredictor::PREDICT_LOAD, attrs, nullptr);
 
   nsCOMPtr<nsIRequest> req;
   rv = DoURILoad(aLoadState, aCacheKey, getter_AddRefs(req));

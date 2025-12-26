@@ -574,7 +574,7 @@ void IdentifierMapEntry::Traverse(
 }
 
 bool IdentifierMapEntry::IsEmpty() {
-  return mIdContentList->IsEmpty() && !mNameContentList &&
+  return mIdContentList.IsEmpty() && !mNameContentList &&
          !mDocumentNameContentList && !mChangeCallbacks && !mImageElement;
 }
 
@@ -623,11 +623,11 @@ void IdentifierMapEntry::FireChangeCallbacks(Element* aOldElement,
 
 void IdentifierMapEntry::AddIdElement(Element* aElement) {
   MOZ_ASSERT(aElement, "Must have element");
-  MOZ_ASSERT(!mIdContentList->Contains(nullptr), "Why is null in our list?");
+  MOZ_ASSERT(!mIdContentList.Contains(nullptr), "Why is null in our list?");
 
   size_t index = mIdContentList.Insert(*aElement);
   if (index == 0) {
-    Element* oldElement = mIdContentList->SafeElementAt(1);
+    Element* oldElement = mIdContentList.SafeElementAt(1, nullptr);
     FireChangeCallbacks(oldElement, aElement);
   }
 }
@@ -642,15 +642,16 @@ void IdentifierMapEntry::RemoveIdElement(Element* aElement) {
   // Only assert this in HTML documents for now as XUL does all sorts of weird
   // crap.
   NS_ASSERTION(!aElement->OwnerDoc()->IsHTMLDocument() ||
-                   mIdContentList->Contains(aElement),
+                   mIdContentList.Contains(aElement),
                "Removing id entry that doesn't exist");
 
   // XXXbz should this ever Compact() I guess when all the content is gone
   // we'll just get cleaned up in the natural order of things...
-  Element* currentElement = mIdContentList->SafeElementAt(0);
+  Element* currentElement = mIdContentList.SafeElementAt(0, nullptr);
   mIdContentList.RemoveElement(*aElement);
   if (currentElement == aElement) {
-    FireChangeCallbacks(currentElement, mIdContentList->SafeElementAt(0));
+    FireChangeCallbacks(currentElement,
+                        mIdContentList.SafeElementAt(0, nullptr));
   }
 }
 
@@ -664,7 +665,7 @@ void IdentifierMapEntry::SetImageElement(Element* aElement) {
 }
 
 void IdentifierMapEntry::ClearAndNotify() {
-  Element* currentElement = mIdContentList->SafeElementAt(0);
+  Element* currentElement = mIdContentList.SafeElementAt(0, nullptr);
   mIdContentList.Clear();
   if (currentElement) {
     FireChangeCallbacks(currentElement, nullptr);
@@ -3743,6 +3744,9 @@ nsresult Document::StartDocumentLoad(const char* aCommand, nsIChannel* aChannel,
   rv = InitFeaturePolicy(aChannel);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  rv = InitTLSCertificateBinding(aChannel);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   rv = loadInfo->GetCookieJarSettings(getter_AddRefs(mCookieJarSettings));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -4079,6 +4083,46 @@ nsresult Document::InitIntegrityPolicy(nsIChannel* aChannel) {
   NS_ENSURE_SUCCESS(rv, rv);
 
   mPolicyContainer->SetIntegrityPolicy(integrityPolicy);
+  return NS_OK;
+}
+
+nsresult Document::InitTLSCertificateBinding(nsIChannel* aChannel) {
+  mTLSCertificateBindingURI = nullptr;
+  nsCOMPtr<nsIHttpChannel> httpChannel;
+  nsresult rv = GetHttpChannelHelper(aChannel, getter_AddRefs(httpChannel));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+
+  if (!httpChannel) {
+    return NS_OK;
+  }
+
+  nsAutoCString linkHeader;
+  rv = httpChannel->GetResponseHeader("link"_ns, linkHeader);
+  if (NS_FAILED(rv) || linkHeader.IsEmpty()) {
+    return NS_OK;
+  }
+  nsTArray<LinkHeader> linkHeaders(
+      ParseLinkHeader(NS_ConvertUTF8toUTF16(linkHeader)));
+  for (const auto& linkHeader : linkHeaders) {
+    // According to ETSI TS 119 411-5 V2.1.1 Section 5.2, "When using a 2-QWAC,
+    // website operators shall... Configure their website to serve... an HTTP
+    // 'Link' response header (as defined in IETF RFC 8288 [6]) with a relative
+    // reference to the TLS Certificate Binding, and a rel value of
+    // tls-certificate-binding".
+    if (linkHeader.mRel.EqualsIgnoreCase("tls-certificate-binding") &&
+        !net_IsAbsoluteURL(NS_ConvertUTF16toUTF8(linkHeader.mHref)) &&
+        !net_IsAbsoluteURL(NS_ConvertUTF16toUTF8(linkHeader.mAnchor))) {
+      if (NS_SUCCEEDED(linkHeader.NewResolveHref(
+              getter_AddRefs(mTLSCertificateBindingURI), mDocumentURI))) {
+        break;
+      } else {
+        mTLSCertificateBindingURI = nullptr;
+      }
+    }
+  }
+
   return NS_OK;
 }
 
@@ -11665,8 +11709,7 @@ void Document::RemoveColorSchemeMeta(HTMLMetaElement& aMeta) {
 void Document::RecomputeColorScheme() {
   auto oldColorScheme = mColorSchemeBits;
   mColorSchemeBits = 0;
-  const nsTArray<HTMLMetaElement*>& elements = mColorSchemeMetaTags;
-  for (const HTMLMetaElement* el : elements) {
+  for (const HTMLMetaElement* el : mColorSchemeMetaTags.AsSpan()) {
     nsAutoString content;
     if (!el->GetAttr(nsGkAtoms::content, content)) {
       continue;
