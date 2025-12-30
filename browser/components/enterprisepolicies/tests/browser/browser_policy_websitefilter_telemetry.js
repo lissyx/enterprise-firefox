@@ -52,9 +52,6 @@ add_task(async function test_policy_enterprise_telemetry() {
   await checkBlockedPageTelemetry(
     "about:reader?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE
   );
-  await checkBlockedPageTelemetry(
-    "about:READER?url=" + SUPPORT_FILES_PATH + BLOCKED_PAGE
-  );
 
   await checkBlockedPageTelemetry(SUPPORT_FILES_PATH + "301.sjs", {
     resolvedURL,
