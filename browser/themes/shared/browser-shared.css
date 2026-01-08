@@ -590,7 +590,7 @@ menupopup::part(drop-indicator) {
   list-style-image: none;
   height: 2px;
   margin-inline-end: -4em;
-  background-color: SelectedItem;
+  background-color: AccentColor;
   pointer-events: none;
 }
 
@@ -623,7 +623,6 @@ menupopup::part(drop-indicator) {
   color: var(--toolbar-color);
   color-scheme: var(--toolbar-color-scheme);
   border-top-color: var(--chrome-content-separator-color);
-  z-index: var(--browser-area-z-index-sidebar);
 
   :root[lwtheme] & {
     background-color: var(--lwt-accent-color);
@@ -1294,8 +1293,8 @@ popupnotificationcontent {
 
 #historySwipeAnimationPreviousArrow,
 #historySwipeAnimationNextArrow {
-  --swipe-nav-icon-primary-color: SelectedItemText;
-  --swipe-nav-icon-accent-color: SelectedItem;
+  --swipe-nav-icon-primary-color: AccentColorText;
+  --swipe-nav-icon-accent-color: AccentColor;
 
   will-change: transform;
 
