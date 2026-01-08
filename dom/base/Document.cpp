@@ -17700,13 +17700,13 @@ void Document::RecordCanvasUsage(CanvasUsage& aUsage) {
   uint64_t now = PR_Now();
 
   nsCString originNoSuffix;
-  nsCString uri;
   if (NS_FAILED(NodePrincipal()->GetOriginNoSuffix(originNoSuffix))) {
     MOZ_LOG(gFingerprinterDetection, LogLevel::Error,
             ("Document:: %p Could not get originsuffix", this));
     return;
   }
-  if (NS_FAILED(NodePrincipal()->GetSpec(uri))) {
+  nsCOMPtr<nsIURI> uri = NodePrincipal()->GetURI();
+  if (!uri) {
     MOZ_LOG(gFingerprinterDetection, LogLevel::Error,
             ("Document:: %p Could not get uri", this));
     return;
@@ -17727,11 +17727,14 @@ void Document::RecordCanvasUsage(CanvasUsage& aUsage) {
       }
     }
 
+    nsAutoCString uriString;
+    (void)uri->GetSpec(uriString);
+
     MOZ_LOG(gFingerprinterDetection, LogLevel::Debug,
             ("Document:: %p %s recording canvas usage of type %s on %s in %s",
              this, originNoSuffix.get(),
-             CanvasUsageSourceToString(aUsage.mUsageSource).get(), uri.get(),
-             filename.get()));
+             CanvasUsageSourceToString(aUsage.mUsageSource).get(),
+             uriString.get(), filename.get()));
   }
 
   // Check if we need to clear the usage data for this source.
@@ -17809,12 +17812,12 @@ void Document::RecordCanvasUsage(CanvasUsage& aUsage) {
 }
 
 void Document::RecordFontFingerprinting() {
-  nsCString uri;
   nsCString originNoSuffix;
   if (NS_FAILED(NodePrincipal()->GetOriginNoSuffix(originNoSuffix))) {
     return;
   }
-  if (NS_FAILED(NodePrincipal()->GetSpec(uri))) {
+  nsCOMPtr<nsIURI> uri = NodePrincipal()->GetURI();
+  if (!uri) {
     return;
   }
 
@@ -18402,7 +18405,10 @@ static void PropagateUserGestureActivationBetweenPiP(
     // this means activation in a cross-origin subframe in the opener will
     // cause the PIP window to get activation.
     nsPIDOMWindowOuter* outer = currentBC->Top()->GetDOMWindow();
-    NS_ENSURE_TRUE_VOID(outer);
+    if (!outer) {
+      // We don't warn on failure due to the frequency. See bug 2008394.
+      return;
+    }
     nsPIDOMWindowInner* inner = outer->GetCurrentInnerWindow();
     NS_ENSURE_TRUE_VOID(inner);
     DocumentPictureInPicture* dpip = inner->GetExtantDocumentPictureInPicture();
