@@ -516,7 +516,7 @@ linux64-enterprise/debug:
         max-run-time: 5400
         env:
             PERFHERDER_EXTRA_OPTIONS: enterprise
-            # MOZ_AUTOMATION_PACKAGE_TESTS: "1"
+            MOZ_AUTOMATION_PACKAGE_TESTS: "1"
             # bug 1690154 - enable full symbols on all branches, but only
             # upload them on the official set. In conjunction with
             # `enable-full-crashsymbols`.

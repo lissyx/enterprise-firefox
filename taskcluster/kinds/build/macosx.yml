@@ -83,7 +83,7 @@ macosx64-enterprise/debug:
         max-run-time: 5400
         env:
             PERFHERDER_EXTRA_OPTIONS: enterprise
-            # MOZ_AUTOMATION_PACKAGE_TESTS: "1"
+            MOZ_AUTOMATION_PACKAGE_TESTS: "1"
     run:
         config:
             - builds/releng_base_firefox.py

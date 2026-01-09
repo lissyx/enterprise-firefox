@@ -233,7 +233,7 @@ win64-enterprise/debug:
         max-run-time: 7200
         env:
             PERFHERDER_EXTRA_OPTIONS: enterprise
-            # MOZ_AUTOMATION_PACKAGE_TESTS: "1"
+            MOZ_AUTOMATION_PACKAGE_TESTS: "1"
     run:
         options: [append-env-variables-from-configs]
         actions: [get-secrets, build]
