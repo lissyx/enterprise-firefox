@@ -157,6 +157,7 @@ for (const type of [
   "DISCOVERY_STREAM_SPOCS_UPDATE",
   "DISCOVERY_STREAM_SPOC_BLOCKED",
   "DISCOVERY_STREAM_SPOC_IMPRESSION",
+  "DISCOVERY_STREAM_SPOC_PLACEHOLDER_DURATION",
   "DISCOVERY_STREAM_TOPICS_LOADING",
   "DISCOVERY_STREAM_USER_EVENT",
   "DOWNLOAD_CHANGED",
@@ -892,7 +893,7 @@ class DiscoveryStreamAdminUI extends (external_React_default()).PureComponent {
   }
   sendConversionEvent() {
     const detail = {
-      partnerId: "demo-partner",
+      partnerId: "295BEEF7-1E3B-4128-B8F8-858E12AA660B",
       lookbackDays: 7,
       impressionType: "default"
     };
@@ -11030,6 +11031,13 @@ class _Weather extends (external_React_default()).PureComponent {
     const showDetailedView = Prefs.values["weather.display"] === "detailed";
     const weatherOptIn = Prefs.values["system.showWeatherOptIn"];
     const nimbusWeatherOptInEnabled = Prefs.values.trainhopConfig?.weather?.weatherOptInEnabled;
+    // Bug 2009484: Controls button order in opt-in dialog for A/B testing.
+    // When true, "Not now" gets slot="primary";
+    // when false/undefined, "Yes" gets slot="primary".
+    // Also note the primary button's position varies by platform:
+    // on Windows, it appears on the left,
+    // while on Linux and macOS, it appears on the right.
+    const reverseOptInButtons = Prefs.values.trainhopConfig?.weather?.reverseOptInButtons;
     const optInDisplayed = Prefs.values["weather.optInDisplayed"];
     const optInUserChoice = Prefs.values["weather.optInAccepted"];
     const staticWeather = Prefs.values["weather.staticData.enabled"];
@@ -11146,15 +11154,17 @@ class _Weather extends (external_React_default()).PureComponent {
       }, /*#__PURE__*/external_React_default().createElement("moz-button", {
         size: "small",
         type: "default",
-        "data-l10n-id": "newtab-weather-opt-in-not-now",
-        onClick: this.handleRejectOptIn,
-        id: "reject-opt-in"
+        "data-l10n-id": "newtab-weather-opt-in-yes",
+        onClick: this.handleAcceptOptIn,
+        id: "accept-opt-in",
+        slot: reverseOptInButtons ? "" : "primary"
       }), /*#__PURE__*/external_React_default().createElement("moz-button", {
         size: "small",
         type: "default",
-        "data-l10n-id": "newtab-weather-opt-in-yes",
-        onClick: this.handleAcceptOptIn,
-        id: "accept-opt-in"
+        "data-l10n-id": "newtab-weather-opt-in-not-now",
+        onClick: this.handleRejectOptIn,
+        id: "reject-opt-in",
+        slot: reverseOptInButtons ? "primary" : ""
       }))))));
     }
     return /*#__PURE__*/external_React_default().createElement("div", {
@@ -13064,6 +13074,76 @@ function EditableTimerFields({
     tabIndex: tabIndex
   }, formatTime(props.timeLeft).split(":")[1]));
 }
+;// CONCATENATED MODULE: ./content-src/components/Widgets/WeatherForecast/WeatherForecast.jsx
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+
+function WeatherForecast() {
+  const prefs = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Prefs.values);
+  const weatherData = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Weather);
+  const WEATHER_SUGGESTION = weatherData.suggestions?.[0];
+  const showDetailedView = prefs["weather.display"] === "detailed";
+  if (!showDetailedView || !weatherData?.initialized) {
+    return null;
+  }
+  return /*#__PURE__*/React.createElement("article", {
+    className: "weather-forecast-widget"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "city-wrapper"
+  }, /*#__PURE__*/React.createElement("h3", null, weatherData.locationData.city)), /*#__PURE__*/React.createElement("div", {
+    className: "current-weather-wrapper"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "weather-icon-column"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "weather-info-column"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "temperature-unit"
+  }, WEATHER_SUGGESTION.current_conditions.temperature[prefs["weather.temperatureUnits"]], "\xB0", prefs["weather.temperatureUnits"]), /*#__PURE__*/React.createElement("span", {
+    className: "temperature-description"
+  }, WEATHER_SUGGESTION.current_conditions.summary)), /*#__PURE__*/React.createElement("div", {
+    className: "high-low-column"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "high-temperature"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "arrow-icon arrow-up"
+  }), WEATHER_SUGGESTION.forecast.high[prefs["weather.temperatureUnits"]], "\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: "low-temperature"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "arrow-icon arrow-down"
+  }), WEATHER_SUGGESTION.forecast.low[prefs["weather.temperatureUnits"]], "\xB0"))), /*#__PURE__*/React.createElement("hr", null), /*#__PURE__*/React.createElement("div", {
+    className: "forecast-row"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "today-forecast",
+    "data-l10n-id": "newtab-weather-todays-forecast"
+  }), /*#__PURE__*/React.createElement("ul", {
+    className: "forecast-row-items"
+  }, /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("span", null, "80\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  }), /*#__PURE__*/React.createElement("span", null, "7:00")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("span", null, "80\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  }), /*#__PURE__*/React.createElement("span", null, "7:00")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("span", null, "80\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  }), /*#__PURE__*/React.createElement("span", null, "7:00")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("span", null, "80\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  }), /*#__PURE__*/React.createElement("span", null, "7:00")), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("span", null, "80\xB0"), /*#__PURE__*/React.createElement("span", {
+    className: `weather-icon iconId${WEATHER_SUGGESTION.current_conditions.icon_id}`
+  }), /*#__PURE__*/React.createElement("span", null, "7:00")))), /*#__PURE__*/React.createElement("div", {
+    className: "weather-forecast-footer"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#",
+    className: "full-forecast",
+    "data-l10n-id": "newtab-weather-see-full-forecast"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "sponsored-text",
+    "data-l10n-id": "newtab-weather-sponsored",
+    "data-l10n-args": "{\"provider\": \"AccuWeather\xAE\"}"
+  })));
+}
+
 ;// CONCATENATED MODULE: ./content-src/components/DiscoveryStreamComponents/FeatureHighlight/WidgetsFeatureHighlight.jsx
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13117,10 +13197,13 @@ function WidgetsFeatureHighlight({
 
 
 
+
 const PREF_WIDGETS_LISTS_ENABLED = "widgets.lists.enabled";
 const PREF_WIDGETS_SYSTEM_LISTS_ENABLED = "widgets.system.lists.enabled";
 const PREF_WIDGETS_TIMER_ENABLED = "widgets.focusTimer.enabled";
 const PREF_WIDGETS_SYSTEM_TIMER_ENABLED = "widgets.system.focusTimer.enabled";
+const PREF_WIDGETS_WEATHER_FORECAST_ENABLED = "widgets.weatherForecast.enabled";
+const PREF_WIDGETS_SYSTEM_WEATHER_FORECAST_ENABLED = "widgets.system.weatherForecast.enabled";
 const PREF_WIDGETS_MAXIMIZED = "widgets.maximized";
 const PREF_WIDGETS_SYSTEM_MAXIMIZED = "widgets.system.maximized";
 
@@ -13162,10 +13245,13 @@ function Widgets() {
   const dispatch = (0,external_ReactRedux_namespaceObject.useDispatch)();
   const nimbusListsEnabled = prefs.widgetsConfig?.listsEnabled;
   const nimbusTimerEnabled = prefs.widgetsConfig?.timerEnabled;
+  const nimbusWeatherForecastEnabled = prefs.widgetsConfig?.weatherForecastEnabled;
   const nimbusListsTrainhopEnabled = prefs.trainhopConfig?.widgets?.listsEnabled;
   const nimbusTimerTrainhopEnabled = prefs.trainhopConfig?.widgets?.timerEnabled;
+  const nimbusWeatherForecastTrainhopEnabled = prefs.trainhopConfig?.widgets?.weatherForecastEnabled;
   const listsEnabled = (nimbusListsTrainhopEnabled || nimbusListsEnabled || prefs[PREF_WIDGETS_SYSTEM_LISTS_ENABLED]) && prefs[PREF_WIDGETS_LISTS_ENABLED];
   const timerEnabled = (nimbusTimerTrainhopEnabled || nimbusTimerEnabled || prefs[PREF_WIDGETS_SYSTEM_TIMER_ENABLED]) && prefs[PREF_WIDGETS_TIMER_ENABLED];
+  const weatherForecastEnabled = (nimbusWeatherForecastTrainhopEnabled || nimbusWeatherForecastEnabled || prefs[PREF_WIDGETS_SYSTEM_WEATHER_FORECAST_ENABLED]) && prefs[PREF_WIDGETS_WEATHER_FORECAST_ENABLED];
 
   // track previous timerEnabled state to detect when it becomes disabled
   const prevTimerEnabledRef = (0,external_React_namespaceObject.useRef)(timerEnabled);
@@ -13221,7 +13307,7 @@ function Widgets() {
       dispatch(actionCreators.SetPref(prefName, true));
     }
   }
-  if (!(listsEnabled || timerEnabled)) {
+  if (!(listsEnabled || timerEnabled || weatherForecastEnabled)) {
     return null;
   }
   return /*#__PURE__*/external_React_default().createElement("div", {
@@ -13257,6 +13343,10 @@ function Widgets() {
     handleUserInteraction: handleUserInteraction,
     isMaximized: isMaximized
   }), timerEnabled && /*#__PURE__*/external_React_default().createElement(FocusTimer, {
+    dispatch: dispatch,
+    handleUserInteraction: handleUserInteraction,
+    isMaximized: isMaximized
+  }), weatherForecastEnabled && /*#__PURE__*/external_React_default().createElement(WeatherForecast, {
     dispatch: dispatch,
     handleUserInteraction: handleUserInteraction,
     isMaximized: isMaximized
@@ -15812,6 +15902,7 @@ class BaseContent extends (external_React_default()).PureComponent {
       visible: false,
       showSectionsMgmtPanel: false
     };
+    this.spocPlaceholderStartTime = null;
   }
   setFirstVisibleTimestamp() {
     if (!this.state.firstVisibleTimestamp) {
@@ -15827,6 +15918,9 @@ class BaseContent extends (external_React_default()).PureComponent {
     this.setFirstVisibleTimestamp();
     this.shouldDisplayTopicSelectionModal();
     this.onVisibilityDispatch();
+    if (this.isSpocsOnDemandExpired && !this.spocPlaceholderStartTime) {
+      this.spocPlaceholderStartTime = Date.now();
+    }
   }
   onVisibilityDispatch() {
     const {
@@ -15988,6 +16082,31 @@ class BaseContent extends (external_React_default()).PureComponent {
       }
     }
     this.spocsOnDemandUpdated();
+    this.trackSpocPlaceholderDuration(prevProps);
+  }
+  trackSpocPlaceholderDuration(prevProps) {
+    // isExpired returns true when the current props have expired spocs (showing placeholders)
+    const isExpired = this.isSpocsOnDemandExpired;
+
+    // Init tracking when placeholders become visible
+    if (isExpired && this.state.visible && !this.spocPlaceholderStartTime) {
+      this.spocPlaceholderStartTime = Date.now();
+    }
+
+    // wasExpired returns true when the previous props had expired spocs (showing placeholders)
+    const wasExpired = prevProps.DiscoveryStream.spocs.onDemand?.enabled && !prevProps.DiscoveryStream.spocs.onDemand?.loaded && Date.now() - prevProps.DiscoveryStream.spocs.lastUpdated >= prevProps.DiscoveryStream.spocs.cacheUpdateTime;
+
+    // Record duration telemetry event when placeholders are replaced with real content
+    if (wasExpired && !isExpired && this.spocPlaceholderStartTime) {
+      const duration = Date.now() - this.spocPlaceholderStartTime;
+      this.props.dispatch(actionCreators.OnlyToMain({
+        type: actionTypes.DISCOVERY_STREAM_SPOC_PLACEHOLDER_DURATION,
+        data: {
+          duration
+        }
+      }));
+      this.spocPlaceholderStartTime = null;
+    }
   }
   handleColorModeChange() {
     const colorMode = this.prefersDarkQuery?.matches ? "dark" : "light";
