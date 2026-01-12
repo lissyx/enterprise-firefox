@@ -681,7 +681,7 @@ pref("browser.urlbar.merino.ohttpConfigURL", "");
 pref("browser.urlbar.merino.ohttpRelayURL", "");
 
 // OHTTP hpke for DAP
-pref("dap.ohttp.hpke", "https://dap-09-3.api.divviup.org/ohttp-configs");
+pref("dap.ohttp.hpke", "gAAgJSO22Y3HKzRSese15JtQVuuFfOIcTrZ56lQ5kDQwS0oABAABAAE");
 
 // OHTTP relay URL for DAP
 pref("dap.ohttp.relayURL", "https://mozilla-ohttp-dap.mozilla.fastly-edge.com/");
@@ -2271,6 +2271,7 @@ pref("browser.aiwindow.memoriesLogLevel", "Warn");
 pref("browser.aiwindow.firstrun.autoAdvanceMS", 3000);
 pref("browser.aiwindow.firstrun.modelChoice", "");
 pref("browser.aiwindow.model", "qwen3-235b-a22b-instruct-2507-maas");
+pref("browser.aiwindow.preferences.enabled", false);
 
 // Block insecure active content on https pages
 pref("security.mixed_content.block_active_content", true);

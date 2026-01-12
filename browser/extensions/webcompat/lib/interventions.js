@@ -564,13 +564,10 @@ class Interventions {
     const contentScripts =
       this._contentScriptsPerIntervention.get(intervention);
     if (contentScripts) {
-      const ids = (
-        await browser.scripting.getRegisteredContentScripts({
-          ids: contentScripts.map(script => script.id),
-        })
-      )?.map(script => script.id);
-      if (ids?.length) {
-        await browser.scripting.unregisterContentScripts({ ids });
+      for (const id of contentScripts.map(s => s.id)) {
+        try {
+          await browser.scripting.unregisterContentScripts({ ids: [id] });
+        } catch (_) {}
       }
     }
   }
