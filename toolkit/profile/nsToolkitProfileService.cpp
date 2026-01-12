@@ -41,10 +41,6 @@
 #  include "mozilla/WidgetUtilsGtk.h"
 #endif
 
-#if defined(MOZ_ENTERPRISE)
-#  include "mozilla/browser/extensions/felt/felt.h"
-#endif
-
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsNetCID.h"
@@ -1559,36 +1555,6 @@ nsresult nsToolkitProfileService::SelectStartupProfile(
     NS_IF_ADDREF(*aProfile = profile);
     return NS_OK;
   }
-
-#if defined(MOZ_ENTERPRISE)
-  auto forcedProfile = geckoargs::sProfile.IsPresent(gArgc, gArgv);
-  if (is_felt_ui() && !forcedProfile) {
-    nsCOMPtr<nsIFile> file;
-    MOZ_TRY(
-        GetSpecialSystemDirectory(OS_TemporaryDirectory, getter_AddRefs(file)));
-    MOZ_TRY(file->AppendNative("felt"_ns));
-
-    bool exists = false;
-    MOZ_TRY(file->Exists(&exists));
-
-    if (!exists) {
-      // Create a unique profile directory.  This can fail if there are too many
-      // (thousands) of existing directories, which is unlikely to happen.
-      MOZ_TRY(file->CreateUnique(nsIFile::DIRECTORY_TYPE, 0700));
-    }
-
-    nsCOMPtr<nsIFile> localDir = file;
-    file.forget(aRootDir);
-    localDir.forget(aLocalDir);
-    // Background tasks never use profiles known to the profile service.
-    *aProfile = nullptr;
-
-    // consume -profile
-    (void)geckoargs::sProfile.Get(gArgc, gArgv);
-
-    return NS_OK;
-  }
-#endif
 
   // Check the -profile command line argument. It accepts a single argument that
   // gives the path to use for the profile.
