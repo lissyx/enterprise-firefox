@@ -486,18 +486,27 @@ def target_tasks_enterprise_firefox_with_tests(
     )
 
     def filter(task):
+        # Enabling tests suites triggers many jobs not required, limit execution
+        # to enterprise builds for now
+        if task.kind in ["test", "mochitest"] and "enterprise" not in task.label:
+            return False
+
         # Only keep builds that have been explicitely flagged
         if task.kind == "build" and not "enterprise-firefox" in task.attributes.get(
             "run_on_projects"
         ):
             return False
 
-        if task.kind == "enterprise-test":
-            return True
-
         build_platform = task.attributes.get("build_platform")
         build_type = task.attributes.get("build_type")
         shippable = task.attributes.get("shippable", False)
+
+        level = int(parameters["level"])
+        if ("shippable" in task.label or shippable) and level < 3:
+            return False
+
+        if task.kind == "enterprise-test":
+            return True
 
         if not build_platform or not build_type:
             return True

@@ -381,7 +381,9 @@ def verify_trust_domain_v2_routes_enterprise(
 
     if (
         "upload" in task.label
+        or not "shippable" in task.label
         or task.label.startswith("enterprise-test")
+        or task.label.startswith("test-")
         or task.label.startswith("build-signing")
         or task.label.startswith("build-mac-signing")
     ):
