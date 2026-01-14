@@ -209,7 +209,8 @@ macosx64/opt:
 
 macosx64-enterprise-shippable/opt:
     description: "MacOS X x64 Enterprise Shippable Cross-compile"
-    use-pgo: true
+    # PGO breaks on Bent build when checking the target linker
+    # use-pgo: true
     index:
         job-name: macosx64-enterprise-shippable-opt
     attributes:
@@ -220,7 +221,7 @@ macosx64-enterprise-shippable/opt:
     shipping-product: firefox
     treeherder:
         platform: osx-cross-enterprise-shippable/opt
-        symbol: Bpgo(Bent)
+        symbol: Bent
         tier: 1
     worker-type: b-linux-docker-xlarge-amd
     worker:
