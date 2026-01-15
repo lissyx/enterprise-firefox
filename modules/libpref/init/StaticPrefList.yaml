@@ -5157,7 +5157,8 @@
     *.nvidia.com,
     *.fedex.com,
     *.msci.com,
-    *.the-saleroom.com
+    *.the-saleroom.com,
+    *.si.com
   mirror: never
 
 # Maximum amount of time in milliseconds consecutive setTimeout()/setInterval()
@@ -9373,14 +9374,6 @@
 -   name: javascript.options.wasm_test_serialization
     type: bool
     value: false
-    mirror: always
-    set_spidermonkey_pref: always
-
-# Enables lazy tiering for wasm modules that have a GC type defined in them.
-# Use wasm_lazy_tiering to enable it for any module.
--   name: javascript.options.wasm_lazy_tiering_for_gc
-    type: bool
-    value: true
     mirror: always
     set_spidermonkey_pref: always
 
@@ -14495,7 +14488,7 @@
 # This is the number of dns cache entries allowed
 - name: network.dnsCacheEntries
   type: RelaxedAtomicUint32
-  value: 800
+  value: 1600
   mirror: always
 
 # In the absence of OS TTLs, the DNS cache TTL value
@@ -15542,6 +15535,12 @@
   value: false
   mirror: always
   rust: true
+
+# When true, force TRR connections to use HTTP/3 first
+- name: network.trr.force_http3_first
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
 
 # When true, a http request will be upgraded to https when HTTPS RR is
 # available.
@@ -16775,11 +16774,6 @@
 - name: privacy.window.maxInnerHeight
   type: int32_t
   value: 900
-  mirror: always
-
-- name: privacy.sanitize.useOldClearHistoryDialog
-  type: RelaxedAtomicBool
-  value: true
   mirror: always
 
 - name: privacy.sanitize.sanitizeOnShutdown
