@@ -192,6 +192,17 @@ def setup_zed(command_context, interactive):
 
         new_settings["lsp"] = lsp_settings
 
+    # Our C/C++ tab size does not match the default
+    new_settings["languages"] = {"C": {"tab_size": 2}, "C++": {"tab_size": 2}}
+    # FIXME: Remove once modelines are supported:
+    # https://github.com/zed-industries/zed/issues/4762
+    new_settings["file_types"] = {
+        "Python": [
+            "**/moz.build",
+            "**/*.configure",
+        ],
+    }
+
     zed_settings_dir = mozpath.join(command_context.topsrcdir, ".zed")
     zed_settings_file = mozpath.join(zed_settings_dir, "settings.json")
     if not os.path.isdir(zed_settings_dir):

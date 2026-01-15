@@ -153,22 +153,26 @@ export class ChatConversation {
    * Limit/filter out data uris from message data
    *
    * @param {string} contentBody - The user message content
-   * @param {string?} [pageUrl=""] - The current page url when message was submitted
+   * @param {URL?} [pageUrl=null] - The current page url when message was submitted
    * @param {UserRoleOpts} [userOpts=new UserRoleOpts()] - User message options
    */
-  addUserMessage(contentBody, pageUrl = "", userOpts = new UserRoleOpts()) {
+  addUserMessage(contentBody, pageUrl = null, userOpts = new UserRoleOpts()) {
     const content = {
       type: "text",
       body: contentBody,
     };
 
-    let url = URL.parse(pageUrl);
-
     let currentTurn = this.currentTurnIndex();
     const newTurnIndex =
       this.#messages.length === 1 ? currentTurn : currentTurn + 1;
 
-    this.addMessage(MESSAGE_ROLE.USER, content, url, newTurnIndex, userOpts);
+    this.addMessage(
+      MESSAGE_ROLE.USER,
+      content,
+      pageUrl,
+      newTurnIndex,
+      userOpts
+    );
   }
 
   /**
@@ -191,7 +195,7 @@ export class ChatConversation {
     this.addMessage(
       MESSAGE_ROLE.ASSISTANT,
       content,
-      "",
+      null,
       this.currentTurnIndex(),
       assistantOpts
     );
@@ -207,7 +211,7 @@ export class ChatConversation {
     this.addMessage(
       MESSAGE_ROLE.TOOL,
       content,
-      "",
+      null,
       this.currentTurnIndex(),
       toolOpts
     );
@@ -216,13 +220,18 @@ export class ChatConversation {
   /**
    * Add a system message to the conversation
    *
-   * @param {string} type - The assistant message type: text|injected_insights|injected_real_time_info
+   * @param {string} type - The assistant message type: text|injected_memories|injected_real_time_info
    * @param {string} contentBody - The system message object to be saved as JSON
    */
   addSystemMessage(type, contentBody) {
     const content = { type, body: contentBody };
 
-    this.addMessage(MESSAGE_ROLE.SYSTEM, content, "", this.currentTurnIndex());
+    this.addMessage(
+      MESSAGE_ROLE.SYSTEM,
+      content,
+      null,
+      this.currentTurnIndex()
+    );
   }
 
   /**
@@ -322,13 +331,13 @@ export class ChatConversation {
    *    role: string;
    *    tool_call_id: string;
    *    content: string;
-   *  }} InsightsApiFunctionParams
+   *  }} MemoryApiFunctionReturn
    *
    *  @typedef {
-   *    (message: string) => Promise<null | InsightsContextParams>
-   *  } InsightsApiFunction
+   *    (message: string) => Promise<null | MemoryApiFunctionReturn>
+   *  } MemoriesApiFunction
    *
-   * @param {InsightsApiFunction} [constructMemories=constructRelevantMemoriesContextMessage]
+   * @param {MemoriesApiFunction} [constructMemories=constructRelevantMemoriesContextMessage]
    * Function that returns promise that resolves with memories data
    */
   async getMemoriesContext(
@@ -339,7 +348,7 @@ export class ChatConversation {
       return;
     }
 
-    this.addSystemMessage(SYSTEM_PROMPT_TYPE.INSIGHTS, memoriesContext.content);
+    this.addSystemMessage(SYSTEM_PROMPT_TYPE.MEMORIES, memoriesContext.content);
   }
 
   /**
