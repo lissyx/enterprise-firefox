@@ -9,7 +9,6 @@ felt-sso-title = Sign in
 felt-sso-input-email =
     .description = Use your organizational-issued email
     .label = Work email
-    .accesskey = E
 felt-sso-continue-btn =
     .label = Continue
 felt-browser-error-multiple-crashes = { -brand-short-name } crashed multiple times
