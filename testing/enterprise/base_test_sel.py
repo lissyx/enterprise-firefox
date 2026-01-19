@@ -4,62 +4,27 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 
+import json
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 import time
+import traceback
 
-from marionette_driver.marionette import Marionette
-from marionette_driver.wait import Wait
-from marionette_harness import MarionetteTestCase
+from mozlog import formatters, handlers, structuredlog
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
-class EnterpriseTestsBase(MarionetteTestCase):
-    def setUp(self):
-        if hasattr(self, "EXTRA_ENV"):
-            os.environ.update(self.EXTRA_ENV)
+class EnterpriseTestsBase:
+    _INSTANCE = None
 
-        self._logger = self.logger
-
-        super().setUp()
-        
-        if hasattr(self, "_extra_cli_args"):
-            self.marionette.instance.app_args += self._extra_cli_args
-        else:
-            self.marionette.instance.app_args = []
-
-        self.marionette.quit(in_app=False, clean=True)
-        self.marionette.start_session()
-
-        if hasattr(self, "_extra_prefs"):
-            self.marionette.enforce_gecko_prefs(self._extra_prefs)
-
-        self._driver = self.marionette
-        # self._wait = Wait(self.marionette, 10)
-        # self._longwait = Wait(self.marionette, 60)
-
-        if hasattr(self, "setup"):
-            self.setup()
-
-    def tearDown(self):
-        super().tearDown()
-
-        if hasattr(self, "teardown"):
-            self.teardown()
-
-        if hasattr(self, "EXTRA_ENV"):
-            for key in self.EXTRA_ENV.keys():
-                if key == "MOZ_AUTOMATION":
-                    continue
-
-                self.logger.info(f"Removing {key} from os.environ")
-                value = os.environ.pop(key)
-                assert value == self.EXTRA_ENV[key], (
-                    f"Removed os.environ[{key}]={value} but self.EXTRA_ENV[{key}]={self.EXTRA_ENV[key]}"
-                )
-
-        self.marionette.quit(in_app=False, clean=True)
-
-    """
     def __init__(
         self,
         exp,
@@ -73,6 +38,8 @@ class EnterpriseTestsBase(MarionetteTestCase):
     ):
         self._EXE_PATH = rf"{geckodriver}"
         self._BIN_PATH = rf"{firefox}"
+
+        self._profile_root = profile_root
 
         driver_service_args = []
         if self.need_allow_system_access():
@@ -107,6 +74,7 @@ class EnterpriseTestsBase(MarionetteTestCase):
         if "MOZ_AUTOMATION" in os.environ.keys():
             os.environ["MOZ_LOG_FILE"] = os.path.join(self._artifact_dir, "gecko.log")
 
+        self._profile_path = self.get_profile_path(name="enterprise-tests")
         options.add_argument("-profile")
         options.add_argument(self._profile_path)
 
@@ -223,7 +191,6 @@ class EnterpriseTestsBase(MarionetteTestCase):
         shutil.rmtree(self._profile_path, ignore_errors=True)
 
         sys.exit(ec)
-    """
 
     def check_for_crashes(self, exit_code):
         for log_file in [self._driver_log, self._child_driver_log]:
@@ -267,6 +234,12 @@ class EnterpriseTestsBase(MarionetteTestCase):
         except WebDriverException as ex:
             self._logger.info(f"Saving child browser screenshot FAILED due to {ex}")
 
+    def get_timeout(self):
+        if "TEST_TIMEOUT" in os.environ.keys():
+            return int(os.getenv("TEST_TIMEOUT"))
+        else:
+            return 5
+
     def get_profile_path(self, name):
         return tempfile.mkdtemp(
             prefix=name,
@@ -274,16 +247,24 @@ class EnterpriseTestsBase(MarionetteTestCase):
         )
 
     def _open_tab(self, url, driver, waiter):
-        handle = driver.open(type="tab")
-        driver.switch_to_window(handle["handle"])
-        driver.navigate(url)
-        return handle
+        tabs = driver.window_handles
+        driver.switch_to.new_window("tab")
+        waiter.until(EC.new_window_is_opened(tabs))
+        driver.get(url)
+        return driver.current_window_handle
 
     def open_tab(self, url):
-        return self._open_tab(url, self._driver, Wait(self._driver, 10))
+        return self._open_tab(url, self._driver, self._wait)
 
     def open_tab_child(self, url):
-        return self._open_tab(url, self._child_driver, Wait(self._child_driver, 10))
+        return self._open_tab(url, self._child_driver, self._child_wait)
+
+    def need_allow_system_access(self):
+        geckodriver_output = subprocess.check_output([
+            self._EXE_PATH,
+            "--help",
+        ]).decode()
+        return "--allow-system-access" in geckodriver_output
 
     def get_marionette_port(self, max_try=100):
         marionette_port_file = os.path.join(
@@ -308,6 +289,24 @@ class EnterpriseTestsBase(MarionetteTestCase):
         assert marionette_port > 0, "Valid marionette port"
         self._logger.info(f"Marionette PORT: {marionette_port}")
 
+        driver_service_args = [
+            "--allow-system-access",
+            "--connect-existing",
+            "--marionette-port",
+            str(marionette_port),
+        ]
+        driver_service = Service(
+            executable_path=self._EXE_PATH,
+            log_output=self._child_driver_log,
+            service_args=driver_service_args,
+        )
+
+        options = Options()
+        options.log.level = "trace"
+        if capabilities:
+            for k, v in capabilities.items():
+                options.set_capability(k, v)
+
         new_marionette_port = 0
         with open(marionette_port_file) as infile:
             new_marionette_port = int(infile.read())
@@ -316,7 +315,32 @@ class EnterpriseTestsBase(MarionetteTestCase):
         assert marionette_port == new_marionette_port, "STILL Valid marionette port"
         assert marionette_port != 2828, "Marionette port should not be default value"
 
-        self._child_driver = Marionette(host="127.0.0.1", port=new_marionette_port)
-        self._child_driver.start_session(capabilities)
-        # self._child_wait = Wait(self._child_driver, 10)
-        # self._child_longwait = Wait(self._child_driver, 60)
+        self._child_driver = webdriver.Firefox(service=driver_service, options=options)
+        self._child_wait = WebDriverWait(self._child_driver, self.get_timeout())
+        self._child_longwait = WebDriverWait(self._child_driver, 60)
+
+    def update_channel(self):
+        if self._update_channel is None:
+            self._driver.set_context("chrome")
+            self._update_channel = self._driver.execute_script(
+                "return Services.prefs.getStringPref('app.update.channel');"
+            )
+            self._logger.info(f"Update channel: {self._update_channel}")
+            self._driver.set_context("content")
+        return self._update_channel
+
+    def version(self):
+        self._driver.set_context("chrome")
+        version = self._driver.execute_script("return AppConstants.MOZ_APP_VERSION;")
+        self._driver.set_context("content")
+        return version
+
+    def version_major(self):
+        if self._version_major is None:
+            self._driver.set_context("chrome")
+            self._version_major = self._driver.execute_script(
+                "return AppConstants.MOZ_APP_VERSION.split('.')[0];"
+            )
+            self._logger.info(f"Version major: {self._version_major}")
+            self._driver.set_context("content")
+        return self._version_major
