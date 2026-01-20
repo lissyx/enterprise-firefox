@@ -4843,7 +4843,7 @@
 
 - name: dom.workers.throttling.enabled
   type: bool
-  value: @IS_EARLY_BETA_OR_EARLIER@
+  value: true
   mirror: once
 
 - name: dom.workers.serialized-sab-access
@@ -7818,7 +7818,7 @@
 - name: gfx.webrender.layer-compositor
   type: bool
 #if defined(XP_WIN)
-  value: @IS_NIGHTLY_BUILD@
+  value: true
 #else
   value: false
 #endif

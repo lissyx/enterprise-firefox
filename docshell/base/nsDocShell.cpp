@@ -3687,8 +3687,8 @@ nsDocShell::DisplayLoadError(nsresult aError, nsIURI* aURI,
         error = "redirectLoop";
         break;
       case NS_ERROR_UNKNOWN_SOCKET_TYPE:
-        // Doc failed to load because PSM is not installed
-        error = "unknownSocketType";
+        // Doc failed to load because the client is misconfigured
+        error = "clientSocketMisconfiguration";
         break;
       case NS_ERROR_NET_RESET:
         // Doc failed to load because the server kept reseting the connection
@@ -14814,7 +14814,7 @@ void nsDocShell::MoveLoadingToActiveEntry(bool aExpired, uint32_t aCacheKey,
                                  .valueOr(nullptr)),
                     loadingEntry->mTriggeringNavigationType
                         .map([](NavigationType type) {
-                          return fmt::format(FMT_STRING("{}"), type);
+                          return fmt::format("{}", type);
                         })
                         .valueOr("none"));
         if (loadingEntry->mTriggeringEntry &&
