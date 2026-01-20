@@ -587,6 +587,15 @@ static bool GetBuildConfiguration(JSContext* cx, unsigned argc, Value* vp) {
     return false;
   }
 
+#ifdef ENABLE_SOURCE_PHASE_IMPORTS
+  value = BooleanValue(true);
+#else
+  value = BooleanValue(false);
+#endif
+  if (!JS_SetProperty(cx, info, "source-phase-imports", value)) {
+    return false;
+  }
+
 #ifdef FUZZING
   value = BooleanValue(true);
 #else
@@ -3214,7 +3223,7 @@ static bool GetAtomMarkIndex(JSContext* cx, unsigned argc, Value* vp) {
   RootedObject callee(cx, &args.callee());
 
   if (args.length() != 1 || !args[0].isGCThing() ||
-      !args[0].toGCThing()->zone()->isAtomsZone()) {
+      !args[0].toGCThing()->zoneFromAnyThread()->isAtomsZone()) {
     ReportUsageErrorASCII(cx, callee,
                           "Expected an atom as the single argument");
     return false;

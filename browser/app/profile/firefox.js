@@ -424,11 +424,7 @@ pref("browser.urlbar.deduplication.thresholdDays", 0);
 
 pref("browser.urlbar.scotchBonnet.enableOverride", true);
 
-#ifdef NIGHTLY_BUILD
 pref("browser.urlbar.trustPanel.featureGate", true);
-#else
-pref("browser.urlbar.trustPanel.featureGate", false);
-#endif
 
 // Once Perplexity has entered search mode at least once,
 // we no longer show the Perplexity onboarding callout.
@@ -2700,7 +2696,7 @@ pref("browser.tabs.fadeOutUnloadedTabs", false);
 #endif
 
 // Whether SVG favicons should be safely re-encoded using the moz-remote-image:// protocol.
-pref("browser.tabs.remoteSVGIconDecoding", false);
+pref("browser.tabs.remoteSVGIconDecoding", true);
 
 // If true, unprivileged extensions may use experimental APIs on
 // nightly and developer edition.
