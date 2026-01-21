@@ -39,13 +39,16 @@ tasks:
                 by-build-platform:
                     macosx64-.*:
                         - repackage/base.py
+                        - repackage/base_enterprise.py
                         - repackage/osx_partner.py
                     win64-(?!aarch64).*:
                         - repackage/base.py
+                        - repackage/base_enterprise.py
                         - repackage/win32_sfx_stub.py
                         - repackage/win64_partner.py
                     linux64.*:
                         - repackage/base.py
+                        - repackage/base_enterprise.py
         package-formats:
             by-build-platform:
                 macosx64\b.*: [dmg, pkg]
