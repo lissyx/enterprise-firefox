@@ -20,6 +20,7 @@ task-defaults:
 
 only-for-build-platforms:
     - macosx64-shippable/opt
+    - macosx64-enterprise-shippable/opt
     - macosx64-devedition/opt
     - macosx64/opt
     - macosx64/debug

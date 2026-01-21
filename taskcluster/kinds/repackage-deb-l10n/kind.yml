@@ -17,12 +17,13 @@ kind-dependencies:
     - shippable-l10n-signing
 
 task-defaults:
-    run-on-repo-type: [hg]
+    run-on-repo-type: [hg, git]
 
 only-for-build-platforms:
     # Langpacks support all CPU architectures. We just need to pick one
     - linux64-devedition/opt
     - linux64-shippable/opt
+    - linux64-enterprise-shippable/opt
 
 tasks:
     repackage-deb-l10n:
