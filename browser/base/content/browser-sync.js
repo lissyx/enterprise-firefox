@@ -306,6 +306,10 @@ this.SyncedTabsPanelList = class SyncedTabsPanelList {
           if (!TRUSTED_FAVICON_SCHEMES.includes(uri.scheme)) {
             icon = getMozRemoteImageURL(uri.spec, {
               size: Math.floor(16 * window.devicePixelRatio),
+              colorScheme: window.matchMedia("(prefers-color-scheme: dark)")
+                .matches
+                ? "dark"
+                : "light",
             });
           }
         } catch (e) {
@@ -584,7 +588,7 @@ var gSync = {
     XPCOMUtils.defineLazyPreferenceGetter(
       this,
       "REMOTE_SVG_ICON_DECODING",
-      "browser.tabs.remoteSVGIconDecoding"
+      "identity.tabs.remoteSVGIconDecoding"
     );
   },
 

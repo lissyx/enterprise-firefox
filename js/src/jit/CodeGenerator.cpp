@@ -14616,7 +14616,9 @@ void CodeGenerator::visitLinearizeString(LLinearizeString* lir) {
 
   masm.branchIfRope(str, ool->entry());
 
-  masm.movePtr(str, output);
+  if (str != output) {
+    masm.movePtr(str, output);
+  }
   masm.bind(ool->rejoin());
 }
 
@@ -14929,7 +14931,7 @@ void CodeGenerator::visitStringIncludes(LStringIncludes* lir) {
 }
 
 template <typename LIns>
-static void CallStringMatch(MacroAssembler& masm, LIns* lir, OutOfLineCode* ool,
+static void CallStringMatch(MacroAssembler& masm, LIns* lir,
                             LiveRegisterSet volatileRegs) {
   Register string = ToRegister(lir->string());
   Register output = ToRegister(lir->output());
@@ -14955,7 +14957,7 @@ static void CallStringMatch(MacroAssembler& masm, LIns* lir, OutOfLineCode* ool,
 
   // Can't be a substring when the string is smaller than the search string.
   Label done;
-  masm.branch32(Assembler::Below, tempLength, Imm32(length), ool->rejoin());
+  masm.branch32(Assembler::Below, tempLength, Imm32(length), &done);
 
   bool searchStringIsPureTwoByte = false;
   if (searchString->hasTwoByteChars()) {
@@ -14966,11 +14968,16 @@ static void CallStringMatch(MacroAssembler& masm, LIns* lir, OutOfLineCode* ool,
 
   // Pure two-byte strings can't occur in a Latin-1 string.
   if (searchStringIsPureTwoByte) {
-    masm.branchLatin1String(string, ool->rejoin());
+    masm.branchLatin1String(string, &done);
   }
 
-  // Slow path when we need to linearize the string.
-  masm.branchIfRope(string, ool->entry());
+#ifdef DEBUG
+  // We don't expect to see ropes here.
+  Label notRope;
+  masm.branchIfNotRope(string, &notRope);
+  masm.assumeUnreachable("input string must be linearized");
+  masm.bind(&notRope);
+#endif
 
   Label restoreVolatile;
 
@@ -15115,19 +15122,11 @@ static void CallStringMatch(MacroAssembler& masm, LIns* lir, OutOfLineCode* ool,
     masm.cmpPtrSet(Assembler::NotEqual, output, ImmPtr(nullptr), output);
   }
 
-  masm.bind(ool->rejoin());
+  masm.bind(&done);
 }
 
 void CodeGenerator::visitStringIncludesSIMD(LStringIncludesSIMD* lir) {
-  Register string = ToRegister(lir->string());
-  Register output = ToRegister(lir->output());
-  const JSOffThreadAtom* searchString = lir->searchString();
-
-  using Fn = bool (*)(JSContext*, HandleString, HandleString, bool*);
-  auto* ool = oolCallVM<Fn, js::StringIncludes>(
-      lir, ArgList(string, ImmGCPtr(searchString)), StoreRegisterTo(output));
-
-  CallStringMatch(masm, lir, ool, liveVolatileRegs(lir));
+  CallStringMatch(masm, lir, liveVolatileRegs(lir));
 }
 
 void CodeGenerator::visitStringIndexOf(LStringIndexOf* lir) {
@@ -15139,15 +15138,7 @@ void CodeGenerator::visitStringIndexOf(LStringIndexOf* lir) {
 }
 
 void CodeGenerator::visitStringIndexOfSIMD(LStringIndexOfSIMD* lir) {
-  Register string = ToRegister(lir->string());
-  Register output = ToRegister(lir->output());
-  const JSOffThreadAtom* searchString = lir->searchString();
-
-  using Fn = bool (*)(JSContext*, HandleString, HandleString, int32_t*);
-  auto* ool = oolCallVM<Fn, js::StringIndexOf>(
-      lir, ArgList(string, ImmGCPtr(searchString)), StoreRegisterTo(output));
-
-  CallStringMatch(masm, lir, ool, liveVolatileRegs(lir));
+  CallStringMatch(masm, lir, liveVolatileRegs(lir));
 }
 
 void CodeGenerator::visitStringLastIndexOf(LStringLastIndexOf* lir) {
@@ -15568,18 +15559,11 @@ void CodeGenerator::visitStringTrimStartIndex(LStringTrimStartIndex* lir) {
   Register string = ToRegister(lir->string());
   Register output = ToRegister(lir->output());
 
-  auto volatileRegs = liveVolatileRegs(lir);
-  volatileRegs.takeUnchecked(output);
-
-  masm.PushRegsInMask(volatileRegs);
-
   using Fn = int32_t (*)(const JSString*);
   masm.setupAlignedABICall();
   masm.passABIArg(string);
   masm.callWithABI<Fn, jit::StringTrimStartIndex>();
   masm.storeCallInt32Result(output);
-
-  masm.PopRegsInMask(volatileRegs);
 }
 
 void CodeGenerator::visitStringTrimEndIndex(LStringTrimEndIndex* lir) {
@@ -15587,19 +15571,12 @@ void CodeGenerator::visitStringTrimEndIndex(LStringTrimEndIndex* lir) {
   Register start = ToRegister(lir->start());
   Register output = ToRegister(lir->output());
 
-  auto volatileRegs = liveVolatileRegs(lir);
-  volatileRegs.takeUnchecked(output);
-
-  masm.PushRegsInMask(volatileRegs);
-
   using Fn = int32_t (*)(const JSString*, int32_t);
   masm.setupAlignedABICall();
   masm.passABIArg(string);
   masm.passABIArg(start);
   masm.callWithABI<Fn, jit::StringTrimEndIndex>();
   masm.storeCallInt32Result(output);
-
-  masm.PopRegsInMask(volatileRegs);
 }
 
 void CodeGenerator::visitStringSplit(LStringSplit* lir) {
