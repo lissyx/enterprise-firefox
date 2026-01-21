@@ -2896,10 +2896,11 @@ void ScriptLoader::CalculateCacheFlag(ScriptLoadRequest* aRequest) {
   // which can be compressed, but it's at most sourceLength bytes.
   //
   // The alternate data is the serialized Stencil, which also contains the
-  // raw uncompressed JavaScript source in addition to the compiled data,
-  // which takes similar amount as the source length, or possibly larger for
-  // minified files.
-  size_t expectedDiskCacheSize = sourceLength * 3;
+  // raw uncompressed JavaScript source in addition to the compiled data.
+  //
+  // The serialized Stencil takes ~3.8x size of the source length.
+  // (gathered from scripts used in the top 50 websites)
+  size_t expectedDiskCacheSize = sourceLength * 5;
   int32_t diskCacheMaxSizeInKb =
       StaticPrefs::browser_cache_disk_max_entry_size();
   // The pref being -1 means "no limit".
@@ -3699,6 +3700,9 @@ void ScriptLoader::UpdateDiskCache() {
     return;
   }
 
+  int32_t diskCacheMaxSizeInKb =
+      StaticPrefs::browser_cache_disk_max_entry_size();
+
   for (auto& loadedScript : mDiskCacheQueue) {
     // The encoding is performed only when there was no disk cache stored in
     // the necko cache.
@@ -3715,6 +3719,19 @@ void ScriptLoader::UpdateDiskCache() {
       loadedScript->DropSRIOrSRIAndSerializedStencil();
       TRACE_FOR_TEST(loadedScript, "diskcache:failed");
       continue;
+    }
+
+    // The pref being -1 means "no limit".
+    if (diskCacheMaxSizeInKb > 0) {
+      size_t sourceLength =
+          JS::GetScriptSourceLength(loadedScript->GetStencil());
+      size_t expectedDiskCacheSize = sourceLength + compressed.length();
+      if (expectedDiskCacheSize > size_t(diskCacheMaxSizeInKb) * 1024) {
+        loadedScript->DropDiskCacheReference();
+        loadedScript->DropSRIOrSRIAndSerializedStencil();
+        TRACE_FOR_TEST(loadedScript, "diskcache:toolarge");
+        continue;
+      }
     }
 
     if (!SaveToDiskCache(loadedScript, compressed)) {
