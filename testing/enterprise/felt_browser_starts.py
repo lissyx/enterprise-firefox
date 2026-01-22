@@ -4,14 +4,11 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 
-from felt_tests_sel import FeltTests
+from felt_tests import FeltTests
 
 
 class FeltStartsBrowser(FeltTests):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def test_felt_3_browser_started(self, exp):
+    def run_felt_browser_started(self):
         self.connect_child_browser()
         self.open_tab_child(f"http://localhost:{self.sso_port}/sso_page")
 
@@ -26,14 +23,18 @@ class FeltStartsBrowser(FeltTests):
             f"Cookie {self.cookie_name} was properly set on Firefox started by FELT"
         )
 
-        return True
+    def run_felt_verify_prefs(self):
+        prefs = [
+          ["browser.sessionstore.restore_on_demand", False, "Bool"],
+          ["browser.sessionstore.resume_from_crash", False, "Bool"],
+          ["browser.policies.live_polling.frequency", 500, "Int"],
+          ["devtools.browsertoolbox.scope", "everything", "String"],
+          ["enterprise.console.test_float", 1.5, "Float"],
+          ["enterprise.console.test_bool", True, "Bool"]
+        ]
 
-    def test_felt_4_verify_prefs(self, exp):
-        assert len(exp["prefs"]) > 0
-        for pref in exp["prefs"]:
+        for pref in prefs:
             value = self.get_pref_child(pref[0], pref[2])
             assert value == pref[1], (
                 f"Mismatching pref {pref[0]} value {value} instead of {pref[1]}"
             )
-
-        return True

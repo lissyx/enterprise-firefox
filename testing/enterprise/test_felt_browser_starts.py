@@ -4,20 +4,15 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import sys
+import os
+
+sys.path.append(os.path.dirname(__file__))
 
 from felt_browser_starts import FeltStartsBrowser
 
 
 class FeltStartsBrowserCli(FeltStartsBrowser):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-if __name__ == "__main__":
-    FeltStartsBrowserCli(
-        "felt_browser_starts_fromCli.json",
-        firefox=sys.argv[1],
-        geckodriver=sys.argv[2],
-        profile_root=sys.argv[3],
-        cli_args=["-feltUI"],
-    )
+    def test_felt_browser_start_from_cli(self):
+        super().run_felt_base()
+        self.run_felt_browser_started()
+        self.run_felt_verify_prefs()
