@@ -12,7 +12,12 @@ def toolchain_task_definitions():
 
     # Don't import globally to allow this module being imported without
     # the taskgraph module being available (e.g. standalone js)
-    params = {"level": os.environ.get("MOZ_SCM_LEVEL", "3"), "files_changed": []}
+    params = {
+        "level": os.environ.get("MOZ_SCM_LEVEL", "1"),
+        "files_changed": [],
+        "head_repository": "https://github.com/mozilla/enterprise-firefox",
+        "repository_type": "git",
+    }
     root_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "taskcluster")
     toolchains = load_tasks_for_kinds(params, ["fetch", "toolchain"], root_dir=root_dir)
     aliased = {}
