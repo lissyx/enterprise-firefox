@@ -356,6 +356,14 @@ class WindowManager {
 
     switch (lazy.AppInfo.name) {
       case "Firefox": {
+        if (lazy.AppInfo.isEnterprise) {
+          if (Services.felt.isFeltUI()) {
+            throw new lazy.error.UnsupportedOperationError(
+              `openWindow() not supported in ${lazy.AppInfo.name}`
+            );
+          }
+        }
+
         if (openerWindow === null) {
           // If no opener was provided, fallback to the topmost window.
           openerWindow = Services.wm.getMostRecentBrowserWindow();
