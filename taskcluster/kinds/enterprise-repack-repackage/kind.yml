@@ -48,6 +48,7 @@ tasks:
                         - repackage/base.py
         package-formats:
             by-build-platform:
-                macosx64\b.*: [dmg, pkg]
-                win32\b.*: [installer]
-                win64\b.*: [installer]
+                linux.*: [mar]
+                macosx64\b.*: [dmg, mar, pkg]
+                win32\b.*: [installer, mar]
+                win64\b.*: [installer, mar]
