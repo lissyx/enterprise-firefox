@@ -1595,7 +1595,7 @@ nsDefaultCommandLineHandler.prototype = {
 
     // Make sure that when FeltUI is requested, we do not try to open another
     // window. Instead, forward any URLs to be opened in the real Firefox.
-    if (Services.felt.isFeltUI()) {
+    if (Services.felt && Services.felt.isFeltUI()) {
       console.debug(`Felt: Found FeltUI in BrowserContentHandler.`);
       cmdLine.preventDefault = true;
 

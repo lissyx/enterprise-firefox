@@ -386,7 +386,7 @@ BrowserGlue.prototype = {
     lazy.SessionStartup.init();
 
     // check if we're in safe mode
-    if (Services.appinfo.inSafeMode && !Services.felt.isFeltUI()) {
+    if (Services.appinfo.inSafeMode && (Services.felt && !Services.felt.isFeltUI())) {
       Services.ww.openWindow(
         null,
         "chrome://browser/content/safeMode.xhtml",
@@ -611,7 +611,7 @@ BrowserGlue.prototype = {
     let shouldCreateWindow = isPrivateWindow => {
       // Make sure that when FeltUI is requested, we do not try to open another
       // window.
-      if (Services.felt.isFeltUI()) {
+      if (Services.felt && Services.felt.isFeltUI()) {
         Services.startup.enterLastWindowClosingSurvivalArea();
         return false;
       }
