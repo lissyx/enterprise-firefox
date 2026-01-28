@@ -1366,7 +1366,7 @@ def ensure_l10n_central(command_context):
                 [
                     git,
                     "clone",
-                    "https://github.com/lissyx/firefox-l10n.git",
+                    "https://github.com/mozilla-l10n/firefox-l10n.git",
                     str(l10n_base_dir),
                     "--depth",
                     "1",
