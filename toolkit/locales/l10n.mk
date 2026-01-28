@@ -71,7 +71,9 @@ include $(MOZILLA_DIR)/toolkit/mozapps/installer/packager.mk
 
 unpack:
 	$(RM) -r -f '$(ABS_DIST)/l10n-stage'
-	$(PYTHON3) $(topsrcdir)/mach --log-no-times artifact install --unfiltered-project-package --distdir '$(ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)' --verbose
+	mkdir -p $(ABS_DIST)/l10n-stage
+	tar xf $(ABS_DIST)/$(PACKAGE) -C $(ABS_DIST)/l10n-stage
+	#$(PYTHON3) $(topsrcdir)/mach --log-no-times artifact install --unfiltered-project-package --distdir '$(ABS_DIST)/l10n-stage/$(MOZ_PKG_DIR)' --verbose
 
 # The path to the object dir for the mozilla-central build system,
 # may be overridden if necessary.
