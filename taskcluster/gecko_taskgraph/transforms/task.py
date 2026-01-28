@@ -1942,6 +1942,8 @@ def add_shippable_multi_index_routes(config, task):
 
 @index_builder("l10n")
 def add_l10n_index_routes(config, task, force_locale=None):
+    return task
+
     index = task.get("index")
     routes = task.setdefault("routes", [])
 
@@ -1969,7 +1971,7 @@ def add_l10n_index_routes(config, task, force_locale=None):
         locales = [force_locale]
 
     if not locales:
-        raise Exception("Error: Unable to use l10n index for tasks without locales")
+        raise Exception(f"Error: Unable to use l10n index for tasks without locales: {task['label']}")
 
     # If there are too many locales, we can't write a route for all of them
     # See Bug 1323792
@@ -1985,6 +1987,8 @@ def add_l10n_index_routes(config, task, force_locale=None):
 
 @index_builder("shippable-l10n")
 def add_shippable_l10n_index_routes(config, task, force_locale=None):
+    return task
+
     index = task.get("index")
     routes = task.setdefault("routes", [])
 
