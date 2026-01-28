@@ -6,5 +6,5 @@ config = {
     "app_name": "browser",
     "mozconfig_variant": "l10n-mozconfig-enterprise",
     "locales_dir": "browser/locales",
-    "git_repository": "https://github.com/mozilla/firefox-l10n",
+    "git_repository": "https://github.com/lissyx/firefox-l10n",
 }
