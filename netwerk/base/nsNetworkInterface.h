@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef nsNetworkInterface_h__
-#define nsNetworkInterface_h__
+#ifndef nsNetworkInterface_h
+#define nsNetworkInterface_h
 
 #include "nsINetworkInterface.h"
 #include "nsPrintfCString.h"
@@ -123,4 +123,4 @@ bool getRoutesForNetworkInterfaces(
     bool skipDstCheck);
 #endif  // defined(XP_MACOSX)
 
-#endif  // !nsNetworkInterface_h__
+#endif  // !nsNetworkInterface_h
