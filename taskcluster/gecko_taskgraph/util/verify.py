@@ -689,6 +689,12 @@ def verify_test_packaging(task, taskgraph, scratch_pad, graph_config, parameters
                 elif not build_has_tests and not shippable:
                     # If we have not generated all task kinds, we can't verify that
                     # there are no dependent tests.
+
+                    # This is a hack for Enterprise because some macOS tests are scheduled
+                    # but depends at some point on build-mac-notarization that does not run
+                    # on PR (level 1).
+                    missing_tests_allowed = missing_tests_allowed or int(parameters["level"]) == 1 and "enterprise" not in current_task.label
+
                     if not missing_tests_allowed:
                         exceptions.append(
                             f"Build job {current_task.label} has no tests, but specifies "

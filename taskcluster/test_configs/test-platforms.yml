@@ -339,17 +339,13 @@ macosx1500-aarch64/debug:
         - macosx1500-aarch64-tests
         - macosx1500-64-jittests
 
-##
-# TODO: Generates weird error on PRs for Enterprise
-# Exception: Task 'test-macosx1500-aarch64-shippable/opt-xpcshell-1-cf' lists a dependency that does not exist: 'repackage-macosx64-shippable/opt'
-#
-# macosx1500-aarch64-shippable/opt:
-#    build-platform: macosx64-shippable/opt
-#    build-signing-label: repackage-macosx64-shippable/opt
-#    test-sets:
-#        - macosx1500-64-jittests
-#        - macosx1500-64-tests
-#        - macosx1500-64-perftests
+macosx1500-aarch64-shippable/opt:
+    build-platform: macosx64-shippable/opt
+    build-signing-label: repackage-macosx64-shippable/opt
+    test-sets:
+        - macosx1500-64-jittests
+        - macosx1500-64-tests
+        - macosx1500-64-perftests
 
 macosx1470-64-nightlyasrelease/opt:
     build-platform: macosx64-nightlyasrelease/opt
