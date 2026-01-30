@@ -19,7 +19,7 @@ from gecko_taskgraph.transforms.repackage import (
 from gecko_taskgraph.transforms.task import task_description_schema
 from gecko_taskgraph.util.attributes import copy_attributes_from_dependent_job
 from gecko_taskgraph.util.partners import get_partner_config_by_kind
-from gecko_taskgraph.util.platforms import archive_format, executable_extension
+from gecko_taskgraph.util.platforms import architecture, archive_format, executable_extension
 from gecko_taskgraph.util.workertypes import worker_type_implementation
 
 # When repacking the stub installer we need to pass a zip file and package name to the
@@ -135,6 +135,8 @@ def make_job_description(config, jobs):
                 signing_task = dependency
             elif build_platform.startswith("win") and dependency.endswith("repack"):
                 signing_task = dependency
+            elif build_platform.startswith("linux") and dependency.endswith("repack"):
+                signing_task = dependency
 
         attributes["repackage_type"] = "repackage"
 
@@ -153,6 +155,7 @@ def make_job_description(config, jobs):
             command = copy.deepcopy(PACKAGE_FORMATS[format])
             substs = {
                 "archive_format": archive_format(build_platform),
+                "architecture": architecture(build_platform),
                 "executable_extension": executable_extension(build_platform),
             }
             command["inputs"] = {
@@ -244,12 +247,14 @@ def make_job_description(config, jobs):
                 .replace("enterprise-", "")
                 .replace("shippable", "")
             )
-            if "linux64" in platform:
-                th_platform = "linux64-enterprise/opt"
+            if "linux64" in platform and "aarch64" in platform:
+                th_platform = "linux64-aarch64-enterprise"
+            elif "linux64" in platform:
+                th_platform = "linux64-enterprise"
             elif "macosx64" in platform:
-                th_platform = "osx-cross-enterprise/opt"
+                th_platform = "osx-cross-enterprise"
             elif "win64" in platform:
-                th_platform = "windows2012-64-enterprise/opt"
+                th_platform = "windows2012-64-enterprise"
             else:
                 raise ValueError(f"Unsupported {platform}")
 
@@ -314,6 +319,16 @@ def _generate_download_config(
                 f"{locale_path}setup-stub.exe",
             ])
         return {signing_task: download_config}
+
+    if build_platform.startswith("linux"):
+        return {
+            signing_task: [
+                {
+                    "artifact": f"{locale_path}target{archive_format(build_platform)}",
+                    "extract": False,
+                },
+            ],
+        }
 
     raise NotImplementedError(f'Unsupported build_platform: "{build_platform}"')
 
