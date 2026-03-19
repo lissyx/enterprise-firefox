@@ -217,18 +217,6 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
 
         # /api/browser/updates/FirefoxEnterprise/149.0a1/20260218134117/Linux_x86_64-gcc3/en-US/default/Linux%25206.17.0-8-generic%2520(GTK%25203.24.50%252Clibpulse%252017.0.0)/ISET%3ASSE4_2%2CMEM%3A85823/default/default/update.xml?force=1"
         elif path.startswith("/api/browser/updates"):
-            # Versions are important, they need to be equal or higher than the
-            # curernt binary otherwise no update will be downloaded
-            display_version = self.server.serve_updates_version["application_version"][
-                0
-            ]
-            app_version = self.server.serve_updates_version["application_version"][0]
-            platform_version = self.server.serve_updates_version["platform_version"][0]
-            # BuildID also needs to be different, fake it as newer
-            build_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            # Hash is not verified client side? At least we can put what we want
-            hash_value = "ecee0f4b9f0af06cfa3a89c328e4cbb7dd075a0d411ef1b968a072a7995a0753dd96d3d541f0781ab95fdb61e3df7252a9379fc620f2b660ecaed582f2c5246d"
-
             # Producing this requires:
             # $ mach build && mach package
             # then extract the tar somewhere, you have firefox/
@@ -239,6 +227,22 @@ class ConsoleHttpHandler(LocalHttpRequestHandler):
                 os.path.dirname(__file__), os.path.basename("complete.mar")
             )
             if self.server.serve_updates and os.path.isfile(complete_mar):
+                # Versions are important, they need to be equal or higher than the
+                # current binary otherwise no update will be downloaded
+                display_version = self.server.serve_updates_version[
+                    "application_version"
+                ][0]
+                app_version = self.server.serve_updates_version["application_version"][
+                    0
+                ]
+                platform_version = self.server.serve_updates_version[
+                    "platform_version"
+                ][0]
+                # BuildID also needs to be different, fake it as newer
+                build_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                # Hash is not verified client side? At least we can put what we want
+                hash_value = "ecee0f4b9f0af06cfa3a89c328e4cbb7dd075a0d411ef1b968a072a7995a0753dd96d3d541f0781ab95fdb61e3df7252a9379fc620f2b660ecaed582f2c5246d"
+
                 size = os.stat(complete_mar).st_size
                 m = f"""<?xml version="1.0"?>
 <updates>
@@ -675,7 +679,9 @@ class FeltTestsBase(EnterpriseTestsBase):
                 self._logger.info(
                     f"Found PID {self._browser_pid}: EXE:{process_exe} :: NAME:{process_name} :: CMDLINE:{process_cmdline} :: BASENAME:'{process_basename}'"
                 )
-                assert process_basename != "firefox", "Process is not Firefox"
+                assert not process_basename.startswith("firefox"), (
+                    f"Process PID {self._browser_pid} should not be Firefox"
+                )
             except psutil.ZombieProcess:
                 self._logger.info(f"Zombie found as {self._browser_pid}")
 
