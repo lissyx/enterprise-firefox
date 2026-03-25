@@ -37,7 +37,7 @@ class FeltUpdatesForward(FeltTests):
         original_felt_pid = self._driver.session_capabilities["moz:processID"]
         self.run_felt_base()
         self.run_felt_browser_started()
-        self._browser_pid = self._child_driver.session_capabilities["moz:processID"]
+        browser_pid = self._child_driver.session_capabilities["moz:processID"]
 
         with self._driver.using_prefs(
             {"enterprise.felt_tests.should_not_close_window": False},
@@ -49,12 +49,12 @@ class FeltUpdatesForward(FeltTests):
             self.run_felt_trigger_update()
             self.run_felt_check_browser_notification()
             # This is waiting on the browser to exit
-            self.wait_process_exit()
+            self.wait_process_exit(browser_pid)
             self.run_felt_browser_started()
 
             # Next restart is for FELT so wait on it
-            self._browser_pid = self._driver.session_capabilities["moz:processID"]
-            assert original_felt_pid == self._browser_pid, (
+            browser_pid = self._driver.session_capabilities["moz:processID"]
+            assert original_felt_pid == browser_pid, (
                 "FELT should not have restarted after browser restart and 'applying' state for update"
             )
 
@@ -63,7 +63,7 @@ class FeltUpdatesForward(FeltTests):
             self.run_felt_trigger_update()
             self.run_felt_check_browser_notification()
             # This is waiting on FELT to exit
-            self.wait_process_exit()
+            self.wait_process_exit(browser_pid)
 
             # Reconnect
             self._driver.start_session()
