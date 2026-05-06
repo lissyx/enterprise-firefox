@@ -58,6 +58,11 @@ TEST_SUITES = {
             "test-verify($|.*(-1|[^0-9])$)",
         ],
     },
+    "enterprise-end2end": {
+        "aliases": ("e-e2e",),
+        "build_flavor": "enterprise",
+        "task_regex": ["enterprise-end2end($|.*(-1|[^0-9])$)"],
+    },
     "firefox-ui-functional": {
         "aliases": ("fxfn",),
         "mach_command": "firefox-ui-functional",
@@ -461,6 +466,7 @@ _test_flavors = {
     "browser-chrome": "mochitest-browser-chrome",
     "chrome": "mochitest-chrome",
     "crashtest": "crashtest",
+    "enterprise-end2end": "enterprise-end2end",
     "firefox-ui-functional": "firefox-ui-functional",
     "firefox-ui-update": "firefox-ui-update",
     "marionette": "marionette",
@@ -502,6 +508,7 @@ _test_subsuites = {
     ("web-platform-tests", "print-reftest"): "web-platform-tests-print-reftest",
     ("web-platform-tests", "reftest"): "web-platform-tests-reftest",
     ("web-platform-tests", "wdspec"): "web-platform-tests-wdspec",
+    ("enterprise-end2end", "integration"): "enterprise-end2end",
 }
 
 

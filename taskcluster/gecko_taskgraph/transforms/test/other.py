@@ -215,13 +215,14 @@ def set_download_symbols(config, tasks):
     on demand for everything else. ASAN builds shouldn't download
     symbols since they don't product symbol zips see bug 1283879"""
     for task in tasks:
-        if task["test-platform"].split("/")[-1] == "debug":
-            task["mozharness"]["download-symbols"] = True
-        elif "asan" in task["build-platform"] or "tsan" in task["build-platform"]:
-            if "download-symbols" in task["mozharness"]:
-                del task["mozharness"]["download-symbols"]
-        else:
-            task["mozharness"]["download-symbols"] = "ondemand"
+        if task["suite"] != "enterprise-end2end":
+            if task["test-platform"].split("/")[-1] == "debug":
+                task["mozharness"]["download-symbols"] = True
+            elif "asan" in task["build-platform"] or "tsan" in task["build-platform"]:
+                if "download-symbols" in task["mozharness"]:
+                    del task["mozharness"]["download-symbols"]
+            else:
+                task["mozharness"]["download-symbols"] = "ondemand"
         yield task
 
 
@@ -774,6 +775,7 @@ def ensure_spi_disabled_on_all_but_spi(config, tasks):
         has_no_setpref = (
             "gtest",
             "cppunit",
+            "enterprise-end2end",
             "jittest",
             "junit",
             "raptor",
@@ -1020,6 +1022,7 @@ def enable_webrender(config, tasks):
             "gtest",
             "jittest",
             "raptor",
+            "enterprise-end2end",
         ]:
             extra_options.append("--setpref=layers.d3d11.enable-blacklist=false")
 
