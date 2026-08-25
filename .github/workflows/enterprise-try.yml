@@ -1,19 +1,5 @@
 name: Try status
 on:
-  # WARNING: pull_request_target MUST NOT be used if running code under control
-  # of the source PR [0], as it could risk leaking the GH_TOKENs.
-  #
-  # In this case, we do it as the job needs to run within the context of the
-  # target repo, so it can get a GH_TOKEN which it can use to publish commit
-  # statuses on the PR.
-  #
-  # Crucially, no external code is loaded or run as part of this workflow: the
-  # checkout below is the one implied by pull_request_target, i.e. the base
-  # branch of the target repo, and the only thing taken from the PR is its head
-  # branch name, which is handled as untrusted input.
-  #
-  # [0] https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target
-  #
   pull_request_target:
     types: [opened, reopened, synchronize]
 
@@ -42,7 +28,7 @@ env:
 jobs:
   try-status:
     name: Try status
-    if: github.repository == 'mozilla/enterprise-firefox'
+    if: github.repository == 'mozilla/enterprise-firefox' || github.repository == 'lissyx/enterprise-firefox'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
