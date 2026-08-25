@@ -2,7 +2,6 @@ name: Try status
 on:
   pull_request_target:
     types: [opened, reopened, synchronize]
-
   # Try pushes outlive the workflow run that reports on them, so allow asking
   # for a refreshed status.
   workflow_dispatch:
