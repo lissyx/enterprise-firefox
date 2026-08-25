@@ -113,9 +113,11 @@ runs:
           exit 1
         }
 
+        # Having nothing to report is a failure: a pull request is expected to
+        # have a try push under the same branch name.
         not_found() {
-          echo "::notice::$*"
-          report "## :grey_question: Try status: not found"
+          echo "::error::$*"
+          report "## :x: Try status: not found"
           report ""
           report "$*"
           report ""
@@ -124,7 +126,7 @@ runs:
             echo "found=false"
             echo "verdict=not-found"
           } >>"${GITHUB_OUTPUT}"
-          exit 0
+          exit 1
         }
 
         api_get() {
