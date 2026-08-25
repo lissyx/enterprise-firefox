@@ -1,0 +1,135 @@
+name: Try status
+on:
+  # WARNING: pull_request_target MUST NOT be used if running code under control
+  # of the source PR [0], as it could risk leaking the GH_TOKENs.
+  #
+  # In this case, we do it as the job needs to run within the context of the
+  # target repo, so it can get a GH_TOKEN which it can use to publish commit
+  # statuses on the PR.
+  #
+  # Crucially, no external code is loaded or run as part of this workflow: the
+  # checkout below is the one implied by pull_request_target, i.e. the base
+  # branch of the target repo, and the only thing taken from the PR is its head
+  # branch name, which is handled as untrusted input.
+  #
+  # [0] https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target
+  #
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+  # Try pushes outlive the workflow run that reports on them, so allow asking
+  # for a refreshed status.
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number to refresh the try status of.
+        required: true
+
+permissions:
+  contents: read
+  # Only needed to resolve a PR number to its branch on workflow_dispatch.
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: try-status-${{ github.event.pull_request.number || github.event.inputs.pull_request }}
+  cancel-in-progress: true
+
+env:
+  GH_REPO: ${{ github.repository }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  try-status:
+    name: Try status
+    if: github.repository == 'mozilla/enterprise-firefox'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Resolve the pull request
+        id: pr
+        env:
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pull_request }}
+          EVENT_BRANCH: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ -n "${EVENT_BRANCH}" ]]; then
+            branch="${EVENT_BRANCH}"
+            head_sha="${EVENT_HEAD_SHA}"
+          else
+            branch=$(gh pr view "${PR}" --json headRefName --jq '.headRefName')
+            head_sha=$(gh pr view "${PR}" --json headRefOid --jq '.headRefOid')
+          fi
+          {
+            echo "pr=${PR}"
+            echo "branch=${branch}"
+            echo "head_sha=${head_sha}"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Check out the try status action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          sparse-checkout: .github/actions/enterprise-try-action
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Collect the try status
+        id: try
+        uses: ./.github/actions/enterprise-try-action
+        with:
+          branch: ${{ steps.pr.outputs.branch }}
+          # A try push made right before or after the PR push takes a moment to
+          # show up on Treeherder. Lower this if the wait is not worth it.
+          wait-for-push: 600
+          poll-interval: 60
+
+      # One commit status per try job. The statuses file is ordered worst first,
+      # so MAX_STATUSES truncates the passing tail rather than the failures.
+      #
+      # Statuses are writes, which GitHub secondary rate limits to 80 per
+      # minute, hence the pacing below. They also cannot be deleted, only
+      # overwritten by context: on a workflow_dispatch refresh of a sha whose
+      # try push no longer schedules a job, that job keeps the status it last
+      # got.
+      - name: Publish one commit status per job
+        if: steps.try.outputs.verdict != 'not-found'
+        env:
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          STATUSES: ${{ steps.try.outputs.statuses }}
+          STATUS_COUNT: ${{ steps.try.outputs.status-count }}
+          MAX_STATUSES: 250
+        run: |
+          published=0
+          skipped=0
+
+          publish() {
+            local attempt
+            for attempt in 1 2; do
+              if gh api --silent --method POST "repos/${GH_REPO}/statuses/${HEAD_SHA}" \
+                   -f state="$1" -f context="$2" -f description="$3" -f target_url="$4"; then
+                return 0
+              fi
+              echo "status POST for ${2} failed on attempt ${attempt}"
+              sleep 20
+            done
+            return 1
+          }
+
+          while IFS=$'\t' read -r _ state context description target_url; do
+            if [[ "${published}" -ge "${MAX_STATUSES}" ]]; then
+              skipped=$((skipped + 1))
+              continue
+            fi
+            if publish "${state}" "${context}" "${description}" "${target_url}"; then
+              published=$((published + 1))
+            else
+              echo "::warning::could not publish a status for ${context}"
+              skipped=$((skipped + 1))
+            fi
+            sleep 0.8
+          done <"${STATUSES}"
+
+          echo "Published ${published} of ${STATUS_COUNT} status(es)"
+          if [[ "${skipped}" -gt 0 ]]; then
+            echo "::warning::${skipped} job(s) got no status, see the try push for the full picture"
+          fi
