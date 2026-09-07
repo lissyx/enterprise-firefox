@@ -1,0 +1,23 @@
+---
+# Which thunderbird-desktop tree the `comm-decision` task builds, and where it
+# comes from. This is the counterpart of the `comm/.gecko_rev.yml` that pins
+# Firefox in the Thunderbird tree.
+#
+# The keys are the environment variables `run-task` checks the comm repository
+# out from, and are read by `gecko_taskgraph.transforms.comm_decision`.
+#
+# COMM_HEAD_REV is optional: leave it out to build the tip of COMM_HEAD_REF,
+# which is what run-task resolved it to. Note that the tip is whatever it
+# happens to be when the task runs, so the graph it produces is not
+# reproducible.
+COMM_BASE_REPOSITORY: https://github.com/thunderbird/thunderbird-desktop
+COMM_HEAD_REPOSITORY: https://github.com/thunderbird/thunderbird-desktop
+# Enterprise branches do not share their name with the thunderbird-desktop
+# branch they build against, so the mapping is explicit. Anything else (pull
+# requests, try and the dev repositories) builds against comm main.
+COMM_HEAD_REF:
+    by-head-ref:
+        'refs/heads/enterprise-beta': refs/heads/beta
+        'refs/heads/enterprise-release': refs/heads/release
+        default: refs/heads/main
+COMM_HEAD_REV: a96b27f4338eb89f38d8981a3a10ca5cdca5e3c2

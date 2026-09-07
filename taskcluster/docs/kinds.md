@@ -131,6 +131,13 @@ Find the try push of a pull request's branch and generate one task per task of
 that push, each reporting the outcome of the task it monitors on the pull
 request.
 
+## comm-decision
+
+Check out the thunderbird-desktop tree that goes with this Firefox branch and
+run its decision task, which creates the whole Thunderbird task graph in its own
+task group. Which tree that is comes from `comm_rev.yml`, at the root of this
+repository.
+
 ## code-review
 
 Publish issues found by source-test tasks on Phabricator.

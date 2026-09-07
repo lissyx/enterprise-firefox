@@ -5,6 +5,7 @@ yamllint:
         - .cron.yml
         - .taskcluster.yml
         - browser/config/
+        - comm_rev.yml
         - python/mozlint/
         - security/nss/.taskcluster.yml
         - taskcluster

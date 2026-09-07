@@ -1,0 +1,74 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+---
+loader: taskgraph.loader.transform:loader
+
+transforms:
+    - gecko_taskgraph.transforms.comm_decision:decision_command
+    - gecko_taskgraph.transforms.job:transforms
+    - gecko_taskgraph.transforms.comm_decision:comm_checkout
+    - gecko_taskgraph.transforms.task:transforms
+
+tasks:
+    decision:
+        label: comm-decision
+        description: The task that creates all Thunderbird tasks in the task graph
+
+        # Thunderbird is only built from the Enterprise branches and their pull
+        # requests. The try and dev repositories build it too, but their target
+        # task method only selects what a push asks for, hence `always-target`
+        # (see `enable_always_target` in gecko_taskgraph.decision).
+        run-on-repo-type: [git]
+        run-on-projects: ['enterprise-firefox']
+        always-target: true
+
+        worker-type: decision
+
+        treeherder:
+            symbol: DC
+            kind: other
+            tier: 1
+            platform: gecko-decision/opt
+
+        # Surfaces this task, and through it the Thunderbird graph, on the pull
+        # request that created it.
+        routes:
+            - checks
+
+        worker:
+            # The image the Firefox decision task runs on, which is where
+            # `mach taskgraph decision` is known to work.
+            docker-image: {in-tree: decision}
+            max-run-time: 1800
+            taskcluster-proxy: true
+            chain-of-trust: true
+            allow-ptrace: false
+            # VOLUMEs are read from the Dockerfile of this image only, and the
+            # checkout one is declared by its parent.
+            volumes:
+                - /builds/worker/checkouts
+            env:
+                MOZ_AUTOMATION: '1'
+                # mach generates pyc files when reading `mach_commands.py`.
+                # This causes cached_task digest generation to be random for
+                # some tasks. Disable bytecode generation to work around that.
+                PYTHONDONTWRITEBYTECODE: '1'
+            artifacts:
+                - type: directory
+                  name: public
+                  path: /builds/worker/artifacts
+                - type: directory
+                  name: public/docker-contexts
+                  path: /builds/worker/checkouts/gecko/docker-contexts
+                  # This needs to be at least the deadline of the decision task
+                  # + the docker-image task deadlines. It is set to a week to
+                  # allow for some time for debugging, but they are not useful
+                  # long-term.
+                  expires-after: 7 days
+
+        run:
+            using: run-task
+            cwd: '{checkout}'
+            # Replaced by gecko_taskgraph.transforms.comm_decision.
+            command: 'false'
